@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/sidebar"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
+import { title } from "node:process"
 
 // This is sample data.
 const data = {
@@ -100,6 +101,28 @@ const data = {
         },
       ]
     },
+    {
+      title: "Configuracion y Administracion",
+      url: "#",
+      items: [
+        {
+          title: "Administracion de Usuarios",
+          url: "/pages/user-management",
+        },
+        {
+          title: "Vehiculos",
+          url: "/pages/vehicles",
+        },
+        {
+          title: "Empleados",
+          url: "/pages/employees",
+        },
+        {
+          title: "Donantes",
+          url: "/pages/donante",
+        }
+      ]
+    }
   ],
 }
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
