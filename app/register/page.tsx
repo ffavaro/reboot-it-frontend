@@ -4,6 +4,8 @@ import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { useRegister } from '@/hooks/use-auth';
+import { toast } from 'react-toastify';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -13,19 +15,52 @@ export default function RegisterPage() {
     confirmPassword: '',
   });
 
+  const { register, isLoading, error } = useRegister();
+
+  if (error) {
+    toast.error('Error al registrar: ' + error.message);
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-rose-100 px-4">
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden p-8">
+            <h1 className="text-3xl font-bold text-gray-700 text-center">Registrando...</h1>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
       alert('Las contraseñas no coinciden');
       return;
     }
-    console.log('Registering user:', formData);
-    // Add registration logic here
+    await register({
+      name: formData.name,
+      email: formData.email,
+      password: formData.password,
+    });
+    if (!error)
+    {
+      toast.success('Registro exitoso! Por favor, inicia sesión.');
+      setFormData({
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+      });
+    }
   };
+
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-rose-100 px-4">
@@ -63,7 +98,7 @@ export default function RegisterPage() {
                 <FieldLabel htmlFor="email" className="text-sm font-semibold text-gray-700">
                   Correo Electrónico
                 </FieldLabel>
-                <Input        
+                <Input
                   id="email"
                   name="email"
                   type="email"
@@ -97,7 +132,7 @@ export default function RegisterPage() {
                 <FieldLabel htmlFor="confirmPassword" className="text-sm font-semibold text-gray-700">
                   Confirmar Contraseña
                 </FieldLabel>
-                <Input 
+                <Input
                   id="confirmPassword"
                   name="confirmPassword"
                   type="password"
@@ -110,8 +145,8 @@ export default function RegisterPage() {
               </div>
 
               {/* Submit Button */}
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full mt-6  text-white font-semibold py-2.5 rounded-lg transition duration-200 transform hover:scale-105"
               >
                 Registrarse

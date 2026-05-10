@@ -1,3 +1,4 @@
+'use client'
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -8,11 +9,50 @@ import {
   FieldSeparator,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-
+import { useLogin } from "@/hooks/use-auth"
+import { toast } from "react-toastify"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"form">) {
+  const { login, isLoading, error } = useLogin()
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!error) return
+    if (error.statusCode === 401) {
+      toast.error("Usuario o contraseña incorrectos")
+    } else {
+      toast.error("Error al iniciar sesión")
+    }
+  }, [error])
+
+  const onHandleLogin = async (e:any) => {
+    e.preventDefault()
+    if (!email || !password) {
+      toast.error("Por favor, ingresa tu correo electrónico y contraseña")
+      return
+    }
+    const result = await login({ email, password })
+    if (result) {
+      router.push("/pages/dashboard")
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center gap-4">
+        <div className="loader" />
+        <p className="text-sm  text-black">Iniciando sesión...</p>
+      </div>
+    )
+  }
+  
+
   return (
     <form className={cn("flex flex-col gap-6", className)} {...props}>
       <FieldGroup>
@@ -24,7 +64,7 @@ export function LoginForm({
         </div>
         <Field>
           <FieldLabel htmlFor="email">Email</FieldLabel>
-          <Input id="email" type="email" placeholder="m@example.com" required />
+          <Input id="email" type="email" placeholder="m@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
         <Field>
           <div className="flex items-center">
@@ -36,10 +76,10 @@ export function LoginForm({
               ¿Olvidaste tu contraseña?
             </a>
           </div>
-          <Input id="password" type="password" required />
+          <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
         <Field>
-          <Button type="submit">Iniciar Sesión</Button>
+          <Button type="submit" onClick={onHandleLogin}>Iniciar Sesión</Button>
         </Field>
         <FieldSeparator>O continuar con</FieldSeparator>
         <Field>

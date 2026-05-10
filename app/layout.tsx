@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Figtree, Roboto } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils";
+import { ToastContainer } from "react-toastify";
 
 const robotoHeading = Roboto({subsets:['latin'],variable:'--font-heading'});
 
@@ -25,6 +26,7 @@ export default function RootLayout({
       className={cn("antialiased", fontMono.variable, "font-sans", figtree.variable, robotoHeading.variable)}
     >
       <body>
+        <ToastContainer/>
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
