@@ -1,5 +1,6 @@
 import useSWRMutation from "swr/mutation"
-import { authApi, type LoginPayload } from "@/lib/api"
+import { authApi } from "@/lib/api"
+import { LoginPayload } from "@/lib/type"
 
 export function useLogin() {
   const { trigger, isMutating, error } = useSWRMutation(
