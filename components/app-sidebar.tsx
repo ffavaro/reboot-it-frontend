@@ -1,8 +1,8 @@
 "use client"
 
 import * as React from "react"
+import { usePathname } from "next/navigation"
 
-import { SearchForm } from "@/components/search-form"
 import { VersionSwitcher } from "@/components/version-switcher"
 import { useIsMobile } from "@/hooks/use-mobile"
 import {
@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/sidebar"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
-import { title } from "node:process"
 
 // This is sample data.
 const data = {
@@ -127,6 +126,7 @@ const data = {
 }
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const isMobile = useIsMobile()
+  const pathname = usePathname()
 
   return (
     <Sidebar {...props}>
@@ -159,7 +159,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     {item.items.map((item) => (
                       <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton
-                          isActive={item.isActive}
+                          isActive={pathname === item.url}
                           render={<a href={item.url} />}
                         >
                           {item.title}
