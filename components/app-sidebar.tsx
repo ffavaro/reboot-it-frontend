@@ -34,9 +34,9 @@ const data = {
       title: "Gestion de Donantes",
       url: "#",
       items: [
-        {
+         {
           title: "Donantes",
-          url: "#",
+          url: "/pages/donante",
         },
         {
           title: "Agenda",
@@ -48,9 +48,9 @@ const data = {
       title: "Logistica y Distribucion",
       url: "#",
       items: [
-        {
+       {
           title: "Vehiculos",
-          url: "#",
+          url: "/pages/vehicles",
         },
       ],
     },
@@ -60,22 +60,6 @@ const data = {
       items: [
         {
           title: "Accessibility",
-          url: "#",
-        },
-        {
-          title: "Fast Refresh",
-          url: "#",
-        },
-        {
-          title: "Next.js Compiler",
-          url: "#",
-        },
-        {
-          title: "Supported Browsers",
-          url: "#",
-        },
-        {
-          title: "Turbopack",
           url: "#",
         },
       ],
@@ -101,25 +85,51 @@ const data = {
       ]
     },
     {
-      title: "Configuracion y Administracion",
+      title: "Medio de Almacenamiento",
       url: "#",
       items: [
         {
-          title: "Administracion de Usuarios",
-          url: "/pages/user-management",
+          title: "Medio de Almacenamiento",
+          url: "/pages/medio-almacenamiento",
         },
         {
-          title: "Vehiculos",
-          url: "/pages/vehicles",
+          title: "Tipos",
+          url: "/pages/medio-almacenamiento/types",
         },
+        {
+          title: "Marcas",
+          url: "/pages/medio-almacenamiento/brands",
+        },
+        {
+          title: "Modelos",
+          url: "/pages/medio-almacenamiento/models",
+        }
+      ]
+    },
+    {
+      title: "Configuracion",
+      url: "#",
+      items: [
+        {
+          title: "Adm. de Usuarios",
+          url: "/pages/user-management",
+        }, 
         {
           title: "Empleados",
           url: "/pages/employees",
+        },   
+        {
+          title: "Tipos de Material",
+          url: "/pages/material/material-type",
         },
         {
-          title: "Donantes",
-          url: "/pages/donante",
-        }
+          title: "Condicion de Material",
+          url: "/pages/material/material-condition",
+        },
+        {
+          title: "Gestora Ambiental",
+          url: "/pages/gestor-ambiental",
+        },   
       ]
     }
   ],
@@ -142,7 +152,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <Collapsible
             key={item.title}
             title={item.title}
-            defaultOpen
+            defaultOpen={item.items.some((subItem) => subItem.url === pathname)}
             className="group/collapsible"
           >
             <SidebarGroup>
