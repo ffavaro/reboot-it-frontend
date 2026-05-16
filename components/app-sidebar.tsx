@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/sidebar"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
+import { title } from "node:process"
 
 // This is sample data.
 const data = {
@@ -42,6 +43,10 @@ const data = {
           title: "Agenda",
           url: "#",
         },
+        {
+          title: "Certificado de disposicion",
+          url: "/pages/certificado-disposicion",
+        }
       ],
     },
     {
@@ -68,27 +73,7 @@ const data = {
       title: "Inventario y almacenamiento",
       url: "#",
       items: [
-        {
-          title: "Stock Management",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Reportes y Analitica",
-      url: "#",
-      items: [
-        {
-          title: "Reports Dashboard",
-          url: "#",
-        },
-      ]
-    },
-    {
-      title: "Medio de Almacenamiento",
-      url: "#",
-      items: [
-        {
+       {
           title: "Medio de Almacenamiento",
           url: "/pages/medio-almacenamiento",
         },
@@ -103,7 +88,17 @@ const data = {
         {
           title: "Modelos",
           url: "/pages/medio-almacenamiento/models",
-        }
+        },
+      ],
+    },
+    {
+      title: "Reportes y Analitica",
+      url: "#",
+      items: [
+        {
+          title: "Reports Dashboard",
+          url: "#",
+        },
       ]
     },
     {
@@ -111,25 +106,37 @@ const data = {
       url: "#",
       items: [
         {
-          title: "Adm. de Usuarios",
-          url: "/pages/user-management",
-        }, 
+          title: "Condicion de Material",
+          url: "/pages/material/material-condition",
+        },
         {
           title: "Empleados",
           url: "/pages/employees",
-        },   
+        },
+        {
+          title:"Estado de turno",
+          url: "/pages/estado-turno",
+        },
+        {
+          title: "Empleado Transportista",
+          url: "/pages/empleado-transportista",
+        },
+        {
+          title: "Gestora Ambiental",
+          url: "/pages/gestor-ambiental",
+        },
+        {
+          title: "Roles",
+          url: "/pages/roles",
+        },
         {
           title: "Tipos de Material",
           url: "/pages/material/material-type",
         },
         {
-          title: "Condicion de Material",
-          url: "/pages/material/material-condition",
-        },
-        {
-          title: "Gestora Ambiental",
-          url: "/pages/gestor-ambiental",
-        },   
+          title: "Usuarios",
+          url: "/pages/user-management",
+        }, 
       ]
     }
   ],
