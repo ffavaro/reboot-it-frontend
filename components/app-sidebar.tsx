@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/sidebar"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
+import { title } from "node:process"
 
 // This is sample data.
 const data = {
@@ -34,23 +35,27 @@ const data = {
       title: "Gestion de Donantes",
       url: "#",
       items: [
-        {
+         {
           title: "Donantes",
-          url: "#",
+          url: "/pages/donante",
         },
         {
           title: "Agenda",
           url: "#",
         },
+        {
+          title: "Certificado de disposicion",
+          url: "/pages/certificado-disposicion",
+        }
       ],
     },
     {
       title: "Logistica y Distribucion",
       url: "#",
       items: [
-        {
+       {
           title: "Vehiculos",
-          url: "#",
+          url: "/pages/vehicles",
         },
       ],
     },
@@ -62,31 +67,27 @@ const data = {
           title: "Accessibility",
           url: "#",
         },
-        {
-          title: "Fast Refresh",
-          url: "#",
-        },
-        {
-          title: "Next.js Compiler",
-          url: "#",
-        },
-        {
-          title: "Supported Browsers",
-          url: "#",
-        },
-        {
-          title: "Turbopack",
-          url: "#",
-        },
       ],
     },
     {
       title: "Inventario y almacenamiento",
       url: "#",
       items: [
+       {
+          title: "Medio de Almacenamiento",
+          url: "/pages/medio-almacenamiento",
+        },
         {
-          title: "Stock Management",
-          url: "#",
+          title: "Tipos",
+          url: "/pages/medio-almacenamiento/types",
+        },
+        {
+          title: "Marcas",
+          url: "/pages/medio-almacenamiento/brands",
+        },
+        {
+          title: "Modelos",
+          url: "/pages/medio-almacenamiento/models",
         },
       ],
     },
@@ -101,25 +102,41 @@ const data = {
       ]
     },
     {
-      title: "Configuracion y Administracion",
+      title: "Configuracion",
       url: "#",
       items: [
         {
-          title: "Administracion de Usuarios",
-          url: "/pages/user-management",
-        },
-        {
-          title: "Vehiculos",
-          url: "/pages/vehicles",
+          title: "Condicion de Material",
+          url: "/pages/material/material-condition",
         },
         {
           title: "Empleados",
           url: "/pages/employees",
         },
         {
-          title: "Donantes",
-          url: "/pages/donante",
-        }
+          title:"Estado de turno",
+          url: "/pages/estado-turno",
+        },
+        {
+          title: "Empleado Transportista",
+          url: "/pages/empleado-transportista",
+        },
+        {
+          title: "Gestora Ambiental",
+          url: "/pages/gestor-ambiental",
+        },
+        {
+          title: "Roles",
+          url: "/pages/roles",
+        },
+        {
+          title: "Tipos de Material",
+          url: "/pages/material/material-type",
+        },
+        {
+          title: "Usuarios",
+          url: "/pages/user-management",
+        }, 
       ]
     }
   ],
@@ -142,7 +159,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <Collapsible
             key={item.title}
             title={item.title}
-            defaultOpen
+            defaultOpen={item.items.some((subItem) => subItem.url === pathname)}
             className="group/collapsible"
           >
             <SidebarGroup>
