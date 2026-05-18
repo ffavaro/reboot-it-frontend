@@ -25,9 +25,8 @@ import {
 } from "@/components/ui/sidebar"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
-import { title } from "node:process"
-
 // This is sample data.
+
 const data = {
   versions: ["0.0.1"],
   navMain: [
@@ -44,9 +43,25 @@ const data = {
           url: "#",
         },
         {
+          title: "Lotes",
+          url: "/pages/lote",
+        },
+        {
           title: "Certificado de disposicion",
           url: "/pages/certificado-disposicion",
-        }
+        },
+        {
+          title: "Clasificacion",
+          url: "/pages/clasificacion",
+        },
+        {
+          title: "Constancia de retiro",
+          url: "/pages/constancia-retiro",
+        },
+        {
+          title: "Registro fotográfico",
+          url: "/pages/registro-fotografico",
+        },
       ],
     },
     {
@@ -57,6 +72,10 @@ const data = {
           title: "Vehiculos",
           url: "/pages/vehicles",
         },
+        {
+          title: "Retiros",
+          url: "/pages/retiro",
+        },
       ],
     },
     {
@@ -64,8 +83,8 @@ const data = {
       url: "#",
       items: [
         {
-          title: "Accessibility",
-          url: "#",
+          title: "Materiales",
+          url: "/pages/material",
         },
       ],
     },
@@ -88,6 +107,18 @@ const data = {
         {
           title: "Modelos",
           url: "/pages/medio-almacenamiento/models",
+        },
+        {
+          title: "Racks",
+          url: "/pages/rack",
+        },
+        {
+          title: "Proceso de destrucción",
+          url: "/pages/proceso-destruccion",
+        },
+        {
+          title: "Pallets",
+          url: "/pages/pallet",
         },
       ],
     },
