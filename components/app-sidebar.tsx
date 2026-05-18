@@ -26,6 +26,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
 // This is sample data.
+
 const data = {
   versions: ["0.0.1"],
   navMain: [
