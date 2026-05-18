@@ -2,6 +2,7 @@
 
 import { Recycle, Zap, Shield, TrendingUp, ArrowRight } from "lucide-react"
 import Link from "next/link"
+import { ChatWidget } from "@/components/chat-widget"
 
 export default function HomePage() {
   return (
@@ -232,6 +233,9 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
+
+      {/* Chat Widget */}
+      <ChatWidget />
     </div>
   )
 }
