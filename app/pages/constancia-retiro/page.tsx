@@ -4,14 +4,8 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet"
+import { FormModal } from "@/components/ui/form-modal"
+import { DataTable, TableColumn } from "@/components/ui/data-table"
 import {
   useConstanciasRetiro,
   useCreateConstanciaRetiro,
@@ -19,19 +13,54 @@ import {
   useDeleteConstanciaRetiro,
 } from "@/hooks/use-constancia-retiro"
 import { useEmpleadosFull } from "@/hooks/use-employees"
+import { useDonantes } from "@/hooks/use-donantes"
+import { useDonaciones } from "@/hooks/use-donacion"
+import { useRetiros } from "@/hooks/use-retiro"
+import { getUser } from "@/lib/auth-utils"
+import { formatDate } from "@/lib/utils/helpers"
 import type { ConstanciaRetiro } from "@/lib/type/constancia-retiro"
 import type { Empleado } from "@/lib/type/user"
+import type { Donante } from "@/lib/type/donante"
+import type { Donacion } from "@/lib/type/donacion"
+import type { Retiro } from "@/lib/type/retiro"
 
 const EMPTY_FORM = { retiroId: "", fechaEmision: "", observaciones: "", tecnicoId: "" }
 
-function formatDate(iso: string | null) {
-  if (!iso) return null
-  return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
-}
+const columns: TableColumn<ConstanciaRetiro>[] = [
+  {
+    key: "retiroId",
+    header: "Retiro",
+    cell: (c) => `#${c.retiroId}`,
+    className: "font-mono text-xs font-medium",
+  },
+  {
+    key: "fechaEmision",
+    header: "Fecha emisión",
+    cell: (c) => formatDate(c.fechaEmision) ?? <span className="italic text-muted-foreground">—</span>,
+    className: "text-muted-foreground",
+  },
+  {
+    key: "tecnico",
+    header: "Técnico",
+    cell: (c) =>
+      c.tecnico
+        ? `${c.tecnico.nombre} ${c.tecnico.apellido}`
+        : <span className="italic text-muted-foreground">—</span>,
+  },
+  {
+    key: "observaciones",
+    header: "Observaciones",
+    cell: (c) => c.observaciones ?? <span className="italic text-muted-foreground">—</span>,
+    className: "text-muted-foreground max-w-xs truncate",
+  },
+]
 
 export default function ConstanciaRetiroPage() {
   const { constancias, isLoading, mutate } = useConstanciasRetiro()
   const { empleados } = useEmpleadosFull()
+  const { donantes } = useDonantes()
+  const { donaciones } = useDonaciones()
+  const { retiros } = useRetiros()
   const { createConstancia, isLoading: isCreating } = useCreateConstanciaRetiro()
   const { updateConstancia, isLoading: isUpdating } = useUpdateConstanciaRetiro()
   const { deleteConstancia, isLoading: isDeleting } = useDeleteConstanciaRetiro()
@@ -40,9 +69,30 @@ export default function ConstanciaRetiroPage() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<ConstanciaRetiro | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
-  const [deletingId, setDeletingId] = useState<number | null>(null)
 
-  const filtered = constancias.filter((c: ConstanciaRetiro) => {
+  const user = getUser()
+  const isDonante = user?.rol?.nombre?.toLowerCase() === "donante"
+  const myDonante = isDonante
+    ? donantes.find((d: Donante) => d.usuarioId === user?.id) ?? null
+    : null
+
+  const visibleConstancias = isDonante && myDonante
+    ? (() => {
+        const myDonacionIds = new Set(
+          donaciones
+            .filter((d: Donacion) => d.donanteId === myDonante.id)
+            .map((d: Donacion) => d.id)
+        )
+        const myRetiroIds = new Set(
+          retiros
+            .filter((r: Retiro) => myDonacionIds.has(r.donacionId))
+            .map((r: Retiro) => r.id)
+        )
+        return constancias.filter((c: ConstanciaRetiro) => myRetiroIds.has(c.retiroId))
+      })()
+    : constancias
+
+  const filtered = visibleConstancias.filter((c: ConstanciaRetiro) => {
     const q = search.toLowerCase()
     const tecnico = c.tecnico ? `${c.tecnico.nombre} ${c.tecnico.apellido}`.toLowerCase() : ""
     return (
@@ -102,8 +152,6 @@ export default function ConstanciaRetiroPage() {
       toast.success("Constancia de retiro desactivada")
     } catch {
       toast.error("Error al eliminar la constancia de retiro")
-    } finally {
-      setDeletingId(null)
     }
   }
 
@@ -126,170 +174,92 @@ export default function ConstanciaRetiroPage() {
         <span className="text-sm text-muted-foreground">
           {filtered.length} constancia{filtered.length !== 1 ? "s" : ""}
         </span>
-        <Button className="ml-auto" onClick={openCreate}>
-          + Nueva constancia
-        </Button>
+        {!isDonante && (
+          <Button className="ml-auto" onClick={openCreate}>
+            + Nueva constancia
+          </Button>
+        )}
       </div>
 
-      <div className="rounded-2xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Retiro</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Fecha emisión</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Técnico</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Observaciones</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
-                  Cargando constancias...
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
-                  {search
-                    ? "No se encontraron constancias con ese criterio."
-                    : "No hay constancias de retiro registradas."}
-                </td>
-              </tr>
-            ) : (
-              filtered.map((c: ConstanciaRetiro) => (
-                <tr
-                  key={c.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                >
-                  <td className="px-4 py-3 font-mono text-xs font-medium">
-                    #{c.retiroId}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatDate(c.fechaEmision) ?? <span className="italic">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    {c.tecnico
-                      ? `${c.tecnico.nombre} ${c.tecnico.apellido}`
-                      : <span className="italic text-muted-foreground">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground max-w-xs truncate">
-                    {c.observaciones ?? <span className="italic">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      {deletingId === c.id ? (
-                        <>
-                          <span className="text-xs text-muted-foreground">¿Confirmar?</span>
-                          <Button size="xs" variant="destructive" onClick={() => handleDelete(c.id)} disabled={isDeleting}>
-                            Eliminar
-                          </Button>
-                          <Button size="xs" variant="ghost" onClick={() => setDeletingId(null)}>
-                            Cancelar
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button size="xs" variant="outline" onClick={() => openEdit(c)}>
-                            Editar
-                          </Button>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeletingId(c.id)}
-                          >
-                            Eliminar
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        data={filtered}
+        columns={columns}
+        isLoading={isLoading}
+        loadingText="Cargando constancias..."
+        emptyText="No hay constancias de retiro registradas."
+        emptySearchText="No se encontraron constancias con ese criterio."
+        search={search}
+        onEdit={isDonante ? undefined : openEdit}
+        onDelete={isDonante ? undefined : handleDelete}
+        isDeleting={isDeleting}
+      />
 
-      <Sheet open={sheetOpen} onOpenChange={(open) => !open && setSheetOpen(false)}>
-        <SheetContent side="right">
-          <SheetHeader>
-            <SheetTitle>{editing ? "Editar constancia" : "Nueva constancia de retiro"}</SheetTitle>
-            <SheetDescription>
-              {editing
-                ? `Modificá los datos de la constancia del retiro #${editing.retiroId}.`
-                : "Registrá una nueva constancia de retiro."}
-            </SheetDescription>
-          </SheetHeader>
+      <FormModal
+        open={sheetOpen}
+        onOpenChange={(open) => !open && setSheetOpen(false)}
+        title={editing ? "Editar constancia" : "Nueva constancia de retiro"}
+        description={
+          editing
+            ? `Modificá los datos de la constancia del retiro #${editing.retiroId}.`
+            : "Registrá una nueva constancia de retiro."
+        }
+        onSave={handleSave}
+        isLoading={isCreating || isUpdating}
+        saveLabel={editing ? "Guardar cambios" : "Crear constancia"}
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">ID de Retiro</label>
+          <Input
+            type="number"
+            value={form.retiroId}
+            onChange={(e) => setForm((f) => ({ ...f, retiroId: e.target.value }))}
+            placeholder="Ej: 1"
+            min={1}
+          />
+        </div>
 
-          <div className="flex flex-col gap-5 px-6 py-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">ID de Retiro</label>
-              <Input
-                type="number"
-                value={form.retiroId}
-                onChange={(e) => setForm((f) => ({ ...f, retiroId: e.target.value }))}
-                placeholder="Ej: 1"
-                min={1}
-              />
-            </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Fecha de emisión <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            type="date"
+            value={form.fechaEmision}
+            onChange={(e) => setForm((f) => ({ ...f, fechaEmision: e.target.value }))}
+          />
+        </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Fecha de emisión <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <Input
-                type="date"
-                value={form.fechaEmision}
-                onChange={(e) => setForm((f) => ({ ...f, fechaEmision: e.target.value }))}
-              />
-            </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Técnico responsable <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <select
+            value={form.tecnicoId}
+            onChange={(e) => setForm((f) => ({ ...f, tecnicoId: e.target.value }))}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Sin técnico asignado</option>
+            {empleados.map((e: Empleado) => (
+              <option key={e.id} value={e.id}>
+                {e.nombre} {e.apellido}{e.cargo ? ` — ${e.cargo}` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Técnico responsable <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <select
-                value={form.tecnicoId}
-                onChange={(e) => setForm((f) => ({ ...f, tecnicoId: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="">Sin técnico asignado</option>
-                {empleados.map((e: Empleado) => (
-                  <option key={e.id} value={e.id}>
-                    {e.nombre} {e.apellido}{e.cargo ? ` — ${e.cargo}` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Observaciones <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <textarea
-                value={form.observaciones}
-                onChange={(e) => setForm((f) => ({ ...f, observaciones: e.target.value }))}
-                placeholder="Ej: Material recibido conforme. Sin observaciones."
-                rows={4}
-                className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
-              />
-            </div>
-          </div>
-
-          <SheetFooter>
-            <Button onClick={handleSave} disabled={isCreating || isUpdating} className="w-full">
-              {isCreating || isUpdating
-                ? "Guardando..."
-                : editing
-                  ? "Guardar cambios"
-                  : "Crear constancia"}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Observaciones <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <textarea
+            value={form.observaciones}
+            onChange={(e) => setForm((f) => ({ ...f, observaciones: e.target.value }))}
+            placeholder="Ej: Material recibido conforme. Sin observaciones."
+            rows={4}
+            className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+          />
+        </div>
+      </FormModal>
     </div>
   )
 }

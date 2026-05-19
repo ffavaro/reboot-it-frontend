@@ -13,6 +13,7 @@ import { useLogin } from "@/hooks/use-auth"
 import { toast } from "react-toastify"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { saveSession } from "@/lib/auth-utils"
 export function LoginForm({
   className,
   ...props
@@ -31,15 +32,20 @@ export function LoginForm({
     }
   }, [error])
 
-  const onHandleLogin = async (e:any) => {
+  const onHandleLogin = async (e: React.BaseSyntheticEvent) => {
     e.preventDefault()
     if (!email || !password) {
       toast.error("Por favor, ingresa tu correo electrónico y contraseña")
       return
     }
-    const result = await login({ email, password })
-    if (result) {
-      router.push("/pages/dashboard")
+    try {
+      const result = await login({ email, password })
+      if (result?.access_token) {
+        saveSession(result.access_token)
+        router.push("/pages/dashboard")
+      }
+    } catch {
+        toast.error("Error al iniciar sesión")
     }
   }
 
@@ -54,7 +60,7 @@ export function LoginForm({
   
 
   return (
-    <form className={cn("flex flex-col gap-6", className)} {...props}>
+    <form className={cn("flex flex-col gap-6", className)} onSubmit={onHandleLogin} {...props}>
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-2xl font-bold">Inicio de Sesion</h1>
@@ -79,7 +85,7 @@ export function LoginForm({
           <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
         <Field>
-          <Button type="submit" onClick={onHandleLogin}>Iniciar Sesión</Button>
+          <Button type="submit">Iniciar Sesión</Button>
         </Field>
         <FieldSeparator>O continuar con</FieldSeparator>
         <Field>
