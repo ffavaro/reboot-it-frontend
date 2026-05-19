@@ -4,7 +4,7 @@ import * as React from "react"
 import { usePathname } from "next/navigation"
 
 import { VersionSwitcher } from "@/components/version-switcher"
-import { useIsMobile } from "@/hooks/use-mobile"
+
 import {
   Collapsible,
   CollapsibleContent,
@@ -39,8 +39,12 @@ const data = {
           url: "/pages/donante",
         },
         {
-          title: "Agenda",
-          url: "#",
+          title: "Donaciones",
+          url: "/pages/donacion",
+        },
+        {
+          title: "Turnos",
+          url: "/pages/turno",
         },
         {
           title: "Lotes",
@@ -173,7 +177,6 @@ const data = {
   ],
 }
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const isMobile = useIsMobile()
   const pathname = usePathname()
 
   return (
