@@ -4,22 +4,35 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet"
+import { DataTable } from "@/components/ui/data-table"
+import { FormModal } from "@/components/ui/form-modal"
 import { useModelos, useCreateModelo, useUpdateModelo, useDeleteModelo } from "@/hooks/use-modelo"
 import { useTipos } from "@/hooks/use-tipo"
 import { useMarcas } from "@/hooks/use-marca"
 import type { Modelo } from "@/lib/type/modelo"
 import type { Tipo } from "@/lib/type/tipo"
 import type { Marca } from "@/lib/type/marca"
+import type { TableColumn } from "@/components/ui/data-table"
 
 const EMPTY_FORM = { nombre: "", marcaId: "", tipoId: "" }
+
+const COLUMNS: TableColumn<Modelo>[] = [
+  {
+    key: "nombre",
+    header: "Nombre",
+    cell: (m) => <span className="font-medium">{m.nombre}</span>,
+  },
+  {
+    key: "marca",
+    header: "Marca",
+    cell: (m) => <span className="text-muted-foreground">{m.marca?.nombre ?? "—"}</span>,
+  },
+  {
+    key: "tipo",
+    header: "Tipo",
+    cell: (m) => <span className="text-muted-foreground">{m.tipo?.nombre ?? "—"}</span>,
+  },
+]
 
 export default function ModelosPage() {
   const { modelos, isLoading, mutate } = useModelos()
@@ -30,10 +43,9 @@ export default function ModelosPage() {
   const { deleteModelo, isLoading: isDeleting } = useDeleteModelo()
 
   const [search, setSearch] = useState("")
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Modelo | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
-  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const filtered = modelos.filter((m: Modelo) =>
     m.nombre.toLowerCase().includes(search.toLowerCase()) ||
@@ -44,13 +56,13 @@ export default function ModelosPage() {
   function openCreate() {
     setEditing(null)
     setForm(EMPTY_FORM)
-    setSheetOpen(true)
+    setModalOpen(true)
   }
 
   function openEdit(m: Modelo) {
     setEditing(m)
     setForm({ nombre: m.nombre, marcaId: String(m.marcaId), tipoId: String(m.tipoId) })
-    setSheetOpen(true)
+    setModalOpen(true)
   }
 
   async function handleSave() {
@@ -72,21 +84,19 @@ export default function ModelosPage() {
         toast.success("Modelo creado")
       }
       await mutate()
-      setSheetOpen(false)
+      setModalOpen(false)
     } catch {
       toast.error("Error al guardar el modelo")
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: number | string) {
     try {
-      await deleteModelo(id)
+      await deleteModelo(id as number)
       await mutate()
       toast.success("Modelo desactivado")
     } catch {
       toast.error("Error al eliminar el modelo")
-    } finally {
-      setDeletingId(null)
     }
   }
 
@@ -114,130 +124,70 @@ export default function ModelosPage() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Nombre</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Marca</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Tipo</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">
-                  Cargando modelos...
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">
-                  {search ? "No se encontraron modelos con ese criterio." : "No hay modelos registrados."}
-                </td>
-              </tr>
-            ) : (
-              filtered.map((m: Modelo) => (
-                <tr
-                  key={m.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                >
-                  <td className="px-4 py-3 font-medium">{m.nombre}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{m.marca?.nombre ?? "—"}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{m.tipo?.nombre ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      {deletingId === m.id ? (
-                        <>
-                          <span className="text-xs text-muted-foreground">¿Confirmar?</span>
-                          <Button size="xs" variant="destructive" onClick={() => handleDelete(m.id)} disabled={isDeleting}>
-                            Eliminar
-                          </Button>
-                          <Button size="xs" variant="ghost" onClick={() => setDeletingId(null)}>
-                            Cancelar
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button size="xs" variant="outline" onClick={() => openEdit(m)}>
-                            Editar
-                          </Button>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeletingId(m.id)}
-                          >
-                            Eliminar
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        data={filtered}
+        columns={COLUMNS}
+        isLoading={isLoading}
+        loadingText="Cargando modelos..."
+        emptyText="No hay modelos registrados."
+        emptySearchText="No se encontraron modelos con ese criterio."
+        search={search}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        isDeleting={isDeleting}
+      />
 
-      <Sheet open={sheetOpen} onOpenChange={(open) => !open && setSheetOpen(false)}>
-        <SheetContent side="right">
-          <SheetHeader>
-            <SheetTitle>{editing ? "Editar modelo" : "Nuevo modelo"}</SheetTitle>
-            <SheetDescription>
-              {editing ? `Modificá los datos de "${editing.nombre}".` : "Completá los datos del nuevo modelo."}
-            </SheetDescription>
-          </SheetHeader>
+      <FormModal
+        open={modalOpen}
+        onOpenChange={(open) => !open && setModalOpen(false)}
+        title={editing ? "Editar modelo" : "Nuevo modelo"}
+        description={
+          editing
+            ? `Modificá los datos de "${editing.nombre}".`
+            : "Completá los datos del nuevo modelo."
+        }
+        onSave={handleSave}
+        isLoading={isCreating || isUpdating}
+        saveLabel={editing ? "Guardar cambios" : "Crear modelo"}
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Nombre</label>
+          <Input
+            value={form.nombre}
+            onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
+            placeholder="Ej: Barracuda 2TB, Blue 1TB..."
+            maxLength={100}
+          />
+        </div>
 
-          <div className="flex flex-col gap-5 px-6 py-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Nombre</label>
-              <Input
-                value={form.nombre}
-                onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
-                placeholder="Ej: Barracuda 2TB, Blue 1TB..."
-                maxLength={100}
-              />
-            </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Marca</label>
+          <select
+            value={form.marcaId}
+            onChange={(e) => setForm((f) => ({ ...f, marcaId: e.target.value }))}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Seleccionar marca...</option>
+            {marcas.map((m: Marca) => (
+              <option key={m.id} value={m.id}>{m.nombre}</option>
+            ))}
+          </select>
+        </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Marca</label>
-              <select
-                value={form.marcaId}
-                onChange={(e) => setForm((f) => ({ ...f, marcaId: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="">Seleccionar marca...</option>
-                {marcas.map((m: Marca) => (
-                  <option key={m.id} value={m.id}>{m.nombre}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Tipo</label>
-              <select
-                value={form.tipoId}
-                onChange={(e) => setForm((f) => ({ ...f, tipoId: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="">Seleccionar tipo...</option>
-                {tipos.map((t: Tipo) => (
-                  <option key={t.id} value={t.id}>{t.nombre}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <SheetFooter>
-            <Button onClick={handleSave} disabled={isCreating || isUpdating} className="w-full">
-              {isCreating || isUpdating ? "Guardando..." : editing ? "Guardar cambios" : "Crear modelo"}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Tipo</label>
+          <select
+            value={form.tipoId}
+            onChange={(e) => setForm((f) => ({ ...f, tipoId: e.target.value }))}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Seleccionar tipo...</option>
+            {tipos.map((t: Tipo) => (
+              <option key={t.id} value={t.id}>{t.nombre}</option>
+            ))}
+          </select>
+        </div>
+      </FormModal>
     </div>
   )
 }

@@ -1,15 +1,17 @@
 'use client';
 
+import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
-import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { useRegister } from '@/hooks/use-auth';
 import { toast } from 'react-toastify';
-import { tipoDonanteApi, donantesApi } from '@/lib/api';
-import type { TipoDonante } from '@/lib/type/donante';
+import { useRegister } from '@/hooks/use-auth';
 import { jwtDecode } from 'jwt-decode';
-import type { TokenPayload } from '@/lib/auth-utils';
+import { TipoDonante } from '@/lib/type/donante';
+import { tipoDonanteApi, donantesApi } from '@/lib/api';
+import { TokenPayload } from '@/lib/auth-utils';
+import { validateEmail, validateCuitDni } from '@/lib/utils/helpers';
 import { useRouter } from 'next/navigation';
+import { ErrorResponse } from '@/lib/type/';
 
 const EMPTY_FORM = {
   tipoDonanteId: '',
@@ -25,15 +27,6 @@ const EMPTY_FORM = {
 
 type FormErrors = Partial<Record<keyof typeof EMPTY_FORM, string>>;
 
-function validateEmail(v: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-}
-
-function validateCuitDni(v: string) {
-  const digits = v.replace(/\D/g, '');
-  return digits.length === 8 || digits.length === 11;
-}
-
 function isLegalEntity(tipo: TipoDonante | undefined): boolean {
   if (!tipo) return false;
   const desc = tipo.descripcion.toLowerCase();
@@ -48,7 +41,7 @@ export default function RegisterPage() {
   const { register, isLoading } = useRegister();
   const router = useRouter();
   useEffect(() => {
-    tipoDonanteApi.getAll().then(setTipoDonantes).catch(() => {});
+    tipoDonanteApi.getAll().then(setTipoDonantes).catch(() => { });
   }, []);
 
   const selectedTipo = tipoDonantes.find((t) => String(t.id) === formData.tipoDonanteId);
@@ -144,8 +137,8 @@ export default function RegisterPage() {
       setTouched({});
       setErrors({});
       router.push('/login');
-    } catch {
-      toast.error('Error al completar el registro');
+    } catch (error: ErrorResponse | any) {
+      toast.error(error.message || 'Error al registrar. Intentá nuevamente.');
     }
   };
 
@@ -195,11 +188,10 @@ export default function RegisterPage() {
                 </label>
                 <select
                   id="tipoDonanteId"
-                  className={`flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm bg-white transition-colors focus-visible:outline-none focus-visible:ring-1 ${
-                    touched.tipoDonanteId && errors.tipoDonanteId
+                  className={`flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm bg-white transition-colors focus-visible:outline-none focus-visible:ring-1 ${touched.tipoDonanteId && errors.tipoDonanteId
                       ? 'border-red-400 focus-visible:ring-red-400'
                       : 'border-input focus-visible:ring-ring'
-                  }`}
+                    }`}
                   {...field('tipoDonanteId')}
                 >
                   <option value="">Seleccionar tipo...</option>
@@ -335,6 +327,13 @@ export default function RegisterPage() {
                       <FieldError name="confirmPassword" />
                     </div>
                   </div>
+                  <div className="text-center text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-400">
+                      Al registrarte aceptás nuestros{' '}
+                      <a href="#" className="underline">Términos</a> y{' '}
+                      <a href="#" className="underline">Política de Privacidad</a>
+                    </p>
+                  </div>
 
                   <Button type="submit" className="w-full h-10 text-sm font-semibold mt-2">
                     Registrarse
@@ -349,11 +348,6 @@ export default function RegisterPage() {
             <p className="text-xs text-gray-500">
               ¿Ya tienes una cuenta?{' '}
               <a href="/login" className="text-red-600 font-medium hover:underline">Iniciar sesión</a>
-            </p>
-            <p className="text-xs text-gray-400">
-              Al registrarte aceptás nuestros{' '}
-              <a href="#" className="underline">Términos</a> y{' '}
-              <a href="#" className="underline">Política de Privacidad</a>
             </p>
           </div>
         </div>

@@ -1,27 +1,27 @@
 import type { Rack } from "./rack"
-import type { MedioAlmacenamiento } from "./medio-almacenamiento"
+import type { Lote } from "./lote"
 
 export interface Pallet {
   id: number
   rackId: number
-  mdcId: number | null
+  loteId: number | null
   codigo: string | null
-  statusKg: number | null
+  peso_kg: number | null
   isActive: boolean
   rack?: Rack
-  medioAlmacenamiento?: MedioAlmacenamiento
+  lote?: Lote
 }
 
 export interface CreatePalletPayload {
   rackId: number
-  mdcId?: number
+  loteId?: number
   codigo?: string
-  statusKg?: number
+  peso_kg?: number
 }
 
 export interface UpdatePalletPayload {
   rackId?: number
-  mdcId?: number | null
+  loteId?: number | null
   codigo?: string | null
-  statusKg?: number | null
+  peso_kg?: number | null
 }

@@ -4,13 +4,32 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/app-sidebar";
 import { Separator } from "@base-ui/react";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb";
-
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { UserIcon, ChevronRight, LogOut } from "lucide-react"
+import { useEffect, useState } from "react";
+import { getUser, clearSession } from "@/lib/auth-utils"
+import { useRouter } from "next/navigation"
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const [user, setUser] = useState<ReturnType<typeof getUser>>(null)
+  const router = useRouter()
+  useEffect(() => { setUser(getUser()) }, [])
+
+  const handleLogout = () => {
+    clearSession()
+    router.push("/")
+  }
+
   return (
     <SidebarProvider defaultOpen={false}>
       <ThemeProvider defaultTheme="light">
@@ -27,10 +46,36 @@ export default function RootLayout({
                 <BreadcrumbList>
                   <BreadcrumbPage className="hidden md:block" />
                   <BreadcrumbItem>
-                    <BreadcrumbPage>Dashoboard</BreadcrumbPage>
+                    <BreadcrumbPage>Reboot IT</BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
+            </div>
+            <div className="ml-auto flex items-center gap-4">
+              {user && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="w-full">
+                    <div className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+                      <div className="flex flex-col text-left leading-tight">
+                        <span>{user.nombre}</span>
+                        <span className="text-xs font-normal text-muted-foreground">{user.email}</span>
+                      </div>
+                      <ChevronRight className="h-4 w-4 ml-auto" />
+                    </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => router.push("/pages/perfil")}>
+                      <UserIcon className="mr-2 h-4 w-4" />
+                      Mi Perfil
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout}>
+                     <LogOut className="mr-2 h-4 w-4" />
+                      Cerrar sesión
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </header>
           <main>

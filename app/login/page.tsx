@@ -24,7 +24,7 @@ export default function LoginPages() {
       </div>
       <div className="hidden lg:block w-full h-full overflow-hidden bg-black">
         <img
-          src="../../img/rebootit_login_v6.svg"
+          src="../../img/logo_reboot_it.png"
           alt="Ilustración de Reboot IT"
           className="w-full h-full object-cover"
         />

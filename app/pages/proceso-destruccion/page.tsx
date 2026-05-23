@@ -4,14 +4,9 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet"
+import { DataTable } from "@/components/ui/data-table"
+import type { TableColumn } from "@/components/ui/data-table"
+import { FormModal } from "@/components/ui/form-modal"
 import {
   useProcesosDestruccion,
   useCreateProcesoDestruccion,
@@ -41,6 +36,53 @@ function medioLabel(m: MedioAlmacenamiento) {
   return partes.join(" ")
 }
 
+const columns: TableColumn<ProcesoDestruccion>[] = [
+  {
+    key: "medio",
+    header: "Medio de almacenamiento",
+    cell: (p) => (
+      <span className="font-mono text-xs">
+        #{p.medioAlmacenamientoId}
+        {p.medioAlmacenamiento?.marca?.nombre && (
+          <span className="ml-2 font-sans text-muted-foreground not-italic">
+            {p.medioAlmacenamiento.marca.nombre}
+            {p.medioAlmacenamiento.modelo?.nombre && ` ${p.medioAlmacenamiento.modelo.nombre}`}
+          </span>
+        )}
+      </span>
+    ),
+  },
+  {
+    key: "metodo",
+    header: "Método",
+    cell: (p) =>
+      p.metodo ? (
+        <span className="inline-flex items-center rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800">
+          {p.metodo}
+        </span>
+      ) : (
+        <span className="italic text-muted-foreground">—</span>
+      ),
+  },
+  {
+    key: "fecha",
+    header: "Fecha",
+    cell: (p) => (
+      <span className="text-muted-foreground">
+        {formatDate(p.fecha) ?? <span className="italic">—</span>}
+      </span>
+    ),
+  },
+  {
+    key: "empleado",
+    header: "Empleado",
+    cell: (p) =>
+      p.empleado
+        ? `${p.empleado.nombre} ${p.empleado.apellido}`
+        : <span className="italic text-muted-foreground">—</span>,
+  },
+]
+
 export default function ProcesoDestruccionPage() {
   const { procesos, isLoading, mutate } = useProcesosDestruccion()
   const { empleados } = useEmpleadosFull()
@@ -50,10 +92,9 @@ export default function ProcesoDestruccionPage() {
   const { deleteProceso, isLoading: isDeleting } = useDeleteProcesoDestruccion()
 
   const [search, setSearch] = useState("")
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<ProcesoDestruccion | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
-  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const filtered = procesos.filter((p: ProcesoDestruccion) => {
     const q = search.toLowerCase()
@@ -68,7 +109,7 @@ export default function ProcesoDestruccionPage() {
   function openCreate() {
     setEditing(null)
     setForm(EMPTY_FORM)
-    setSheetOpen(true)
+    setModalOpen(true)
   }
 
   function openEdit(p: ProcesoDestruccion) {
@@ -79,7 +120,7 @@ export default function ProcesoDestruccionPage() {
       metodo: p.metodo ?? "",
       empleadoId: p.empleadoId ? String(p.empleadoId) : "",
     })
-    setSheetOpen(true)
+    setModalOpen(true)
   }
 
   async function handleSave() {
@@ -102,21 +143,19 @@ export default function ProcesoDestruccionPage() {
         toast.success("Proceso de destrucción creado")
       }
       await mutate()
-      setSheetOpen(false)
+      setModalOpen(false)
     } catch {
       toast.error("Error al guardar el proceso de destrucción")
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: number | string) {
     try {
-      await deleteProceso(id)
+      await deleteProceso(Number(id))
       await mutate()
       toast.success("Proceso de destrucción desactivado")
     } catch {
       toast.error("Error al eliminar el proceso de destrucción")
-    } finally {
-      setDeletingId(null)
     }
   }
 
@@ -144,185 +183,93 @@ export default function ProcesoDestruccionPage() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Medio de almacenamiento</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Método</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Fecha</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Empleado</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
-                  Cargando procesos de destrucción...
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
-                  {search
-                    ? "No se encontraron procesos con ese criterio."
-                    : "No hay procesos de destrucción registrados."}
-                </td>
-              </tr>
-            ) : (
-              filtered.map((p: ProcesoDestruccion) => (
-                <tr
-                  key={p.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                >
-                  <td className="px-4 py-3 font-mono text-xs">
-                    #{p.medioAlmacenamientoId}
-                    {p.medioAlmacenamiento?.marca?.nombre && (
-                      <span className="ml-2 font-sans text-muted-foreground not-italic">
-                        {p.medioAlmacenamiento.marca.nombre}
-                        {p.medioAlmacenamiento.modelo?.nombre && ` ${p.medioAlmacenamiento.modelo.nombre}`}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {p.metodo ? (
-                      <span className="inline-flex items-center rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800">
-                        {p.metodo}
-                      </span>
-                    ) : (
-                      <span className="italic text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatDate(p.fecha) ?? <span className="italic">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    {p.empleado
-                      ? `${p.empleado.nombre} ${p.empleado.apellido}`
-                      : <span className="italic text-muted-foreground">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      {deletingId === p.id ? (
-                        <>
-                          <span className="text-xs text-muted-foreground">¿Confirmar?</span>
-                          <Button size="xs" variant="destructive" onClick={() => handleDelete(p.id)} disabled={isDeleting}>
-                            Eliminar
-                          </Button>
-                          <Button size="xs" variant="ghost" onClick={() => setDeletingId(null)}>
-                            Cancelar
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button size="xs" variant="outline" onClick={() => openEdit(p)}>
-                            Editar
-                          </Button>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeletingId(p.id)}
-                          >
-                            Eliminar
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        data={filtered}
+        columns={columns}
+        isLoading={isLoading}
+        loadingText="Cargando procesos de destrucción..."
+        emptyText="No hay procesos de destrucción registrados."
+        emptySearchText="No se encontraron procesos con ese criterio."
+        search={search}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        isDeleting={isDeleting}
+      />
 
-      <Sheet open={sheetOpen} onOpenChange={(open) => !open && setSheetOpen(false)}>
-        <SheetContent side="right">
-          <SheetHeader>
-            <SheetTitle>{editing ? "Editar proceso de destrucción" : "Nuevo proceso de destrucción"}</SheetTitle>
-            <SheetDescription>
-              {editing
-                ? "Modificá los datos del proceso de destrucción."
-                : "Registrá un nuevo proceso de destrucción segura."}
-            </SheetDescription>
-          </SheetHeader>
+      <FormModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        title={editing ? "Editar proceso de destrucción" : "Nuevo proceso de destrucción"}
+        description={
+          editing
+            ? "Modificá los datos del proceso de destrucción."
+            : "Registrá un nuevo proceso de destrucción segura."
+        }
+        onSave={handleSave}
+        isLoading={isCreating || isUpdating}
+        saveLabel={editing ? "Guardar cambios" : "Crear proceso"}
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Medio de almacenamiento</label>
+          <select
+            value={form.medioAlmacenamientoId}
+            onChange={(e) => setForm((f) => ({ ...f, medioAlmacenamientoId: e.target.value }))}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Seleccionar medio...</option>
+            {medios.map((m: MedioAlmacenamiento) => (
+              <option key={m.id} value={m.id}>
+                {medioLabel(m)}
+              </option>
+            ))}
+          </select>
+        </div>
 
-          <div className="flex flex-col gap-5 px-6 py-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Medio de almacenamiento</label>
-              <select
-                value={form.medioAlmacenamientoId}
-                onChange={(e) => setForm((f) => ({ ...f, medioAlmacenamientoId: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="">Seleccionar medio...</option>
-                {medios.map((m: MedioAlmacenamiento) => (
-                  <option key={m.id} value={m.id}>
-                    {medioLabel(m)}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Método <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <select
+            value={form.metodo}
+            onChange={(e) => setForm((f) => ({ ...f, metodo: e.target.value }))}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Sin método especificado</option>
+            {METODOS.map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
+        </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Método <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <select
-                value={form.metodo}
-                onChange={(e) => setForm((f) => ({ ...f, metodo: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="">Sin método especificado</option>
-                {METODOS.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-            </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Fecha <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            type="date"
+            value={form.fecha}
+            onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))}
+          />
+        </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Fecha <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <Input
-                type="date"
-                value={form.fecha}
-                onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))}
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Empleado responsable <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <select
-                value={form.empleadoId}
-                onChange={(e) => setForm((f) => ({ ...f, empleadoId: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="">Sin empleado asignado</option>
-                {empleados.map((e: Empleado) => (
-                  <option key={e.id} value={e.id}>
-                    {e.nombre} {e.apellido}{e.cargo ? ` — ${e.cargo}` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <SheetFooter>
-            <Button onClick={handleSave} disabled={isCreating || isUpdating} className="w-full">
-              {isCreating || isUpdating
-                ? "Guardando..."
-                : editing
-                  ? "Guardar cambios"
-                  : "Crear proceso"}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Empleado responsable <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <select
+            value={form.empleadoId}
+            onChange={(e) => setForm((f) => ({ ...f, empleadoId: e.target.value }))}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Sin empleado asignado</option>
+            {empleados.map((e: Empleado) => (
+              <option key={e.id} value={e.id}>
+                {e.nombre} {e.apellido}{e.cargo ? ` — ${e.cargo}` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      </FormModal>
     </div>
   )
 }

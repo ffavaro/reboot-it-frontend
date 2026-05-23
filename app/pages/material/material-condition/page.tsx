@@ -4,14 +4,8 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet"
+import { DataTable } from "@/components/ui/data-table"
+import { FormModal } from "@/components/ui/form-modal"
 import {
   useCondicionesMaterial,
   useCreateCondicionMaterial,
@@ -19,6 +13,7 @@ import {
   useDeleteCondicionMaterial,
 } from "@/hooks/use-condicion-material"
 import type { CondicionMaterial } from "@/lib/type/condicion-material"
+import type { TableColumn } from "@/components/ui/data-table"
 
 const EMPTY_FORM = { condicion: "", descripcion: "" }
 
@@ -38,6 +33,24 @@ function CondicionBadge({ condicion }: { condicion: string }) {
   )
 }
 
+const COLUMNS: TableColumn<CondicionMaterial>[] = [
+  {
+    key: "condicion",
+    header: "Condición",
+    cell: (c) => <CondicionBadge condicion={c.condicion} />,
+  },
+  {
+    key: "descripcion",
+    header: "Descripción",
+    cell: (c) => (
+      <span className="text-muted-foreground">
+        {c.descripcion ?? <span className="italic">—</span>}
+      </span>
+    ),
+    className: "max-w-md truncate",
+  },
+]
+
 export default function CondicionMaterialPage() {
   const { condiciones, isLoading, mutate } = useCondicionesMaterial()
   const { createCondicion, isLoading: isCreating } = useCreateCondicionMaterial()
@@ -45,10 +58,9 @@ export default function CondicionMaterialPage() {
   const { deleteCondicion, isLoading: isDeleting } = useDeleteCondicionMaterial()
 
   const [search, setSearch] = useState("")
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<CondicionMaterial | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
-  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const filtered = condiciones.filter(
     (c) =>
@@ -59,13 +71,13 @@ export default function CondicionMaterialPage() {
   function openCreate() {
     setEditing(null)
     setForm(EMPTY_FORM)
-    setSheetOpen(true)
+    setModalOpen(true)
   }
 
   function openEdit(c: CondicionMaterial) {
     setEditing(c)
     setForm({ condicion: c.condicion, descripcion: c.descripcion ?? "" })
-    setSheetOpen(true)
+    setModalOpen(true)
   }
 
   async function handleSave() {
@@ -86,21 +98,19 @@ export default function CondicionMaterialPage() {
         toast.success("Condición creada")
       }
       await mutate()
-      setSheetOpen(false)
+      setModalOpen(false)
     } catch {
       toast.error("Error al guardar la condición")
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: number | string) {
     try {
-      await deleteCondicion(id)
+      await deleteCondicion(id as number)
       await mutate()
       toast.success("Condición desactivada")
     } catch {
       toast.error("Error al eliminar la condición")
-    } finally {
-      setDeletingId(null)
     }
   }
 
@@ -128,131 +138,54 @@ export default function CondicionMaterialPage() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Condición</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Descripción</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={3} className="px-4 py-12 text-center text-muted-foreground">
-                  Cargando condiciones...
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={3} className="px-4 py-12 text-center text-muted-foreground">
-                  {search ? "No se encontraron condiciones con ese criterio." : "No hay condiciones registradas."}
-                </td>
-              </tr>
-            ) : (
-              filtered.map((c) => (
-                <tr
-                  key={c.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                >
-                  <td className="px-4 py-3">
-                    <CondicionBadge condicion={c.condicion} />
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground max-w-md truncate">
-                    {c.descripcion ?? <span className="italic">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      {deletingId === c.id ? (
-                        <>
-                          <span className="text-xs text-muted-foreground">¿Confirmar?</span>
-                          <Button
-                            size="xs"
-                            variant="destructive"
-                            onClick={() => handleDelete(c.id)}
-                            disabled={isDeleting}
-                          >
-                            Eliminar
-                          </Button>
-                          <Button size="xs" variant="ghost" onClick={() => setDeletingId(null)}>
-                            Cancelar
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button size="xs" variant="outline" onClick={() => openEdit(c)}>
-                            Editar
-                          </Button>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeletingId(c.id)}
-                          >
-                            Eliminar
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        data={filtered}
+        columns={COLUMNS}
+        isLoading={isLoading}
+        loadingText="Cargando condiciones..."
+        emptyText="No hay condiciones registradas."
+        emptySearchText="No se encontraron condiciones con ese criterio."
+        search={search}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        isDeleting={isDeleting}
+      />
 
-      <Sheet open={sheetOpen} onOpenChange={(open) => !open && setSheetOpen(false)}>
-        <SheetContent side="right">
-          <SheetHeader>
-            <SheetTitle>{editing ? "Editar condición" : "Nueva condición de material"}</SheetTitle>
-            <SheetDescription>
-              {editing
-                ? `Modificá los datos de "${editing.condicion}".`
-                : "Completá los datos de la nueva condición."}
-            </SheetDescription>
-          </SheetHeader>
+      <FormModal
+        open={modalOpen}
+        onOpenChange={(open) => !open && setModalOpen(false)}
+        title={editing ? "Editar condición" : "Nueva condición de material"}
+        description={
+          editing
+            ? `Modificá los datos de "${editing.condicion}".`
+            : "Completá los datos de la nueva condición."
+        }
+        onSave={handleSave}
+        isLoading={isCreating || isUpdating}
+        saveLabel={editing ? "Guardar cambios" : "Crear condición"}
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Condición</label>
+          <Input
+            value={form.condicion}
+            onChange={(e) => setForm((f) => ({ ...f, condicion: e.target.value }))}
+            placeholder="Ej: Funcional, Reparable, Obsoleto..."
+            maxLength={100}
+          />
+        </div>
 
-          <div className="flex flex-col gap-5 px-6 py-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Condición</label>
-              <Input
-                value={form.condicion}
-                onChange={(e) => setForm((f) => ({ ...f, condicion: e.target.value }))}
-                placeholder="Ej: Funcional, Reparable, Obsoleto..."
-                maxLength={100}
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Descripción <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <Input
-                value={form.descripcion}
-                onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
-                placeholder="Breve descripción de la condición"
-                maxLength={255}
-              />
-            </div>
-          </div>
-
-          <SheetFooter>
-            <Button
-              onClick={handleSave}
-              disabled={isCreating || isUpdating}
-              className="w-full"
-            >
-              {isCreating || isUpdating
-                ? "Guardando..."
-                : editing
-                  ? "Guardar cambios"
-                  : "Crear condición"}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Descripción <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            value={form.descripcion}
+            onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
+            placeholder="Breve descripción de la condición"
+            maxLength={255}
+          />
+        </div>
+      </FormModal>
     </div>
   )
 }

@@ -70,7 +70,15 @@ export function LoginForm({
         </div>
         <Field>
           <FieldLabel htmlFor="email">Email</FieldLabel>
-          <Input id="email" type="email" placeholder="m@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Input
+            id="email"
+            type="email"
+            placeholder="m@example.com"
+            required
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); e.currentTarget.setCustomValidity("") }}
+            onInvalid={(e) => e.currentTarget.setCustomValidity(e.currentTarget.value ? "Ingresá un correo válido." : "Por favor, completá este campo.")}
+          />
         </Field>
         <Field>
           <div className="flex items-center">
@@ -82,7 +90,14 @@ export function LoginForm({
               ¿Olvidaste tu contraseña?
             </a>
           </div>
-          <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Input
+            id="password"
+            type="password"
+            required
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); e.currentTarget.setCustomValidity("") }}
+            onInvalid={(e) => e.currentTarget.setCustomValidity("Por favor, completá este campo.")}
+          />
         </Field>
         <Field>
           <Button type="submit">Iniciar Sesión</Button>

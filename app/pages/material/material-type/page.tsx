@@ -4,14 +4,8 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet"
+import { DataTable } from "@/components/ui/data-table"
+import { FormModal } from "@/components/ui/form-modal"
 import {
   useTipoMateriales,
   useCreateTipoMaterial,
@@ -19,8 +13,27 @@ import {
   useDeleteTipoMaterial,
 } from "@/hooks/use-tipo-material"
 import type { TipoMaterial } from "@/lib/type/tipo-material"
+import type { TableColumn } from "@/components/ui/data-table"
 
 const EMPTY_FORM = { nombre: "", descripcion: "" }
+
+const COLUMNS: TableColumn<TipoMaterial>[] = [
+  {
+    key: "nombre",
+    header: "Nombre",
+    cell: (t) => <span className="font-medium">{t.nombre}</span>,
+  },
+  {
+    key: "descripcion",
+    header: "Descripción",
+    cell: (t) => (
+      <span className="text-muted-foreground">
+        {t.descripcion ?? <span className="italic">—</span>}
+      </span>
+    ),
+    className: "max-w-md truncate",
+  },
+]
 
 export default function TipoMaterialPage() {
   const { tipoMateriales, isLoading, mutate } = useTipoMateriales()
@@ -29,10 +42,9 @@ export default function TipoMaterialPage() {
   const { deleteTipoMaterial, isLoading: isDeleting } = useDeleteTipoMaterial()
 
   const [search, setSearch] = useState("")
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<TipoMaterial | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
-  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const filtered = tipoMateriales.filter(
     (t) =>
@@ -43,13 +55,13 @@ export default function TipoMaterialPage() {
   function openCreate() {
     setEditing(null)
     setForm(EMPTY_FORM)
-    setSheetOpen(true)
+    setModalOpen(true)
   }
 
   function openEdit(t: TipoMaterial) {
     setEditing(t)
     setForm({ nombre: t.nombre, descripcion: t.descripcion ?? "" })
-    setSheetOpen(true)
+    setModalOpen(true)
   }
 
   async function handleSave() {
@@ -60,7 +72,7 @@ export default function TipoMaterialPage() {
     try {
       const payload = {
         nombre: form.nombre.trim(),
-        descripcion: form.descripcion.trim() || undefined,
+        descripcion: form.descripcion.trim() || "",
       }
       if (editing) {
         await updateTipoMaterial({ id: editing.id, ...payload })
@@ -70,21 +82,19 @@ export default function TipoMaterialPage() {
         toast.success("Tipo de material creado")
       }
       await mutate()
-      setSheetOpen(false)
+      setModalOpen(false)
     } catch {
       toast.error("Error al guardar el tipo de material")
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: number | string) {
     try {
-      await deleteTipoMaterial(id)
+      await deleteTipoMaterial(id as number)
       await mutate()
       toast.success("Tipo de material desactivado")
     } catch {
       toast.error("Error al eliminar el tipo de material")
-    } finally {
-      setDeletingId(null)
     }
   }
 
@@ -112,129 +122,55 @@ export default function TipoMaterialPage() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Nombre</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Descripción</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={3} className="px-4 py-12 text-center text-muted-foreground">
-                  Cargando tipos de material...
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={3} className="px-4 py-12 text-center text-muted-foreground">
-                  {search ? "No se encontraron tipos con ese criterio." : "No hay tipos de material registrados."}
-                </td>
-              </tr>
-            ) : (
-              filtered.map((t) => (
-                <tr
-                  key={t.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                >
-                  <td className="px-4 py-3 font-medium">{t.nombre}</td>
-                  <td className="px-4 py-3 text-muted-foreground max-w-md truncate">
-                    {t.descripcion ?? <span className="italic">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      {deletingId === t.id ? (
-                        <>
-                          <span className="text-xs text-muted-foreground">¿Confirmar?</span>
-                          <Button
-                            size="xs"
-                            variant="destructive"
-                            onClick={() => handleDelete(t.id)}
-                            disabled={isDeleting}
-                          >
-                            Eliminar
-                          </Button>
-                          <Button size="xs" variant="ghost" onClick={() => setDeletingId(null)}>
-                            Cancelar
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button size="xs" variant="outline" onClick={() => openEdit(t)}>
-                            Editar
-                          </Button>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeletingId(t.id)}
-                          >
-                            Eliminar
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        data={filtered}
+        columns={COLUMNS}
+        isLoading={isLoading}
+        loadingText="Cargando tipos de material..."
+        emptyText="No hay tipos de material registrados."
+        emptySearchText="No se encontraron tipos con ese criterio."
+        search={search}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        isDeleting={isDeleting}
+      />
 
-      <Sheet open={sheetOpen} onOpenChange={(open) => !open && setSheetOpen(false)}>
-        <SheetContent side="right">
-          <SheetHeader>
-            <SheetTitle>{editing ? "Editar tipo de material" : "Nuevo tipo de material"}</SheetTitle>
-            <SheetDescription>
-              {editing
-                ? `Modificá los datos de "${editing.nombre}".`
-                : "Completá los datos del nuevo tipo de material."}
-            </SheetDescription>
-          </SheetHeader>
+      <FormModal
+        open={modalOpen}
+        onOpenChange={(open) => !open && setModalOpen(false)}
+        title={editing ? "Editar tipo de material" : "Nuevo tipo de material"}
+        description={
+          editing
+            ? `Modificá los datos de "${editing.nombre}".`
+            : "Completá los datos del nuevo tipo de material."
+        }
+        onSave={handleSave}
+        isLoading={isCreating || isUpdating}
+        saveLabel={editing ? "Guardar cambios" : "Crear tipo"}
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Nombre</label>
+          <Input
+            value={form.nombre}
+            onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
+            placeholder="Ej: Electrónico, Eléctrico, Batería..."
+            maxLength={100}
+            
+         />
+        </div>
 
-          <div className="flex flex-col gap-5 px-6 py-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Nombre</label>
-              <Input
-                value={form.nombre}
-                onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
-                placeholder="Ej: Electrónico, Eléctrico, Batería..."
-                maxLength={100}
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Descripción <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <Input
-                value={form.descripcion}
-                onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
-                placeholder="Breve descripción del tipo de material"
-                maxLength={255}
-              />
-            </div>
-          </div>
-
-          <SheetFooter>
-            <Button
-              onClick={handleSave}
-              disabled={isCreating || isUpdating}
-              className="w-full"
-            >
-              {isCreating || isUpdating
-                ? "Guardando..."
-                : editing
-                  ? "Guardar cambios"
-                  : "Crear tipo"}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Descripción <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            value={form.descripcion}
+            onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value ?? "" }))}
+            placeholder="Breve descripción del tipo de material"
+            maxLength={255}
+          />
+        </div>
+      </FormModal>
     </div>
   )
 }

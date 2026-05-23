@@ -5,18 +5,11 @@ import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet"
-import { useUsuarios, useEmpleados, useUpdateUsuario, useDeleteUsuario } from "@/hooks/use-users"
-import { Rol, Usuario } from "@/lib/type/user"
-
-const ROLES = ["admin", "supervisor", "tecnico", "operador"] as const
+import { DataTable, TableColumn } from "@/components/ui/data-table"
+import { FormModal } from "@/components/ui/form-modal"
+import { useUsuarios, useEmpleados, useUpdateUsuario, useDeleteUsuario, useCreateUsuario } from "@/hooks/use-users"
+import { useRoles } from "@/hooks/use-roles"
+import type { Rol, Usuario } from "@/lib/type/user"
 
 const ROL_STYLES: Record<string, string> = {
   admin: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
@@ -52,24 +45,95 @@ function AvatarInitials({ nombre }: { nombre: string }) {
   )
 }
 
+const SELECT_CLASS =
+  "w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0 disabled:opacity-50"
+
+const EMPTY_FORM = {
+  nombre: "",
+  email: "",
+  password: "",
+  rolId: "",
+  empleadoId: "",
+}
+
+const COLUMNS: TableColumn<Usuario>[] = [
+  {
+    key: "nombre",
+    header: "Usuario",
+    cell: (row) => (
+      <div className="flex items-center gap-3">
+        <AvatarInitials nombre={row.nombre} />
+        <span className="font-medium">{row.nombre}</span>
+      </div>
+    ),
+  },
+  {
+    key: "email",
+    header: "Email",
+    cell: (row) => <span className="text-muted-foreground">{row.email}</span>,
+  },
+  {
+    key: "rol",
+    header: "Rol",
+    cell: (row) => <RolBadge rol={row.rol} />,
+  },
+  {
+    key: "empleado",
+    header: "Empleado asociado",
+    cell: (row) =>
+      row.empleado ? (
+        <span>{row.empleado.nombre} {row.empleado.apellido}</span>
+      ) : (
+        <span className="text-muted-foreground italic">Sin asociar</span>
+      ),
+  },
+]
+
 export default function UserManagementPage() {
   const { usuarios, isLoading, mutate } = useUsuarios()
   const { empleados } = useEmpleados()
+  const { roles } = useRoles()
   const { updateUsuario, isLoading: isUpdating } = useUpdateUsuario()
+  const { createUsuario, isLoading: isCreating } = useCreateUsuario()
   const { deleteUsuario, isLoading: isDeleting } = useDeleteUsuario()
 
   const [search, setSearch] = useState("")
+  const [modalOpen, setModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<Usuario | null>(null)
-  const [editRol, setEditRol] = useState("")
-  const [editEmpleadoId, setEditEmpleadoId] = useState<string>("")
-  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [form, setForm] = useState(EMPTY_FORM)
+
+  const isEdit = !!editingUser
+  const isSaving = isUpdating || isCreating
 
   useEffect(() => {
     if (editingUser) {
-      setEditRol(editingUser.rol.nombre)
-      setEditEmpleadoId(editingUser.empleadoId ?? "")
+      setForm({
+        nombre: editingUser.nombre,
+        email: editingUser.email,
+        password: "",
+        rolId: editingUser.rol.id,
+        empleadoId: editingUser.empleadoId ?? "",
+      })
     }
   }, [editingUser])
+
+  function openCreate() {
+    setEditingUser(null)
+    setForm(EMPTY_FORM)
+    setModalOpen(true)
+  }
+
+  function openEdit(user: Usuario) {
+    setEditingUser(user)
+    setModalOpen(true)
+  }
+
+  function handleModalChange(open: boolean) {
+    if (!open) {
+      setModalOpen(false)
+      setEditingUser(null)
+    }
+  }
 
   const filtered = usuarios.filter(
     (u) =>
@@ -77,37 +141,45 @@ export default function UserManagementPage() {
       u.email.toLowerCase().includes(search.toLowerCase())
   )
 
-  const handleSave = async () => {
-    if (!editingUser) return
+  async function handleSave() {
     try {
-      await updateUsuario({
-        id: editingUser.id,
-        rol: editRol,
-        empleadoId: Number.parseInt(editEmpleadoId) || null,
-      })
+      if (isEdit && editingUser) {
+        await updateUsuario({
+          id: editingUser.id,
+          rolId: Number(form.rolId),
+          empleadoId: form.empleadoId ? Number(form.empleadoId) : null,
+        })
+        toast.success("Usuario actualizado correctamente")
+      } else {
+        await createUsuario({
+          nombre: form.nombre,
+          email: form.email,
+          password: form.password || undefined,
+          rolId: Number(form.rolId),
+          empleadoId: form.empleadoId ? Number(form.empleadoId) : null,
+        })
+        toast.success("Usuario creado correctamente")
+      }
       await mutate()
-      toast.success("Usuario actualizado correctamente")
+      setModalOpen(false)
       setEditingUser(null)
     } catch {
-      toast.error("Error al actualizar el usuario")
+      toast.error(isEdit ? "Error al actualizar el usuario" : "Error al crear el usuario")
     }
   }
 
-  const handleDelete = async (id: string) => {
+  async function handleDelete(id: number | string) {
     try {
-      await deleteUsuario(id)
+      await deleteUsuario(String(id))
       await mutate()
       toast.success("Usuario eliminado")
     } catch {
       toast.error("Error al eliminar el usuario")
-    } finally {
-      setDeletingId(null)
     }
   }
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      {/* Header */}
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold tracking-tight">Gestión de Usuarios</h1>
         <p className="text-sm text-muted-foreground">
@@ -115,7 +187,6 @@ export default function UserManagementPage() {
         </p>
       </div>
 
-      {/* Toolbar */}
       <div className="flex items-center gap-3">
         <Input
           placeholder="Buscar por nombre o email..."
@@ -123,179 +194,112 @@ export default function UserManagementPage() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
         />
-        <span className="ml-auto text-sm text-muted-foreground">
-          {filtered.length} usuario{filtered.length !== 1 ? "s" : ""}
-        </span>
+        <Button onClick={openCreate} className="ml-auto">
+          Nuevo usuario
+        </Button>
       </div>
 
-      {/* Table */}
-      <div className="rounded-2xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Usuario</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Email</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Rol</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Empleado asociado</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
-                  Cargando usuarios...
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
-                  No se encontraron usuarios.
-                </td>
-              </tr>
-            ) : (
-              filtered.map((usuario) => (
-                <tr
-                  key={usuario.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <AvatarInitials nombre={usuario.nombre} />
-                      <span className="font-medium">{usuario.nombre}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{usuario.email}</td>
-                  <td className="px-4 py-3">
-                    <RolBadge rol={usuario.rol} />
-                  </td>
-                  <td className="px-4 py-3">
-                    {usuario.empleado ? (
-                      <span className="text-foreground">
-                        {usuario.empleado.nombre} {usuario.empleado.apellido}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground italic">Sin asociar</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      {deletingId === usuario.id ? (
-                        <>
-                          <span className="text-xs text-muted-foreground">¿Confirmar?</span>
-                          <Button
-                            size="xs"
-                            variant="destructive"
-                            onClick={() => handleDelete(usuario.id)}
-                            disabled={isDeleting}
-                          >
-                            Eliminar
-                          </Button>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            onClick={() => setDeletingId(null)}
-                          >
-                            Cancelar
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button
-                            size="xs"
-                            variant="outline"
-                            onClick={() => setEditingUser(usuario)}
-                          >
-                            Editar
-                          </Button>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeletingId(usuario.id)}
-                          >
-                            Eliminar
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        data={filtered}
+        columns={COLUMNS}
+        isLoading={isLoading}
+        loadingText="Cargando usuarios..."
+        emptyText="No hay usuarios registrados."
+        emptySearchText="No se encontraron usuarios con ese criterio."
+        search={search}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        isDeleting={isDeleting}
+      />
 
-      {/* Edit Sheet */}
-      <Sheet open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
-        <SheetContent side="right">
-          <SheetHeader>
-            <SheetTitle>Editar usuario</SheetTitle>
-            <SheetDescription>
-              Modificá el rol y el empleado asociado de{" "}
-              <span className="font-medium text-foreground">{editingUser?.nombre}</span>.
-            </SheetDescription>
-          </SheetHeader>
-
-          <div className="flex flex-col gap-5 px-6 py-4">
-            {/* Info readonly */}
-            <div className="rounded-xl border border-border bg-muted/40 p-4 flex flex-col gap-1">
-              <p className="text-xs text-muted-foreground">Email</p>
-              <p className="text-sm font-medium">{editingUser?.email}</p>
-            </div>
-
-            {/* Rol */}
+      <FormModal
+        open={modalOpen}
+        onOpenChange={handleModalChange}
+        title={isEdit ? "Editar usuario" : "Nuevo usuario"}
+        description={
+          isEdit
+            ? `Modificá el rol y el empleado asociado de ${editingUser?.nombre}.`
+            : "Completá los datos para crear un nuevo usuario."
+        }
+        onSave={handleSave}
+        isLoading={isSaving}
+        saveLabel={isEdit ? "Guardar cambios" : "Crear usuario"}
+      >
+        {!isEdit && (
+          <>
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Rol</label>
-              <select
-                value={editRol}
-                onChange={(e) => setEditRol(e.target.value)}
-                className={cn(
-                  "w-full rounded-4xl border border-input bg-background px-3 py-2 text-sm",
-                  "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0",
-                  "disabled:opacity-50"
-                )}
-              >
-                {ROLES.map((r) => (
-                  <option key={r} value={r}>
-                    {r.charAt(0).toUpperCase() + r.slice(1)}
-                  </option>
-                ))}
-              </select>
+              <label className="text-sm font-medium">Nombre</label>
+              <Input
+                value={form.nombre}
+                onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+                placeholder="Juan García"
+                onInvalid={(e) => e.currentTarget.setCustomValidity("Por favor, ingresá un nombre")}
+              />
             </div>
-
-            {/* Empleado */}
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Empleado asociado</label>
-              <select
-                value={editEmpleadoId}
-                onChange={(e) => setEditEmpleadoId(e.target.value)}
-                className={cn(
-                  "w-full rounded-4xl border border-input bg-background px-3 py-2 text-sm",
-                  "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0"
-                )}
-              >
-                <option value="">— Sin asociar —</option>
-                {empleados.map((emp) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.nombre} {emp.apellido}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-muted-foreground">
-                Vincula este usuario con un empleado registrado en el sistema.
-              </p>
+              <label className="text-sm font-medium">Email</label>
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="juan@ejemplo.com"
+                onInvalid={(e) => e.currentTarget.setCustomValidity("Por favor, ingresá un email válido")}
+              />
             </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">
+                Contraseña{" "}
+              </label>
+              <Input
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                placeholder="Por defecto: reboot2024_it"
+                onInvalid={(e) => e.currentTarget.setCustomValidity("La contraseña debe tener al menos 6 caracteres")}
+              />
+            </div>
+          </>
+        )}
+
+        {isEdit && (
+          <div className="rounded-xl border border-border bg-muted/40 p-4 flex flex-col gap-1">
+            <p className="text-xs text-muted-foreground">Email</p>
+            <p className="text-sm font-medium">{editingUser?.email}</p>
           </div>
+        )}
 
-          <SheetFooter>
-            <Button onClick={handleSave} disabled={isUpdating} className="w-full">
-              {isUpdating ? "Guardando..." : "Guardar cambios"}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Rol</label>
+          <select
+            value={form.rolId}
+            onChange={(e) => setForm({ ...form, rolId: e.target.value })}
+            className={SELECT_CLASS}
+          >
+            <option value="">— Seleccionar rol —</option>
+            {roles.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.nombre.charAt(0).toUpperCase() + r.nombre.slice(1)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Empleado asociado</label>
+          <select
+            value={form.empleadoId}
+            onChange={(e) => setForm({ ...form, empleadoId: e.target.value })}
+            className={SELECT_CLASS}
+          >
+            <option value="">— Sin asociar —</option>
+            {empleados.map((emp) => (
+              <option key={emp.id} value={emp.id}>
+                {emp.nombre} {emp.apellido}
+              </option>
+            ))}
+          </select>
+        </div>
+      </FormModal>
     </div>
   )
 }

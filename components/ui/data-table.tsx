@@ -19,7 +19,7 @@ export type TableColumn<T> = {
   headerClassName?: string
 }
 
-type DataTableProps<T extends { id: number }> = {
+type DataTableProps<T extends { id: number | string }> = {
   data: T[]
   columns: TableColumn<T>[]
   isLoading?: boolean
@@ -28,11 +28,11 @@ type DataTableProps<T extends { id: number }> = {
   emptySearchText?: string
   search?: string
   onEdit?: (row: T) => void
-  onDelete?: (id: number) => void
+  onDelete?: (id: number | string) => void
   isDeleting?: boolean
 }
 
-export function DataTable<T extends { id: number }>({
+export function DataTable<T extends { id: number | string }>({
   data,
   columns,
   isLoading,
@@ -44,11 +44,11 @@ export function DataTable<T extends { id: number }>({
   onDelete,
   isDeleting,
 }: DataTableProps<T>) {
-  const [deletingId, setDeletingId] = React.useState<number | null>(null)
+  const [deletingId, setDeletingId] = React.useState<number | string | null>(null)
   const hasActions = !!onEdit || !!onDelete
   const colSpan = columns.length + (hasActions ? 1 : 0)
 
-  async function handleConfirmDelete(id: number) {
+  async function handleConfirmDelete(id: number | string) {
     await onDelete?.(id)
     setDeletingId(null)
   }

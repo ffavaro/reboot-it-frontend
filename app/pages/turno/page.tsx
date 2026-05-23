@@ -4,14 +4,9 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet"
+import { DataTable } from "@/components/ui/data-table"
+import type { TableColumn } from "@/components/ui/data-table"
+import { FormModal } from "@/components/ui/form-modal"
 import {
   useTurnos,
   useCreateTurno,
@@ -34,6 +29,48 @@ function formatDateTime(iso: string | null) {
   })
 }
 
+const columns: TableColumn<Turno>[] = [
+  {
+    key: "donante",
+    header: "Donante",
+    cell: (t) =>
+      t.donante?.nombre ?? (
+        <span className="italic text-muted-foreground">#{t.donanteId}</span>
+      ),
+  },
+  {
+    key: "estado",
+    header: "Estado",
+    cell: (t) =>
+      t.estadoTurno?.descripcion ? (
+        <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
+          {t.estadoTurno.descripcion}
+        </span>
+      ) : (
+        <span className="italic text-muted-foreground">—</span>
+      ),
+  },
+  {
+    key: "fechaHora",
+    header: "Fecha y hora",
+    cell: (t) => (
+      <span className="text-muted-foreground">
+        {formatDateTime(t.fechaHora) ?? <span className="italic">—</span>}
+      </span>
+    ),
+  },
+  {
+    key: "descripcion",
+    header: "Descripción",
+    className: "max-w-[220px] truncate",
+    cell: (t) => (
+      <span className="text-muted-foreground">
+        {t.descripcion ?? <span className="italic">—</span>}
+      </span>
+    ),
+  },
+]
+
 export default function TurnoPage() {
   const { turnos, isLoading, mutate } = useTurnos()
   const { donantes } = useDonantes()
@@ -43,10 +80,9 @@ export default function TurnoPage() {
   const { deleteTurno, isLoading: isDeleting } = useDeleteTurno()
 
   const [search, setSearch] = useState("")
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Turno | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
-  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const filtered = turnos.filter((t: Turno) => {
     const q = search.toLowerCase()
@@ -62,7 +98,7 @@ export default function TurnoPage() {
   function openCreate() {
     setEditing(null)
     setForm(EMPTY_FORM)
-    setSheetOpen(true)
+    setModalOpen(true)
   }
 
   function openEdit(t: Turno) {
@@ -73,7 +109,7 @@ export default function TurnoPage() {
       fechaHora: t.fechaHora ? t.fechaHora.slice(0, 16) : "",
       descripcion: t.descripcion ?? "",
     })
-    setSheetOpen(true)
+    setModalOpen(true)
   }
 
   async function handleSave() {
@@ -96,21 +132,19 @@ export default function TurnoPage() {
         toast.success("Turno creado")
       }
       await mutate()
-      setSheetOpen(false)
+      setModalOpen(false)
     } catch {
       toast.error("Error al guardar el turno")
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: number | string) {
     try {
-      await deleteTurno(id)
+      await deleteTurno(Number(id))
       await mutate()
       toast.success("Turno desactivado")
     } catch {
       toast.error("Error al eliminar el turno")
-    } finally {
-      setDeletingId(null)
     }
   }
 
@@ -138,158 +172,76 @@ export default function TurnoPage() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Donante</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Estado</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Fecha y hora</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Descripción</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
-                  Cargando turnos...
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
-                  {search ? "No se encontraron turnos con ese criterio." : "No hay turnos registrados."}
-                </td>
-              </tr>
-            ) : (
-              filtered.map((t: Turno) => (
-                <tr
-                  key={t.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                >
-                  <td className="px-4 py-3">
-                    {t.donante?.nombre ?? (
-                      <span className="italic text-muted-foreground">#{t.donanteId}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {t.estadoTurno?.descripcion ? (
-                      <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
-                        {t.estadoTurno.descripcion}
-                      </span>
-                    ) : (
-                      <span className="italic text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatDateTime(t.fechaHora) ?? <span className="italic">—</span>}
-                  </td>
-                  <td className="px-4 py-3 max-w-[220px] truncate text-muted-foreground">
-                    {t.descripcion ?? <span className="italic">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      {deletingId === t.id ? (
-                        <>
-                          <span className="text-xs text-muted-foreground">¿Confirmar?</span>
-                          <Button size="xs" variant="destructive" onClick={() => handleDelete(t.id)} disabled={isDeleting}>
-                            Eliminar
-                          </Button>
-                          <Button size="xs" variant="ghost" onClick={() => setDeletingId(null)}>
-                            Cancelar
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button size="xs" variant="outline" onClick={() => openEdit(t)}>
-                            Editar
-                          </Button>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeletingId(t.id)}
-                          >
-                            Eliminar
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        data={filtered}
+        columns={columns}
+        isLoading={isLoading}
+        loadingText="Cargando turnos..."
+        emptyText="No hay turnos registrados."
+        emptySearchText="No se encontraron turnos con ese criterio."
+        search={search}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        isDeleting={isDeleting}
+      />
 
-      <Sheet open={sheetOpen} onOpenChange={(open) => !open && setSheetOpen(false)}>
-        <SheetContent side="right">
-          <SheetHeader>
-            <SheetTitle>{editing ? "Editar turno" : "Nuevo turno"}</SheetTitle>
-            <SheetDescription>
-              {editing ? "Modificá los datos del turno." : "Registrá un nuevo turno para un donante."}
-            </SheetDescription>
-          </SheetHeader>
+      <FormModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        title={editing ? "Editar turno" : "Nuevo turno"}
+        description={editing ? "Modificá los datos del turno." : "Registrá un nuevo turno para un donante."}
+        onSave={handleSave}
+        isLoading={isCreating || isUpdating}
+        saveLabel={editing ? "Guardar cambios" : "Crear turno"}
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Donante</label>
+          <select
+            value={form.donanteId}
+            onChange={(e) => setForm((f) => ({ ...f, donanteId: e.target.value }))}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Seleccionar donante...</option>
+            {donantes.map((d: Donante) => (
+              <option key={d.id} value={d.id}>{d.nombre}</option>
+            ))}
+          </select>
+        </div>
 
-          <div className="flex flex-col gap-5 px-6 py-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Donante</label>
-              <select
-                value={form.donanteId}
-                onChange={(e) => setForm((f) => ({ ...f, donanteId: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="">Seleccionar donante...</option>
-                {donantes.map((d: Donante) => (
-                  <option key={d.id} value={d.id}>{d.nombre}</option>
-                ))}
-              </select>
-            </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Estado</label>
+          <select
+            value={form.estadoTurnoId}
+            onChange={(e) => setForm((f) => ({ ...f, estadoTurnoId: e.target.value }))}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Seleccionar estado...</option>
+            {estadosTurno.map((e: EstadoTurno) => (
+              <option key={e.id} value={e.id}>{e.descripcion}</option>
+            ))}
+          </select>
+        </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Estado</label>
-              <select
-                value={form.estadoTurnoId}
-                onChange={(e) => setForm((f) => ({ ...f, estadoTurnoId: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="">Seleccionar estado...</option>
-                {estadosTurno.map((e: EstadoTurno) => (
-                  <option key={e.id} value={e.id}>{e.descripcion}</option>
-                ))}
-              </select>
-            </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Fecha y hora</label>
+          <Input
+            type="datetime-local"
+            value={form.fechaHora}
+            onChange={(e) => setForm((f) => ({ ...f, fechaHora: e.target.value }))}
+          />
+        </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Fecha y hora</label>
-              <Input
-                type="datetime-local"
-                value={form.fechaHora}
-                onChange={(e) => setForm((f) => ({ ...f, fechaHora: e.target.value }))}
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Descripción <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <Input
-                placeholder="Observaciones del turno..."
-                value={form.descripcion}
-                onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
-              />
-            </div>
-          </div>
-
-          <SheetFooter>
-            <Button onClick={handleSave} disabled={isCreating || isUpdating} className="w-full">
-              {isCreating || isUpdating ? "Guardando..." : editing ? "Guardar cambios" : "Crear turno"}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Descripción <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            placeholder="Observaciones del turno..."
+            value={form.descripcion}
+            onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
+          />
+        </div>
+      </FormModal>
     </div>
   )
 }

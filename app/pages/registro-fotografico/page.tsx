@@ -4,14 +4,9 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet"
+import { DataTable } from "@/components/ui/data-table"
+import type { TableColumn } from "@/components/ui/data-table"
+import { FormModal } from "@/components/ui/form-modal"
 import {
   useRegistrosFotograficos,
   useCreateRegistroFotografico,
@@ -29,6 +24,46 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
 
+const columns: TableColumn<RegistroFotografico>[] = [
+  {
+    key: "loteId",
+    header: "Lote",
+    cell: (r) => <span className="font-mono text-xs font-medium">#{r.loteId}</span>,
+  },
+  {
+    key: "urlImagen",
+    header: "Imagen",
+    className: "max-w-xs",
+    cell: (r) => (
+      <div className="flex items-center gap-3">
+        <img
+          src={r.urlImagen}
+          alt={`Lote #${r.loteId}`}
+          className="h-10 w-10 rounded object-cover bg-muted shrink-0"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+        />
+        <a
+          href={r.urlImagen}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-primary underline truncate max-w-50"
+        >
+          {r.urlImagen}
+        </a>
+      </div>
+    ),
+  },
+  {
+    key: "fecha",
+    header: "Fecha",
+    cell: (r) => (
+      <span className="text-muted-foreground">
+        {formatDate(r.fecha) ?? <span className="italic">—</span>}
+      </span>
+    ),
+  },
+]
+
 export default function RegistroFotograficoPage() {
   const { registros, isLoading, mutate } = useRegistrosFotograficos()
   const { lotes } = useLotes()
@@ -37,10 +72,9 @@ export default function RegistroFotograficoPage() {
   const { deleteRegistro, isLoading: isDeleting } = useDeleteRegistroFotografico()
 
   const [search, setSearch] = useState("")
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<RegistroFotografico | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
-  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const filtered = registros.filter((r: RegistroFotografico) => {
     const q = search.toLowerCase()
@@ -53,7 +87,7 @@ export default function RegistroFotograficoPage() {
   function openCreate() {
     setEditing(null)
     setForm(EMPTY_FORM)
-    setSheetOpen(true)
+    setModalOpen(true)
   }
 
   function openEdit(r: RegistroFotografico) {
@@ -63,7 +97,7 @@ export default function RegistroFotograficoPage() {
       urlImagen: r.urlImagen,
       fecha: r.fecha ? r.fecha.slice(0, 10) : "",
     })
-    setSheetOpen(true)
+    setModalOpen(true)
   }
 
   async function handleSave() {
@@ -85,21 +119,19 @@ export default function RegistroFotograficoPage() {
         toast.success("Registro fotográfico creado")
       }
       await mutate()
-      setSheetOpen(false)
+      setModalOpen(false)
     } catch {
       toast.error("Error al guardar el registro fotográfico")
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: number | string) {
     try {
-      await deleteRegistro(id)
+      await deleteRegistro(Number(id))
       await mutate()
       toast.success("Registro fotográfico desactivado")
     } catch {
       toast.error("Error al eliminar el registro fotográfico")
-    } finally {
-      setDeletingId(null)
     }
   }
 
@@ -127,166 +159,77 @@ export default function RegistroFotograficoPage() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Lote</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Imagen</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Fecha</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">
-                  Cargando registros fotográficos...
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">
-                  {search
-                    ? "No se encontraron registros con ese criterio."
-                    : "No hay registros fotográficos registrados."}
-                </td>
-              </tr>
-            ) : (
-              filtered.map((r: RegistroFotografico) => (
-                <tr
-                  key={r.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                >
-                  <td className="px-4 py-3 font-mono text-xs font-medium">
-                    #{r.loteId}
-                  </td>
-                  <td className="px-4 py-3 max-w-xs">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={r.urlImagen}
-                        alt={`Lote #${r.loteId}`}
-                        className="h-10 w-10 rounded object-cover bg-muted flex-shrink-0"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
-                      />
-                      <a
-                        href={r.urlImagen}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-primary underline truncate max-w-[200px]"
-                      >
-                        {r.urlImagen}
-                      </a>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatDate(r.fecha) ?? <span className="italic">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      {deletingId === r.id ? (
-                        <>
-                          <span className="text-xs text-muted-foreground">¿Confirmar?</span>
-                          <Button size="xs" variant="destructive" onClick={() => handleDelete(r.id)} disabled={isDeleting}>
-                            Eliminar
-                          </Button>
-                          <Button size="xs" variant="ghost" onClick={() => setDeletingId(null)}>
-                            Cancelar
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button size="xs" variant="outline" onClick={() => openEdit(r)}>
-                            Editar
-                          </Button>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeletingId(r.id)}
-                          >
-                            Eliminar
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        data={filtered}
+        columns={columns}
+        isLoading={isLoading}
+        loadingText="Cargando registros fotográficos..."
+        emptyText="No hay registros fotográficos registrados."
+        emptySearchText="No se encontraron registros con ese criterio."
+        search={search}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        isDeleting={isDeleting}
+      />
 
-      <Sheet open={sheetOpen} onOpenChange={(open) => !open && setSheetOpen(false)}>
-        <SheetContent side="right">
-          <SheetHeader>
-            <SheetTitle>{editing ? "Editar registro fotográfico" : "Nuevo registro fotográfico"}</SheetTitle>
-            <SheetDescription>
-              {editing
-                ? `Modificá los datos del registro del lote #${editing.loteId}.`
-                : "Agregá una nueva imagen asociada a un lote."}
-            </SheetDescription>
-          </SheetHeader>
+      <FormModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        title={editing ? "Editar registro fotográfico" : "Nuevo registro fotográfico"}
+        description={
+          editing
+            ? `Modificá los datos del registro del lote #${editing.loteId}.`
+            : "Agregá una nueva imagen asociada a un lote."
+        }
+        onSave={handleSave}
+        isLoading={isCreating || isUpdating}
+        saveLabel={editing ? "Guardar cambios" : "Crear registro"}
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Lote</label>
+          <select
+            value={form.loteId}
+            onChange={(e) => setForm((f) => ({ ...f, loteId: e.target.value }))}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Seleccionar lote...</option>
+            {lotes.map((l: Lote) => (
+              <option key={l.id} value={l.id}>
+                Lote #{l.id}{l.pesoBrutoKg ? ` — ${l.pesoBrutoKg} kg` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
 
-          <div className="flex flex-col gap-5 px-6 py-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Lote</label>
-              <select
-                value={form.loteId}
-                onChange={(e) => setForm((f) => ({ ...f, loteId: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="">Seleccionar lote...</option>
-                {lotes.map((l: Lote) => (
-                  <option key={l.id} value={l.id}>
-                    Lote #{l.id}{l.pesoBrutoKg ? ` — ${l.pesoBrutoKg} kg` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">URL de imagen</label>
+          <Input
+            value={form.urlImagen}
+            onChange={(e) => setForm((f) => ({ ...f, urlImagen: e.target.value }))}
+            placeholder="https://storage.ejemplo.com/fotos/imagen.jpg"
+            maxLength={500}
+          />
+          {form.urlImagen && (
+            <img
+              src={form.urlImagen}
+              alt="Vista previa"
+              className="mt-1 h-32 w-full rounded-md object-cover bg-muted"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+            />
+          )}
+        </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">URL de imagen</label>
-              <Input
-                value={form.urlImagen}
-                onChange={(e) => setForm((f) => ({ ...f, urlImagen: e.target.value }))}
-                placeholder="https://storage.ejemplo.com/fotos/imagen.jpg"
-                maxLength={500}
-              />
-              {form.urlImagen && (
-                <img
-                  src={form.urlImagen}
-                  alt="Vista previa"
-                  className="mt-1 h-32 w-full rounded-md object-cover bg-muted"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
-                />
-              )}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Fecha <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <Input
-                type="date"
-                value={form.fecha}
-                onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))}
-              />
-            </div>
-          </div>
-
-          <SheetFooter>
-            <Button onClick={handleSave} disabled={isCreating || isUpdating} className="w-full">
-              {isCreating || isUpdating
-                ? "Guardando..."
-                : editing
-                  ? "Guardar cambios"
-                  : "Crear registro"}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Fecha <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            type="date"
+            value={form.fecha}
+            onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))}
+          />
+        </div>
+      </FormModal>
     </div>
   )
 }
