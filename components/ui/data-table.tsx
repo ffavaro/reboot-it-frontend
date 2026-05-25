@@ -27,6 +27,7 @@ type DataTableProps<T extends { id: number | string }> = {
   emptyText?: string
   emptySearchText?: string
   search?: string
+  onView?: (row: T) => void
   onEdit?: (row: T) => void
   onDelete?: (id: number | string) => void
   isDeleting?: boolean
@@ -40,12 +41,13 @@ export function DataTable<T extends { id: number | string }>({
   emptyText = "No hay registros.",
   emptySearchText = "No se encontraron resultados con ese criterio.",
   search,
+  onView,
   onEdit,
   onDelete,
   isDeleting,
 }: DataTableProps<T>) {
   const [deletingId, setDeletingId] = React.useState<number | string | null>(null)
-  const hasActions = !!onEdit || !!onDelete
+  const hasActions = !!onView || !!onEdit || !!onDelete
   const colSpan = columns.length + (hasActions ? 1 : 0)
 
   async function handleConfirmDelete(id: number | string) {
@@ -109,6 +111,11 @@ export function DataTable<T extends { id: number | string }>({
                         </>
                       ) : (
                         <>
+                          {onView && (
+                            <Button size="xs" variant="ghost" onClick={() => onView(row)}>
+                              Ver
+                            </Button>
+                          )}
                           {onEdit && (
                             <Button size="xs" variant="outline" onClick={() => onEdit(row)}>
                               Editar

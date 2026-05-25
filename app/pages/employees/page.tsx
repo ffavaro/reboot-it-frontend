@@ -84,6 +84,7 @@ export default function EmployeePage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Empleado | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const filtered = empleados.filter(
@@ -94,12 +95,27 @@ export default function EmployeePage() {
   )
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setModalOpen(true)
   }
 
   function openEdit(e: Empleado) {
+    setIsViewing(false)
+    setEditing(e)
+    setForm({
+      rolId: e.rolId,
+      nombre: e.nombre,
+      apellido: e.apellido,
+      telefono: e.telefono ?? "",
+      cargo: e.cargo ?? "",
+    })
+    setModalOpen(true)
+  }
+
+  function openView(e: Empleado) {
+    setIsViewing(true)
     setEditing(e)
     setForm({
       rolId: e.rolId,
@@ -184,6 +200,7 @@ export default function EmployeePage() {
         emptyText="No hay empleados registrados."
         emptySearchText="No se encontraron empleados."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -192,7 +209,8 @@ export default function EmployeePage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={editing ? "Editar empleado" : "Nuevo empleado"}
+        title={isViewing ? "Ver empleado" : editing ? "Editar empleado" : "Nuevo empleado"}
+        readOnly={isViewing}
         description={
           editing
             ? `Modificá los datos de ${editing.nombre} ${editing.apellido}.`

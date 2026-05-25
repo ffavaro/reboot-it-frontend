@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,6 +18,8 @@ import { useEstadosTurno } from "@/hooks/use-estado-turno"
 import type { Turno } from "@/lib/type/turno"
 import type { Donante } from "@/lib/type/donante"
 import type { EstadoTurno } from "@/lib/type/estado-turno"
+import { getUser } from "@/lib/auth-utils"
+import type { TokenPayload } from "@/lib/auth-utils"
 
 const EMPTY_FORM = { donanteId: "", estadoTurnoId: "", fechaHora: "", descripcion: "" }
 
@@ -28,48 +30,6 @@ function formatDateTime(iso: string | null) {
     hour: "2-digit", minute: "2-digit",
   })
 }
-
-const columns: TableColumn<Turno>[] = [
-  {
-    key: "donante",
-    header: "Donante",
-    cell: (t) =>
-      t.donante?.nombre ?? (
-        <span className="italic text-muted-foreground">#{t.donanteId}</span>
-      ),
-  },
-  {
-    key: "estado",
-    header: "Estado",
-    cell: (t) =>
-      t.estadoTurno?.descripcion ? (
-        <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
-          {t.estadoTurno.descripcion}
-        </span>
-      ) : (
-        <span className="italic text-muted-foreground">—</span>
-      ),
-  },
-  {
-    key: "fechaHora",
-    header: "Fecha y hora",
-    cell: (t) => (
-      <span className="text-muted-foreground">
-        {formatDateTime(t.fechaHora) ?? <span className="italic">—</span>}
-      </span>
-    ),
-  },
-  {
-    key: "descripcion",
-    header: "Descripción",
-    className: "max-w-[220px] truncate",
-    cell: (t) => (
-      <span className="text-muted-foreground">
-        {t.descripcion ?? <span className="italic">—</span>}
-      </span>
-    ),
-  },
-]
 
 export default function TurnoPage() {
   const { turnos, isLoading, mutate } = useTurnos()
@@ -82,9 +42,66 @@ export default function TurnoPage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Turno | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [user, setUser] = useState<TokenPayload | null>(null)
 
-  const filtered = turnos.filter((t: Turno) => {
+  useEffect(() => { setUser(getUser()) }, [])
+
+  const isDonante = user?.rol?.nombre?.toLowerCase() === "donante"
+  const myDonante = isDonante
+    ? donantes.find((d: Donante) => d.usuarioId === user?.id) ?? null
+    : null
+
+  const visibleTurnos = isDonante
+    ? turnos.filter((t: Turno) => t.donanteId === myDonante?.id)
+    : turnos
+
+  const columns: TableColumn<Turno>[] = [
+    ...(!isDonante
+      ? [{
+          key: "donante",
+          header: "Donante",
+          cell: (t: Turno) =>
+            t.donante?.nombre ?? (
+              <span className="italic text-muted-foreground">#{t.donanteId}</span>
+            ),
+        }]
+      : []),
+    {
+      key: "estado",
+      header: "Estado",
+      cell: (t) =>
+        t.estadoTurno?.descripcion ? (
+          <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
+            {t.estadoTurno.descripcion}
+          </span>
+        ) : (
+          <span className="italic text-muted-foreground">—</span>
+        ),
+    },
+    {
+      key: "fechaHora",
+      header: "Fecha y hora",
+      cell: (t) => (
+        <span className="text-muted-foreground">
+          {formatDateTime(t.fechaHora) ?? <span className="italic">—</span>}
+        </span>
+      ),
+    },
+    {
+      key: "descripcion",
+      header: "Descripción",
+      className: "max-w-[220px] truncate",
+      cell: (t) => (
+        <span className="text-muted-foreground">
+          {t.descripcion ?? <span className="italic">—</span>}
+        </span>
+      ),
+    },
+  ]
+
+  const filtered = visibleTurnos.filter((t: Turno) => {
     const q = search.toLowerCase()
     const donante = t.donante?.nombre?.toLowerCase() ?? ""
     const estado = t.estadoTurno?.descripcion?.toLowerCase() ?? ""
@@ -96,12 +113,26 @@ export default function TurnoPage() {
   })
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setModalOpen(true)
   }
 
   function openEdit(t: Turno) {
+    setIsViewing(false)
+    setEditing(t)
+    setForm({
+      donanteId: String(t.donanteId),
+      estadoTurnoId: String(t.estadoTurnoId),
+      fechaHora: t.fechaHora ? t.fechaHora.slice(0, 16) : "",
+      descripcion: t.descripcion ?? "",
+    })
+    setModalOpen(true)
+  }
+
+  function openView(t: Turno) {
+    setIsViewing(true)
     setEditing(t)
     setForm({
       donanteId: String(t.donanteId),
@@ -167,9 +198,11 @@ export default function TurnoPage() {
         <span className="text-sm text-muted-foreground">
           {filtered.length} turno{filtered.length !== 1 ? "s" : ""}
         </span>
-        <Button className="ml-auto" onClick={openCreate}>
-          + Nuevo turno
-        </Button>
+        {!isDonante && (
+          <Button className="ml-auto" onClick={openCreate}>
+            + Nuevo turno
+          </Button>
+        )}
       </div>
 
       <DataTable
@@ -180,15 +213,17 @@ export default function TurnoPage() {
         emptyText="No hay turnos registrados."
         emptySearchText="No se encontraron turnos con ese criterio."
         search={search}
-        onEdit={openEdit}
-        onDelete={handleDelete}
+        onView={openView}
+        onEdit={isDonante ? undefined : openEdit}
+        onDelete={isDonante ? undefined : handleDelete}
         isDeleting={isDeleting}
       />
 
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={editing ? "Editar turno" : "Nuevo turno"}
+        title={isViewing ? "Ver turno" : editing ? "Editar turno" : "Nuevo turno"}
+        readOnly={isViewing}
         description={editing ? "Modificá los datos del turno." : "Registrá un nuevo turno para un donante."}
         onSave={handleSave}
         isLoading={isCreating || isUpdating}

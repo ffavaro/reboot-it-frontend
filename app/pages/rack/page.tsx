@@ -38,6 +38,7 @@ export default function RackPage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Rack | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const filtered = racks.filter((r: Rack) => {
@@ -49,12 +50,21 @@ export default function RackPage() {
   })
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setModalOpen(true)
   }
 
   function openEdit(r: Rack) {
+    setIsViewing(false)
+    setEditing(r)
+    setForm({ codigo: r.codigo, ubicacion: r.ubicacion ?? "" })
+    setModalOpen(true)
+  }
+
+  function openView(r: Rack) {
+    setIsViewing(true)
     setEditing(r)
     setForm({ codigo: r.codigo, ubicacion: r.ubicacion ?? "" })
     setModalOpen(true)
@@ -126,6 +136,7 @@ export default function RackPage() {
         emptyText="No hay racks registrados."
         emptySearchText="No se encontraron racks con ese criterio."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -134,7 +145,8 @@ export default function RackPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={editing ? "Editar rack" : "Nuevo rack"}
+        title={isViewing ? "Ver rack" : editing ? "Editar rack" : "Nuevo rack"}
+        readOnly={isViewing}
         description={
           editing
             ? `Modificá los datos del rack "${editing.codigo}".`

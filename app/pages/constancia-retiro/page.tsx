@@ -68,6 +68,7 @@ export default function ConstanciaRetiroPage() {
   const [search, setSearch] = useState("")
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<ConstanciaRetiro | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const user = getUser()
@@ -103,12 +104,26 @@ export default function ConstanciaRetiroPage() {
   })
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setSheetOpen(true)
   }
 
   function openEdit(c: ConstanciaRetiro) {
+    setIsViewing(false)
+    setEditing(c)
+    setForm({
+      retiroId: String(c.retiroId),
+      fechaEmision: c.fechaEmision ? c.fechaEmision.slice(0, 10) : "",
+      observaciones: c.observaciones ?? "",
+      tecnicoId: c.tecnicoId ? String(c.tecnicoId) : "",
+    })
+    setSheetOpen(true)
+  }
+
+  function openView(c: ConstanciaRetiro) {
+    setIsViewing(true)
     setEditing(c)
     setForm({
       retiroId: String(c.retiroId),
@@ -189,6 +204,7 @@ export default function ConstanciaRetiroPage() {
         emptyText="No hay constancias de retiro registradas."
         emptySearchText="No se encontraron constancias con ese criterio."
         search={search}
+        onView={openView}
         onEdit={isDonante ? undefined : openEdit}
         onDelete={isDonante ? undefined : handleDelete}
         isDeleting={isDeleting}
@@ -197,7 +213,8 @@ export default function ConstanciaRetiroPage() {
       <FormModal
         open={sheetOpen}
         onOpenChange={(open) => !open && setSheetOpen(false)}
-        title={editing ? "Editar constancia" : "Nueva constancia de retiro"}
+        title={isViewing ? "Ver constancia" : editing ? "Editar constancia" : "Nueva constancia de retiro"}
+        readOnly={isViewing}
         description={
           editing
             ? `Modificá los datos de la constancia del retiro #${editing.retiroId}.`

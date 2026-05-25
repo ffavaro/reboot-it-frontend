@@ -71,6 +71,7 @@ export default function EmpleadoTransportistaPage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<EmpleadoTransportista | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const filtered = transportistas.filter((t: EmpleadoTransportista) => {
@@ -83,12 +84,25 @@ export default function EmpleadoTransportistaPage() {
   })
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm({ ...EMPTY_FORM, fechaAsignacion: new Date().toISOString().slice(0, 10) })
     setModalOpen(true)
   }
 
   function openEdit(t: EmpleadoTransportista) {
+    setIsViewing(false)
+    setEditing(t)
+    setForm({
+      empleadoId: String(t.empleadoId),
+      vehiculoId: t.vehiculoId ? String(t.vehiculoId) : "",
+      fechaAsignacion: t.fechaAsignacion ? t.fechaAsignacion.slice(0, 10) : "",
+    })
+    setModalOpen(true)
+  }
+
+  function openView(t: EmpleadoTransportista) {
+    setIsViewing(true)
     setEditing(t)
     setForm({
       empleadoId: String(t.empleadoId),
@@ -165,6 +179,7 @@ export default function EmpleadoTransportistaPage() {
         emptyText="No hay empleados transportistas registrados."
         emptySearchText="No se encontraron transportistas con ese criterio."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -173,7 +188,8 @@ export default function EmpleadoTransportistaPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={editing ? "Editar transportista" : "Nuevo transportista"}
+        title={isViewing ? "Ver transportista" : editing ? "Editar transportista" : "Nuevo transportista"}
+        readOnly={isViewing}
         description={
           editing
             ? "Modificá la asignación del empleado transportista."

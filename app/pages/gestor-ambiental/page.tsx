@@ -64,6 +64,7 @@ export default function GestorAmbientalPage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<GestorAmbiental | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const filtered = gestores.filter(
@@ -75,12 +76,26 @@ export default function GestorAmbientalPage() {
   )
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setModalOpen(true)
   }
 
   function openEdit(g: GestorAmbiental) {
+    setIsViewing(false)
+    setEditing(g)
+    setForm({
+      razonSocial: g.razonSocial,
+      cuit: g.cuit ?? "",
+      habilitacion: g.habilitacion ?? "",
+      contacto: g.contacto ?? "",
+    })
+    setModalOpen(true)
+  }
+
+  function openView(g: GestorAmbiental) {
+    setIsViewing(true)
     setEditing(g)
     setForm({
       razonSocial: g.razonSocial,
@@ -163,6 +178,7 @@ export default function GestorAmbientalPage() {
         emptyText="No hay gestores ambientales registrados."
         emptySearchText="No se encontraron gestores con ese criterio."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -171,7 +187,8 @@ export default function GestorAmbientalPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={editing ? "Editar gestor ambiental" : "Nuevo gestor ambiental"}
+        title={isViewing ? "Ver gestor ambiental" : editing ? "Editar gestor ambiental" : "Nuevo gestor ambiental"}
+        readOnly={isViewing}
         description={
           editing
             ? `Modificá los datos de "${editing.razonSocial}".`

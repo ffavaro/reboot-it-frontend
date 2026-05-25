@@ -29,6 +29,7 @@ export default function TiposPage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Tipo | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const filtered = tipos.filter((t: Tipo) =>
@@ -36,12 +37,21 @@ export default function TiposPage() {
   )
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setModalOpen(true)
   }
 
   function openEdit(t: Tipo) {
+    setIsViewing(false)
+    setEditing(t)
+    setForm({ nombre: t.nombre })
+    setModalOpen(true)
+  }
+
+  function openView(t: Tipo) {
+    setIsViewing(true)
     setEditing(t)
     setForm({ nombre: t.nombre })
     setModalOpen(true)
@@ -109,6 +119,7 @@ export default function TiposPage() {
         emptyText="No hay tipos registrados."
         emptySearchText="No se encontraron tipos con ese criterio."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -117,7 +128,8 @@ export default function TiposPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={editing ? "Editar tipo" : "Nuevo tipo"}
+        title={isViewing ? "Ver tipo" : editing ? "Editar tipo" : "Nuevo tipo"}
+        readOnly={isViewing}
         description={
           editing
             ? `Modificá los datos de "${editing.nombre}".`

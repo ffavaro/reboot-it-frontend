@@ -45,6 +45,7 @@ export default function ModelosPage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Modelo | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const filtered = modelos.filter((m: Modelo) =>
@@ -54,12 +55,21 @@ export default function ModelosPage() {
   )
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setModalOpen(true)
   }
 
   function openEdit(m: Modelo) {
+    setIsViewing(false)
+    setEditing(m)
+    setForm({ nombre: m.nombre, marcaId: String(m.marcaId), tipoId: String(m.tipoId) })
+    setModalOpen(true)
+  }
+
+  function openView(m: Modelo) {
+    setIsViewing(true)
     setEditing(m)
     setForm({ nombre: m.nombre, marcaId: String(m.marcaId), tipoId: String(m.tipoId) })
     setModalOpen(true)
@@ -132,6 +142,7 @@ export default function ModelosPage() {
         emptyText="No hay modelos registrados."
         emptySearchText="No se encontraron modelos con ese criterio."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -140,7 +151,8 @@ export default function ModelosPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={editing ? "Editar modelo" : "Nuevo modelo"}
+        title={isViewing ? "Ver modelo" : editing ? "Editar modelo" : "Nuevo modelo"}
+        readOnly={isViewing}
         description={
           editing
             ? `Modificá los datos de "${editing.nombre}".`

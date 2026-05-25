@@ -60,6 +60,7 @@ export default function CondicionMaterialPage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<CondicionMaterial | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const filtered = condiciones.filter(
@@ -69,12 +70,21 @@ export default function CondicionMaterialPage() {
   )
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setModalOpen(true)
   }
 
   function openEdit(c: CondicionMaterial) {
+    setIsViewing(false)
+    setEditing(c)
+    setForm({ condicion: c.condicion, descripcion: c.descripcion ?? "" })
+    setModalOpen(true)
+  }
+
+  function openView(c: CondicionMaterial) {
+    setIsViewing(true)
     setEditing(c)
     setForm({ condicion: c.condicion, descripcion: c.descripcion ?? "" })
     setModalOpen(true)
@@ -146,6 +156,7 @@ export default function CondicionMaterialPage() {
         emptyText="No hay condiciones registradas."
         emptySearchText="No se encontraron condiciones con ese criterio."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -154,7 +165,8 @@ export default function CondicionMaterialPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={editing ? "Editar condición" : "Nueva condición de material"}
+        title={isViewing ? "Ver condición de material" : editing ? "Editar condición" : "Nueva condición de material"}
+        readOnly={isViewing}
         description={
           editing
             ? `Modificá los datos de "${editing.condicion}".`

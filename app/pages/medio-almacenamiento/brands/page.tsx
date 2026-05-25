@@ -29,6 +29,7 @@ export default function MarcasPage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Marca | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const filtered = marcas.filter((m: Marca) =>
@@ -36,12 +37,21 @@ export default function MarcasPage() {
   )
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setModalOpen(true)
   }
 
   function openEdit(m: Marca) {
+    setIsViewing(false)
+    setEditing(m)
+    setForm({ nombre: m.nombre })
+    setModalOpen(true)
+  }
+
+  function openView(m: Marca) {
+    setIsViewing(true)
     setEditing(m)
     setForm({ nombre: m.nombre })
     setModalOpen(true)
@@ -109,6 +119,7 @@ export default function MarcasPage() {
         emptyText="No hay marcas registradas."
         emptySearchText="No se encontraron marcas con ese criterio."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -117,7 +128,8 @@ export default function MarcasPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={editing ? "Editar marca" : "Nueva marca"}
+        title={isViewing ? "Ver marca" : editing ? "Editar marca" : "Nueva marca"}
+        readOnly={isViewing}
         description={
           editing
             ? `Modificá los datos de "${editing.nombre}".`

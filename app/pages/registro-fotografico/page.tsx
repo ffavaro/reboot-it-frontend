@@ -74,6 +74,7 @@ export default function RegistroFotograficoPage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<RegistroFotografico | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const filtered = registros.filter((r: RegistroFotografico) => {
@@ -85,12 +86,25 @@ export default function RegistroFotograficoPage() {
   })
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setModalOpen(true)
   }
 
   function openEdit(r: RegistroFotografico) {
+    setIsViewing(false)
+    setEditing(r)
+    setForm({
+      loteId: String(r.loteId),
+      urlImagen: r.urlImagen,
+      fecha: r.fecha ? r.fecha.slice(0, 10) : "",
+    })
+    setModalOpen(true)
+  }
+
+  function openView(r: RegistroFotografico) {
+    setIsViewing(true)
     setEditing(r)
     setForm({
       loteId: String(r.loteId),
@@ -167,6 +181,7 @@ export default function RegistroFotograficoPage() {
         emptyText="No hay registros fotográficos registrados."
         emptySearchText="No se encontraron registros con ese criterio."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -175,7 +190,8 @@ export default function RegistroFotograficoPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={editing ? "Editar registro fotográfico" : "Nuevo registro fotográfico"}
+        title={isViewing ? "Ver registro fotográfico" : editing ? "Editar registro fotográfico" : "Nuevo registro fotográfico"}
+        readOnly={isViewing}
         description={
           editing
             ? `Modificá los datos del registro del lote #${editing.loteId}.`

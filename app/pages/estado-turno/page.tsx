@@ -51,6 +51,7 @@ export default function EstadoTurnoPage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<EstadoTurno | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const filtered = estadosTurno.filter((e: EstadoTurno) =>
@@ -58,12 +59,21 @@ export default function EstadoTurnoPage() {
   )
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setModalOpen(true)
   }
 
   function openEdit(e: EstadoTurno) {
+    setIsViewing(false)
+    setEditing(e)
+    setForm({ descripcion: e.descripcion })
+    setModalOpen(true)
+  }
+
+  function openView(e: EstadoTurno) {
+    setIsViewing(true)
     setEditing(e)
     setForm({ descripcion: e.descripcion })
     setModalOpen(true)
@@ -131,6 +141,7 @@ export default function EstadoTurnoPage() {
         emptyText="No hay estados de turno registrados."
         emptySearchText="No se encontraron estados con ese criterio."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -139,7 +150,8 @@ export default function EstadoTurnoPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={editing ? "Editar estado de turno" : "Nuevo estado de turno"}
+        title={isViewing ? "Ver estado de turno" : editing ? "Editar estado de turno" : "Nuevo estado de turno"}
+        readOnly={isViewing}
         description={
           editing
             ? `Modificá la descripción de "${editing.descripcion}".`

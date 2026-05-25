@@ -16,9 +16,10 @@ type FormModalProps = {
   onOpenChange: (open: boolean) => void
   title: string
   description?: string
-  onSave: () => void
+  onSave?: () => void
   isLoading?: boolean
   saveLabel?: string
+  readOnly?: boolean
   children: React.ReactNode
 }
 
@@ -30,6 +31,7 @@ export function FormModal({
   onSave,
   isLoading,
   saveLabel = "Guardar",
+  readOnly = false,
   children,
 }: FormModalProps) {
   return (
@@ -39,16 +41,26 @@ export function FormModal({
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
-        <div className="flex flex-col gap-4">
-          {children}
-        </div>
+        <fieldset disabled={readOnly} className="border-0 p-0 m-0 min-w-0">
+          <div className={`flex flex-col gap-4${readOnly ? " opacity-60 pointer-events-none select-none" : ""}`}>
+            {children}
+          </div>
+        </fieldset>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
-            Cancelar
-          </Button>
-          <Button onClick={onSave} disabled={isLoading}>
-            {isLoading ? "Guardando..." : saveLabel}
-          </Button>
+          {readOnly ? (
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cerrar
+            </Button>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
+                Cancelar
+              </Button>
+              <Button onClick={onSave} disabled={isLoading}>
+                {isLoading ? "Guardando..." : saveLabel}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -23,7 +23,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
 import {
-  BarChart2, Bookmark, Box, Boxes, CalendarCheck, Camera, Car,
+  BarChart2, Bookmark, Box, Boxes, CalendarCheck, CalendarDays, Camera, Car,
   Circle, Clock, FileCheck, FileText, HardDrive, Heart,
   LayoutList, Layers, Leaf, List, Package, PackageOpen,
   Server, Shield, Tag, Trash2, Truck, User, UserCog, Users,
@@ -48,6 +48,7 @@ const navMain: NavSection[] = [
       { title: "Lotes", url: "/pages/lote", icon: Package },
       { title: "Registro fotográfico", url: "/pages/registro-fotografico", icon: Camera },
       { title: "Turnos", url: "/pages/turno", allowedRoles: DONANTE, icon: Clock },
+      { title: "Agenda", url: "/pages/agenda", icon: CalendarDays },
     ],
   },
   {

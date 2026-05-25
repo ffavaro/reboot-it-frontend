@@ -94,6 +94,7 @@ export default function ProcesoDestruccionPage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<ProcesoDestruccion | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const filtered = procesos.filter((p: ProcesoDestruccion) => {
@@ -107,12 +108,26 @@ export default function ProcesoDestruccionPage() {
   })
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setModalOpen(true)
   }
 
   function openEdit(p: ProcesoDestruccion) {
+    setIsViewing(false)
+    setEditing(p)
+    setForm({
+      medioAlmacenamientoId: String(p.medioAlmacenamientoId),
+      fecha: p.fecha ? p.fecha.slice(0, 10) : "",
+      metodo: p.metodo ?? "",
+      empleadoId: p.empleadoId ? String(p.empleadoId) : "",
+    })
+    setModalOpen(true)
+  }
+
+  function openView(p: ProcesoDestruccion) {
+    setIsViewing(true)
     setEditing(p)
     setForm({
       medioAlmacenamientoId: String(p.medioAlmacenamientoId),
@@ -191,6 +206,7 @@ export default function ProcesoDestruccionPage() {
         emptyText="No hay procesos de destrucción registrados."
         emptySearchText="No se encontraron procesos con ese criterio."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -199,7 +215,8 @@ export default function ProcesoDestruccionPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={editing ? "Editar proceso de destrucción" : "Nuevo proceso de destrucción"}
+        title={isViewing ? "Ver proceso de destrucción" : editing ? "Editar proceso de destrucción" : "Nuevo proceso de destrucción"}
+        readOnly={isViewing}
         description={
           editing
             ? "Modificá los datos del proceso de destrucción."

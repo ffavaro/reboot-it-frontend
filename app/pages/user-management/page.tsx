@@ -100,6 +100,7 @@ export default function UserManagementPage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<Usuario | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const isEdit = !!editingUser
@@ -118,12 +119,20 @@ export default function UserManagementPage() {
   }, [editingUser])
 
   function openCreate() {
+    setIsViewing(false)
     setEditingUser(null)
     setForm(EMPTY_FORM)
     setModalOpen(true)
   }
 
   function openEdit(user: Usuario) {
+    setIsViewing(false)
+    setEditingUser(user)
+    setModalOpen(true)
+  }
+
+  function openView(user: Usuario) {
+    setIsViewing(true)
     setEditingUser(user)
     setModalOpen(true)
   }
@@ -207,6 +216,7 @@ export default function UserManagementPage() {
         emptyText="No hay usuarios registrados."
         emptySearchText="No se encontraron usuarios con ese criterio."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -215,7 +225,8 @@ export default function UserManagementPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={handleModalChange}
-        title={isEdit ? "Editar usuario" : "Nuevo usuario"}
+        title={isViewing ? "Ver usuario" : isEdit ? "Editar usuario" : "Nuevo usuario"}
+        readOnly={isViewing}
         description={
           isEdit
             ? `Modificá el rol y el empleado asociado de ${editingUser?.nombre}.`

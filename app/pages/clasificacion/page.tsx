@@ -62,6 +62,7 @@ export default function ClasificacionPage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Clasificacion | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const filtered = clasificaciones.filter((c: Clasificacion) => {
@@ -73,12 +74,25 @@ export default function ClasificacionPage() {
   })
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setModalOpen(true)
   }
 
   function openEdit(c: Clasificacion) {
+    setIsViewing(false)
+    setEditing(c)
+    setForm({
+      loteId: String(c.loteId),
+      fecha: c.fecha ? c.fecha.slice(0, 10) : "",
+      empleadoId: c.empleadoId ? String(c.empleadoId) : "",
+    })
+    setModalOpen(true)
+  }
+
+  function openView(c: Clasificacion) {
+    setIsViewing(true)
     setEditing(c)
     setForm({
       loteId: String(c.loteId),
@@ -155,6 +169,7 @@ export default function ClasificacionPage() {
         emptyText="No hay clasificaciones registradas."
         emptySearchText="No se encontraron clasificaciones con ese criterio."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -163,7 +178,8 @@ export default function ClasificacionPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={editing ? "Editar clasificación" : "Nueva clasificación"}
+        title={isViewing ? "Ver clasificación" : editing ? "Editar clasificación" : "Nueva clasificación"}
+        readOnly={isViewing}
         description={
           editing
             ? `Modificá los datos de la clasificación del lote #${editing.loteId}.`

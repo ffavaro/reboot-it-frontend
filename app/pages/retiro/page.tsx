@@ -86,6 +86,7 @@ export default function RetiroPage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Retiro | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const filtered = retiros.filter((r: Retiro) => {
@@ -103,12 +104,27 @@ export default function RetiroPage() {
   })
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setModalOpen(true)
   }
 
   function openEdit(r: Retiro) {
+    setIsViewing(false)
+    setEditing(r)
+    setForm({
+      donacionId: String(r.donacionId),
+      empleadoTransportistaId: String(r.empleadoTransportistaId),
+      vehiculoId: r.vehiculoId ? String(r.vehiculoId) : "",
+      fechaInicio: r.fechaInicio ? r.fechaInicio.slice(0, 16) : "",
+      direccion: r.direccion ?? "",
+    })
+    setModalOpen(true)
+  }
+
+  function openView(r: Retiro) {
+    setIsViewing(true)
     setEditing(r)
     setForm({
       donacionId: String(r.donacionId),
@@ -189,6 +205,7 @@ export default function RetiroPage() {
         emptyText="No hay retiros registrados."
         emptySearchText="No se encontraron retiros con ese criterio."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -197,7 +214,8 @@ export default function RetiroPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={editing ? "Editar retiro" : "Nuevo retiro"}
+        title={isViewing ? "Ver retiro" : editing ? "Editar retiro" : "Nuevo retiro"}
+        readOnly={isViewing}
         description={editing ? "Modificá los datos del retiro." : "Registrá un nuevo retiro de donación."}
         onSave={handleSave}
         isLoading={isCreating || isUpdating}

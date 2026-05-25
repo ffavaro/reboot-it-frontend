@@ -84,6 +84,7 @@ export default function PalletPage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Pallet | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const filtered = pallets.filter((p: Pallet) => {
@@ -98,12 +99,26 @@ export default function PalletPage() {
   })
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setModalOpen(true)
   }
 
   function openEdit(p: Pallet) {
+    setIsViewing(false)
+    setEditing(p)
+    setForm({
+      rackId: String(p.rackId),
+      loteId: p.loteId ? String(p.loteId) : "",
+      codigo: p.codigo ?? "",
+      peso_kg: p.peso_kg !== null && p.peso_kg !== undefined ? String(p.peso_kg) : "",
+    })
+    setModalOpen(true)
+  }
+
+  function openView(p: Pallet) {
+    setIsViewing(true)
     setEditing(p)
     setForm({
       rackId: String(p.rackId),
@@ -182,6 +197,7 @@ export default function PalletPage() {
         emptyText="No hay pallets registrados."
         emptySearchText="No se encontraron pallets con ese criterio."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -190,7 +206,8 @@ export default function PalletPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={editing ? "Editar pallet" : "Nuevo pallet"}
+        title={isViewing ? "Ver pallet" : editing ? "Editar pallet" : "Nuevo pallet"}
+        readOnly={isViewing}
         description={editing ? "Modificá los datos del pallet." : "Registrá un nuevo pallet en un rack."}
         onSave={handleSave}
         isLoading={isCreating || isUpdating}

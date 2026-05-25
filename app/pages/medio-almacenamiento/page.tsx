@@ -81,6 +81,7 @@ export default function MedioAlmacenamientoPage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<MedioAlmacenamiento | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const filtered = medios.filter((m: MedioAlmacenamiento) => {
@@ -94,12 +95,27 @@ export default function MedioAlmacenamientoPage() {
   })
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setModalOpen(true)
   }
 
   function openEdit(m: MedioAlmacenamiento) {
+    setIsViewing(false)
+    setEditing(m)
+    setForm({
+      materialId: String(m.materialId),
+      tipoId: m.tipoId ? String(m.tipoId) : "",
+      marcaId: m.marcaId ? String(m.marcaId) : "",
+      modeloId: m.modeloId ? String(m.modeloId) : "",
+      terminosUso: m.terminosUso ?? "",
+    })
+    setModalOpen(true)
+  }
+
+  function openView(m: MedioAlmacenamiento) {
+    setIsViewing(true)
     setEditing(m)
     setForm({
       materialId: String(m.materialId),
@@ -180,6 +196,7 @@ export default function MedioAlmacenamientoPage() {
         emptyText="No hay medios de almacenamiento registrados."
         emptySearchText="No se encontraron medios con ese criterio."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -188,7 +205,8 @@ export default function MedioAlmacenamientoPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={editing ? "Editar medio de almacenamiento" : "Nuevo medio de almacenamiento"}
+        title={isViewing ? "Ver medio de almacenamiento" : editing ? "Editar medio de almacenamiento" : "Nuevo medio de almacenamiento"}
+        readOnly={isViewing}
         description={
           editing
             ? "Modificá los datos del medio de almacenamiento."

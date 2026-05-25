@@ -39,6 +39,7 @@ export default function RolesPage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Rol | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const filtered = roles.filter(
@@ -48,12 +49,21 @@ export default function RolesPage() {
   )
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setModalOpen(true)
   }
 
   function openEdit(r: Rol) {
+    setIsViewing(false)
+    setEditing(r)
+    setForm({ nombre: r.nombre, descripcion: r.descripcion ?? "" })
+    setModalOpen(true)
+  }
+
+  function openView(r: Rol) {
+    setIsViewing(true)
     setEditing(r)
     setForm({ nombre: r.nombre, descripcion: r.descripcion ?? "" })
     setModalOpen(true)
@@ -125,6 +135,7 @@ export default function RolesPage() {
         emptyText="No hay roles registrados."
         emptySearchText="No se encontraron roles con ese criterio."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -133,7 +144,8 @@ export default function RolesPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={editing ? "Editar rol" : "Nuevo rol"}
+        title={isViewing ? "Ver rol" : editing ? "Editar rol" : "Nuevo rol"}
+        readOnly={isViewing}
         description={
           editing
             ? `Modificá los datos de "${editing.nombre}".`

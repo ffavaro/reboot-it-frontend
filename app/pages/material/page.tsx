@@ -73,6 +73,7 @@ export default function MaterialPage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Material | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const filtered = materiales.filter((m: Material) => {
@@ -88,12 +89,26 @@ export default function MaterialPage() {
   })
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setModalOpen(true)
   }
 
   function openEdit(m: Material) {
+    setIsViewing(false)
+    setEditing(m)
+    setForm({
+      loteId: String(m.loteId),
+      tipoMaterialId: String(m.tipoMaterialId),
+      condicionMaterialId: String(m.condicionMaterialId),
+      descripcion: m.descripcion ?? "",
+    })
+    setModalOpen(true)
+  }
+
+  function openView(m: Material) {
+    setIsViewing(true)
     setEditing(m)
     setForm({
       loteId: String(m.loteId),
@@ -172,6 +187,7 @@ export default function MaterialPage() {
         emptyText="No hay materiales registrados."
         emptySearchText="No se encontraron materiales con ese criterio."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -180,7 +196,8 @@ export default function MaterialPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={editing ? "Editar material" : "Nuevo material"}
+        title={isViewing ? "Ver material" : editing ? "Editar material" : "Nuevo material"}
+        readOnly={isViewing}
         description={editing ? "Modificá los datos del material." : "Registrá un nuevo material en un lote."}
         onSave={handleSave}
         isLoading={isCreating || isUpdating}

@@ -86,6 +86,7 @@ export default function CertificadoDisposicionPage() {
   const [search, setSearch] = useState("")
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<CertificadoDisposicion | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [user, setUser] = useState<TokenPayload | null>(null)
 
@@ -117,12 +118,27 @@ export default function CertificadoDisposicionPage() {
   })
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setSheetOpen(true)
   }
 
   function openEdit(c: CertificadoDisposicion) {
+    setIsViewing(false)
+    setEditing(c)
+    setForm({
+      loteId: String(c.loteId),
+      gestorAmbientalId: String(c.gestorAmbientalId),
+      fechaEmision: c.fechaEmision ? c.fechaEmision.slice(0, 10) : "",
+      numeroCertificado: c.numeroCertificado ?? "",
+      terminosCondiciones: c.terminosCondiciones ?? "",
+    })
+    setSheetOpen(true)
+  }
+
+  function openView(c: CertificadoDisposicion) {
+    setIsViewing(true)
     setEditing(c)
     setForm({
       loteId: String(c.loteId),
@@ -205,6 +221,7 @@ export default function CertificadoDisposicionPage() {
         emptyText="No hay certificados de disposición registrados."
         emptySearchText="No se encontraron certificados con ese criterio."
         search={search}
+        onView={openView}
         onEdit={isDonante ? undefined : openEdit}
         onDelete={isDonante ? undefined : handleDelete}
         isDeleting={isDeleting}
@@ -213,7 +230,8 @@ export default function CertificadoDisposicionPage() {
       <FormModal
         open={sheetOpen}
         onOpenChange={setSheetOpen}
-        title={editing ? "Editar certificado" : "Nuevo certificado de disposición"}
+        title={isViewing ? "Ver certificado" : editing ? "Editar certificado" : "Nuevo certificado de disposición"}
+        readOnly={isViewing}
         description={
           editing
             ? `Modificá los datos del certificado "${editing.numeroCertificado ?? `#${editing.id}`}".`

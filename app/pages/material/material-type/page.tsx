@@ -44,6 +44,7 @@ export default function TipoMaterialPage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<TipoMaterial | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const filtered = tipoMateriales.filter(
@@ -53,12 +54,21 @@ export default function TipoMaterialPage() {
   )
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setModalOpen(true)
   }
 
   function openEdit(t: TipoMaterial) {
+    setIsViewing(false)
+    setEditing(t)
+    setForm({ nombre: t.nombre, descripcion: t.descripcion ?? "" })
+    setModalOpen(true)
+  }
+
+  function openView(t: TipoMaterial) {
+    setIsViewing(true)
     setEditing(t)
     setForm({ nombre: t.nombre, descripcion: t.descripcion ?? "" })
     setModalOpen(true)
@@ -130,6 +140,7 @@ export default function TipoMaterialPage() {
         emptyText="No hay tipos de material registrados."
         emptySearchText="No se encontraron tipos con ese criterio."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -138,7 +149,8 @@ export default function TipoMaterialPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={editing ? "Editar tipo de material" : "Nuevo tipo de material"}
+        title={isViewing ? "Ver tipo de material" : editing ? "Editar tipo de material" : "Nuevo tipo de material"}
+        readOnly={isViewing}
         description={
           editing
             ? `Modificá los datos de "${editing.nombre}".`

@@ -66,6 +66,7 @@ function VehiculosTab() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Vehiculo | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_VEHICULO)
 
   const filtered = vehiculos.filter(
@@ -76,12 +77,21 @@ function VehiculosTab() {
   )
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_VEHICULO)
     setModalOpen(true)
   }
 
   function openEdit(v: Vehiculo) {
+    setIsViewing(false)
+    setEditing(v)
+    setForm({ tipoVehiculoId: v.tipoVehiculoId, patente: v.patente, marca: v.marca, modelo: v.modelo })
+    setModalOpen(true)
+  }
+
+  function openView(v: Vehiculo) {
+    setIsViewing(true)
     setEditing(v)
     setForm({ tipoVehiculoId: v.tipoVehiculoId, patente: v.patente, marca: v.marca, modelo: v.modelo })
     setModalOpen(true)
@@ -139,6 +149,7 @@ function VehiculosTab() {
         emptyText="No hay vehículos registrados."
         emptySearchText="No se encontraron vehículos con ese criterio."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -147,7 +158,8 @@ function VehiculosTab() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={editing ? "Editar vehículo" : "Nuevo vehículo"}
+        title={isViewing ? "Ver vehículo" : editing ? "Editar vehículo" : "Nuevo vehículo"}
+        readOnly={isViewing}
         description={
           editing
             ? `Modificá los datos de ${editing.patente}.`
@@ -230,15 +242,25 @@ function TiposTab() {
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<TipoVehiculo | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_TIPO)
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_TIPO)
     setModalOpen(true)
   }
 
   function openEdit(t: TipoVehiculo) {
+    setIsViewing(false)
+    setEditing(t)
+    setForm({ descripcion: t.descripcion })
+    setModalOpen(true)
+  }
+
+  function openView(t: TipoVehiculo) {
+    setIsViewing(true)
     setEditing(t)
     setForm({ descripcion: t.descripcion })
     setModalOpen(true)
@@ -288,6 +310,7 @@ function TiposTab() {
         isLoading={isLoading}
         loadingText="Cargando tipos..."
         emptyText="No hay tipos de vehículo registrados."
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -296,7 +319,8 @@ function TiposTab() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={editing ? "Editar tipo" : "Nuevo tipo de vehículo"}
+        title={isViewing ? "Ver tipo de vehículo" : editing ? "Editar tipo" : "Nuevo tipo de vehículo"}
+        readOnly={isViewing}
         description={
           editing
             ? `Modificá la descripción de "${editing.descripcion}".`

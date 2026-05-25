@@ -86,6 +86,7 @@ function DonantesTab() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Donante | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_DONANTE)
 
   const filtered = donantes.filter(
@@ -96,12 +97,28 @@ function DonantesTab() {
   )
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_DONANTE)
     setModalOpen(true)
   }
 
   function openEdit(d: Donante) {
+    setIsViewing(false)
+    setEditing(d)
+    setForm({
+      usuarioId: d.usuarioId ?? 0,
+      tipoDonanteId: d.tipoDonanteId,
+      nombre: d.nombre,
+      razonSocial: d.razonSocial ?? "",
+      telefono: d.telefono ?? "",
+      direccion: d.direccion ?? "",
+    })
+    setModalOpen(true)
+  }
+
+  function openView(d: Donante) {
+    setIsViewing(true)
     setEditing(d)
     setForm({
       usuarioId: d.usuarioId ?? 0,
@@ -181,6 +198,7 @@ function DonantesTab() {
         emptyText="No hay donantes registrados."
         emptySearchText="No se encontraron donantes con ese criterio."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -189,7 +207,8 @@ function DonantesTab() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={editing ? "Editar donante" : "Nuevo donante"}
+        title={isViewing ? "Ver donante" : editing ? "Editar donante" : "Nuevo donante"}
+        readOnly={isViewing}
         description={
           editing
             ? `Modificá los datos de ${editing.nombre}.`
@@ -309,15 +328,25 @@ function TiposTab() {
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<TipoDonante | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_TIPO)
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_TIPO)
     setModalOpen(true)
   }
 
   function openEdit(t: TipoDonante) {
+    setIsViewing(false)
+    setEditing(t)
+    setForm({ descripcion: t.descripcion })
+    setModalOpen(true)
+  }
+
+  function openView(t: TipoDonante) {
+    setIsViewing(true)
     setEditing(t)
     setForm({ descripcion: t.descripcion })
     setModalOpen(true)
@@ -367,6 +396,7 @@ function TiposTab() {
         isLoading={isLoading}
         loadingText="Cargando tipos..."
         emptyText="No hay tipos de donante registrados."
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -375,7 +405,8 @@ function TiposTab() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={editing ? "Editar tipo" : "Nuevo tipo de donante"}
+        title={isViewing ? "Ver tipo de donante" : editing ? "Editar tipo" : "Nuevo tipo de donante"}
+        readOnly={isViewing}
         description={
           editing
             ? `Modificá la descripción de "${editing.descripcion}".`

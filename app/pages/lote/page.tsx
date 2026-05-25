@@ -60,6 +60,7 @@ export default function LotePage() {
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Lote | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const filtered = lotes.filter((l: Lote) => {
@@ -72,12 +73,25 @@ export default function LotePage() {
   })
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setModalOpen(true)
   }
 
   function openEdit(l: Lote) {
+    setIsViewing(false)
+    setEditing(l)
+    setForm({
+      donacionId: String(l.donacionId),
+      pesoBrutoKg: l.pesoBrutoKg !== null && l.pesoBrutoKg !== undefined ? String(l.pesoBrutoKg) : "",
+      observaciones: l.observaciones ?? "",
+    })
+    setModalOpen(true)
+  }
+
+  function openView(l: Lote) {
+    setIsViewing(true)
     setEditing(l)
     setForm({
       donacionId: String(l.donacionId),
@@ -154,6 +168,7 @@ export default function LotePage() {
         emptyText="No hay lotes registrados."
         emptySearchText="No se encontraron lotes con ese criterio."
         search={search}
+        onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -162,7 +177,8 @@ export default function LotePage() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={editing ? "Editar lote" : "Nuevo lote"}
+        title={isViewing ? "Ver lote" : editing ? "Editar lote" : "Nuevo lote"}
+        readOnly={isViewing}
         description={editing ? "Modificá los datos del lote." : "Registrá un nuevo lote de materiales."}
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
