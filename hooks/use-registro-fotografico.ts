@@ -39,3 +39,11 @@ export function useDeleteRegistroFotografico() {
   )
   return { deleteRegistro: trigger, isLoading: isMutating, error }
 }
+
+export function useRegistrosByTurno(turnoId: number | null) {
+  const { data, isLoading, mutate } = useSWR<RegistroFotografico[]>(
+    turnoId ? `/registro-fotografico/by-turno/${turnoId}` : null,
+    fetcher,
+  )
+  return { fotos: data ?? [], isLoading, mutate }
+}

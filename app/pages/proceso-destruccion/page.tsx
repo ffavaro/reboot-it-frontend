@@ -15,13 +15,27 @@ import {
 } from "@/hooks/use-proceso-destruccion"
 import { useEmpleadosFull } from "@/hooks/use-employees"
 import { useMediosAlmacenamiento } from "@/hooks/use-medio-almacenamiento"
+import { useMetodosDestruccion } from "@/hooks/use-metodo-destruccion"
+import { useEstadosProcesoDestruccion } from "@/hooks/use-estado-proceso-destruccion"
 import type { ProcesoDestruccion } from "@/lib/type/proceso-destruccion"
 import type { Empleado } from "@/lib/type/user"
 import type { MedioAlmacenamiento } from "@/lib/type/medio-almacenamiento"
+import type { MetodoDestruccion } from "@/lib/type/metodo-destruccion"
+import type { EstadoProcesoDestruccion } from "@/lib/type/estado-proceso-destruccion"
 
-const EMPTY_FORM = { medioAlmacenamientoId: "", fecha: "", metodo: "", empleadoId: "" }
+const EMPTY_FORM = {
+  medioAlmacenamientoId: "",
+  fecha: "",
+  metodoDestruccionId: "",
+  estadoId: "",
+  empleadoId: "",
+}
 
-const METODOS = ["Trituración", "Desmagnetización", "Incineración", "Sobreescritura", "Fragmentación"]
+const ESTADO_COLORS: Record<string, string> = {
+  Iniciado: "bg-blue-100 text-blue-800",
+  Pendiente: "bg-yellow-100 text-yellow-800",
+  Finalizado: "bg-green-100 text-green-800",
+}
 
 function formatDate(iso: string | null) {
   if (!iso) return null
@@ -40,29 +54,53 @@ const columns: TableColumn<ProcesoDestruccion>[] = [
   {
     key: "medio",
     header: "Medio de almacenamiento",
-    cell: (p) => (
-      <span className="font-mono text-xs">
-        #{p.medioAlmacenamientoId}
-        {p.medioAlmacenamiento?.marca?.nombre && (
-          <span className="ml-2 font-sans text-muted-foreground not-italic">
-            {p.medioAlmacenamiento.marca.nombre}
-            {p.medioAlmacenamiento.modelo?.nombre && ` ${p.medioAlmacenamiento.modelo.nombre}`}
-          </span>
-        )}
-      </span>
-    ),
+    cell: (p) => {
+      const m = p.medioAlmacenamiento
+      const tipoMaterial = m?.material?.tipoMaterial?.nombre
+      const descripcion = m?.material?.descripcion
+      const marca = m?.marca?.nombre
+      const modelo = m?.modelo?.nombre
+      return (
+        <div className="flex flex-col gap-0.5">
+          <span className="font-mono text-xs text-muted-foreground">#{p.medioAlmacenamientoId}</span>
+          {tipoMaterial && (
+            <span className="text-sm font-medium">
+              {tipoMaterial}
+              {marca && ` · ${marca}`}
+              {modelo && ` ${modelo}`}
+            </span>
+          )}
+          {descripcion && (
+            <span className="text-xs text-muted-foreground truncate max-w-55">{descripcion}</span>
+          )}
+        </div>
+      )
+    },
   },
   {
     key: "metodo",
     header: "Método",
     cell: (p) =>
-      p.metodo ? (
+      p.metodoDestruccion ? (
         <span className="inline-flex items-center rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800">
-          {p.metodo}
+          {p.metodoDestruccion.nombre}
         </span>
       ) : (
         <span className="italic text-muted-foreground">—</span>
       ),
+  },
+  {
+    key: "estado",
+    header: "Estado",
+    cell: (p) => {
+      const nombre = p.estado?.nombre ?? ""
+      const color = ESTADO_COLORS[nombre] ?? "bg-gray-100 text-gray-800"
+      return (
+        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}>
+          {nombre || "—"}
+        </span>
+      )
+    },
   },
   {
     key: "fecha",
@@ -87,6 +125,8 @@ export default function ProcesoDestruccionPage() {
   const { procesos, isLoading, mutate } = useProcesosDestruccion()
   const { empleados } = useEmpleadosFull()
   const { medios } = useMediosAlmacenamiento()
+  const { metodos } = useMetodosDestruccion()
+  const { estados } = useEstadosProcesoDestruccion()
   const { createProceso, isLoading: isCreating } = useCreateProcesoDestruccion()
   const { updateProceso, isLoading: isUpdating } = useUpdateProcesoDestruccion()
   const { deleteProceso, isLoading: isDeleting } = useDeleteProcesoDestruccion()
@@ -100,9 +140,12 @@ export default function ProcesoDestruccionPage() {
   const filtered = procesos.filter((p: ProcesoDestruccion) => {
     const q = search.toLowerCase()
     const empleado = p.empleado ? `${p.empleado.nombre} ${p.empleado.apellido}`.toLowerCase() : ""
+    const metodo = p.metodoDestruccion?.nombre.toLowerCase() ?? ""
+    const estado = p.estado?.nombre.toLowerCase() ?? ""
     return (
       String(p.medioAlmacenamientoId).includes(q) ||
-      (p.metodo ?? "").toLowerCase().includes(q) ||
+      metodo.includes(q) ||
+      estado.includes(q) ||
       empleado.includes(q)
     )
   })
@@ -120,7 +163,8 @@ export default function ProcesoDestruccionPage() {
     setForm({
       medioAlmacenamientoId: String(p.medioAlmacenamientoId),
       fecha: p.fecha ? p.fecha.slice(0, 10) : "",
-      metodo: p.metodo ?? "",
+      metodoDestruccionId: p.metodoDestruccionId ? String(p.metodoDestruccionId) : "",
+      estadoId: p.estadoId ? String(p.estadoId) : "",
       empleadoId: p.empleadoId ? String(p.empleadoId) : "",
     })
     setModalOpen(true)
@@ -132,7 +176,8 @@ export default function ProcesoDestruccionPage() {
     setForm({
       medioAlmacenamientoId: String(p.medioAlmacenamientoId),
       fecha: p.fecha ? p.fecha.slice(0, 10) : "",
-      metodo: p.metodo ?? "",
+      metodoDestruccionId: p.metodoDestruccionId ? String(p.metodoDestruccionId) : "",
+      estadoId: p.estadoId ? String(p.estadoId) : "",
       empleadoId: p.empleadoId ? String(p.empleadoId) : "",
     })
     setModalOpen(true)
@@ -147,7 +192,8 @@ export default function ProcesoDestruccionPage() {
       const payload = {
         medioAlmacenamientoId: Number(form.medioAlmacenamientoId),
         fecha: form.fecha || undefined,
-        metodo: form.metodo.trim() || undefined,
+        metodoDestruccionId: form.metodoDestruccionId ? Number(form.metodoDestruccionId) : undefined,
+        estadoId: form.estadoId ? Number(form.estadoId) : undefined,
         empleadoId: form.empleadoId ? Number(form.empleadoId) : undefined,
       }
       if (editing) {
@@ -185,7 +231,7 @@ export default function ProcesoDestruccionPage() {
 
       <div className="flex items-center gap-3">
         <Input
-          placeholder="Buscar por medio, método o empleado..."
+          placeholder="Buscar por medio, método, estado o empleado..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
@@ -247,13 +293,29 @@ export default function ProcesoDestruccionPage() {
             Método <span className="text-muted-foreground font-normal">(opcional)</span>
           </label>
           <select
-            value={form.metodo}
-            onChange={(e) => setForm((f) => ({ ...f, metodo: e.target.value }))}
+            value={form.metodoDestruccionId}
+            onChange={(e) => setForm((f) => ({ ...f, metodoDestruccionId: e.target.value }))}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="">Sin método especificado</option>
-            {METODOS.map((m) => (
-              <option key={m} value={m}>{m}</option>
+            {metodos.map((m: MetodoDestruccion) => (
+              <option key={m.id} value={m.id}>{m.nombre}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Estado <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <select
+            value={form.estadoId}
+            onChange={(e) => setForm((f) => ({ ...f, estadoId: e.target.value }))}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Sin estado especificado</option>
+            {estados.map((e: EstadoProcesoDestruccion) => (
+              <option key={e.id} value={e.id}>{e.nombre}</option>
             ))}
           </select>
         </div>

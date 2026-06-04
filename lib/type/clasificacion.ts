@@ -22,3 +22,4 @@ export interface UpdateClasificacionPayload {
   fecha?: string | null
   empleadoId?: number | null
 }
+

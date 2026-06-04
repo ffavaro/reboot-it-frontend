@@ -27,3 +27,12 @@ export interface UpdateMaterialPayload {
   condicionMaterialId?: number
   descripcion?: string | null
 }
+
+export interface ClasificarMaterialPayload {
+  condicionMaterialId: number
+  requiereDestruccion?: boolean
+  tipoId?: number
+  marcaId?: number
+  modeloId?: number
+  descripcion?: string
+}

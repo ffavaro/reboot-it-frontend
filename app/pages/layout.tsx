@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { UserIcon, ChevronRight, LogOut } from "lucide-react"
 import { useEffect, useState } from "react";
 import { getUser, clearSession } from "@/lib/auth-utils"
@@ -56,6 +57,11 @@ export default function RootLayout({
                 <DropdownMenu>
                   <DropdownMenuTrigger className="w-full">
                     <div className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="text-xs">
+                          {user.nombre.split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
                       <div className="flex flex-col text-left leading-tight">
                         <span>{user.nombre}</span>
                         <span className="text-xs font-normal text-muted-foreground">{user.email}</span>

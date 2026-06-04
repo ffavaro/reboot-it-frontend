@@ -40,15 +40,13 @@ const navMain: NavSection[] = [
     title: "Gestion de Donantes",
     url: "#",
     items: [
+      { title: "Agenda", url: "/pages/agenda", icon: CalendarDays },
       { title: "Certificado de disposicion", url: "/pages/certificado-disposicion", allowedRoles: DONANTE, icon: FileCheck },
       { title: "Clasificacion", url: "/pages/clasificacion", icon: LayoutList },
       { title: "Constancia de retiro", url: "/pages/constancia-retiro", allowedRoles: DONANTE, icon: FileText },
       { title: "Donaciones", url: "/pages/donacion", allowedRoles: DONANTE, icon: Heart },
-      { title: "Donantes", url: "/pages/donante", icon: Users },
-      { title: "Lotes", url: "/pages/lote", icon: Package },
       { title: "Registro fotográfico", url: "/pages/registro-fotografico", icon: Camera },
       { title: "Turnos", url: "/pages/turno", allowedRoles: DONANTE, icon: Clock },
-      { title: "Agenda", url: "/pages/agenda", icon: CalendarDays },
     ],
   },
   {
@@ -67,7 +65,7 @@ const navMain: NavSection[] = [
       { title: "Materiales", url: "/pages/material", icon: Layers },
       { title: "Condicion de Material", url: "/pages/material/material-condition", icon: Circle },
       { title: "Tipos de Material", url: "/pages/material/material-type", icon: Tag },
-    { title: "Proceso de destrucción", url: "/pages/proceso-destruccion", icon: Trash2 },
+      { title: "Proceso de destrucción", url: "/pages/proceso-destruccion", icon: Trash2 },
     ],
   },
   {
@@ -80,6 +78,7 @@ const navMain: NavSection[] = [
       { title: "Modelos", url: "/pages/medio-almacenamiento/models", icon: Box },
       { title: "Racks", url: "/pages/rack", icon: Server },
       { title: "Pallets", url: "/pages/pallet", icon: Boxes },
+      { title: "Lotes", url: "/pages/lote", icon: Package },
     ],
   },
   {
@@ -92,11 +91,15 @@ const navMain: NavSection[] = [
   {
     title: "Configuracion",
     url: "#",
-    items: [{ title: "Empleados", url: "/pages/employees", icon: User },
+    items: [
+      { title: "Donantes", url: "/pages/donante", icon: Users },
+      { title: "Empleados", url: "/pages/employees", icon: User },
       { title: "Estado de turno", url: "/pages/estado-turno", icon: CalendarCheck },
+      { title: "Estado de proceso de destrucción", url: "/pages/estado-proceso-destruccion", icon: Layers },
       { title: "Gestora Ambiental", url: "/pages/gestor-ambiental", icon: Leaf },
+      { title: "Metodos de destrucción", url: "/pages/metodo-destruccion", icon: LayoutList },
       { title: "Roles", url: "/pages/roles", icon: Shield },
-       { title: "Usuarios", url: "/pages/user-management", icon: UserCog },
+      { title: "Usuarios", url: "/pages/user-management", icon: UserCog },
     ],
   }
 ]

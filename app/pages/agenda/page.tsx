@@ -3,13 +3,14 @@
 import { useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { FormModal } from "@/components/ui/form-modal"
 import { useTurnos } from "@/hooks/use-turno"
 import type { Turno } from "@/lib/type/turno"
 
 const DIAS_SEMANA = ["Lun", "Mar", "Mié", "Jue", "Vie"]
 const HORA_INICIO = 8
-const HORA_FIN = 19
-const PX_POR_HORA = 64
+const HORA_FIN = 17
+const PX_POR_HORA = 50
 const TOTAL_H = (HORA_FIN - HORA_INICIO) * PX_POR_HORA
 const HORAS = Array.from({ length: HORA_FIN - HORA_INICIO }, (_, i) => HORA_INICIO + i)
 
@@ -66,6 +67,7 @@ export default function AgendaPage() {
   const { turnos, isLoading } = useTurnos()
   const [inicioSemana, setInicioSemana] = useState(() => getLunes(new Date()))
   const [seleccionado, setSeleccionado] = useState<Turno | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
 
   const hoy = new Date()
   const diasSemana = Array.from({ length: 5 }, (_, i) => sumarDias(inicioSemana, i))
@@ -108,6 +110,17 @@ export default function AgendaPage() {
         <p className="text-sm text-muted-foreground">Visualizá los turnos programados para la semana.</p>
       </div>
 
+      {/* Leyenda */}
+      <div className="flex items-center gap-4 flex-wrap">
+        <span className="text-xs font-medium text-muted-foreground">Estado:</span>
+        {Object.entries(COLORES_ESTADO).map(([label, c]) => (
+          <span key={label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className={`h-2 w-2 rounded-full ${c.dot}`} />
+            <span className="capitalize">{label}</span>
+          </span>
+        ))}
+      </div>
+
       <div className="flex items-center gap-2">
         <Button variant="outline" size="icon" onClick={semanaAnterior}>
           <ChevronLeft className="h-4 w-4" />
@@ -134,13 +147,13 @@ export default function AgendaPage() {
               return (
                 <div
                   key={i}
-                  className={`py-3 text-center border-r last:border-r-0${esHoy ? " bg-primary/10" : ""}`}
+                  className={`py-1.5 text-center border-r last:border-r-0${esHoy ? " bg-primary/10" : ""}`}
                 >
                   <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     {DIAS_SEMANA[i]}
                   </div>
                   <div
-                    className={`mx-auto mt-1 flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold${
+                    className={`mx-auto mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold${
                       esHoy ? " bg-primary text-primary-foreground" : ""
                     }`}
                   >
@@ -163,7 +176,7 @@ export default function AgendaPage() {
               <div
                 key={hora}
                 className="absolute right-2 text-xs text-muted-foreground select-none"
-                style={{ top: `${(hora - HORA_INICIO) * PX_POR_HORA - 8}px` }}
+                style={{ top: `${(hora - HORA_INICIO) * PX_POR_HORA + 4}px` }}
               >
                 {String(hora).padStart(2, "0")}:00
               </div>
@@ -209,15 +222,12 @@ export default function AgendaPage() {
                     if (top < 0 || top >= TOTAL_H) return null
                     const height = Math.min(PX_POR_HORA, TOTAL_H - top)
                     const c = colorEstado(t.estadoTurno?.descripcion)
-                    const activo = seleccionado?.id === t.id
 
                     return (
                       <button
                         key={t.id}
-                        onClick={() => setSeleccionado(activo ? null : t)}
-                        className={`absolute left-1 right-1 rounded-md px-1.5 py-1 text-left text-xs overflow-hidden cursor-pointer border-l-2 transition-opacity ${c.bg} ${c.text} ${c.borde}${
-                          activo ? " ring-2 ring-primary ring-offset-1" : " hover:opacity-75"
-                        }`}
+                        onClick={() => { setSeleccionado(t); setModalOpen(true) }}
+                        className={`absolute left-1 right-1 rounded-md px-1.5 py-1 text-left text-xs overflow-hidden cursor-pointer border-l-2 transition-opacity hover:opacity-75 ${c.bg} ${c.text} ${c.borde}`}
                         style={{ top: `${top}px`, height: `${height}px` }}
                       >
                         <div className="font-semibold leading-tight truncate">
@@ -238,43 +248,21 @@ export default function AgendaPage() {
         </div>
       </div>
 
-      {/* Leyenda */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <span className="text-xs font-medium text-muted-foreground">Estado:</span>
-        {Object.entries(COLORES_ESTADO).map(([label, c]) => (
-          <span key={label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className={`h-2 w-2 rounded-full ${c.dot}`} />
-            <span className="capitalize">{label}</span>
-          </span>
-        ))}
-      </div>
-
-      {/* Panel de detalle */}
-      {seleccionado && (
-        <div className="rounded-lg border bg-card p-5 shadow-sm">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h2 className="font-semibold text-base">Detalle del turno</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {new Date(seleccionado.fechaHora).toLocaleString("es-AR", {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </p>
-            </div>
-            <button
-              onClick={() => setSeleccionado(null)}
-              className="text-muted-foreground hover:text-foreground text-xl leading-none"
-              aria-label="Cerrar detalle"
-            >
-              ×
-            </button>
-          </div>
-
+      <FormModal
+        open={modalOpen}
+        onOpenChange={(open) => { setModalOpen(open); if (!open) setSeleccionado(null) }}
+        title="Detalle del turno"
+        description={
+          seleccionado
+            ? new Date(seleccionado.fechaHora).toLocaleString("es-AR", {
+                weekday: "long", day: "numeric", month: "long",
+                year: "numeric", hour: "2-digit", minute: "2-digit",
+              })
+            : undefined
+        }
+        readOnly
+      >
+        {seleccionado && (
           <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
@@ -292,9 +280,7 @@ export default function AgendaPage() {
                 (() => {
                   const c = colorEstado(seleccionado.estadoTurno.descripcion)
                   return (
-                    <span
-                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${c.bg} ${c.text}`}
-                    >
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${c.bg} ${c.text}`}>
                       <span className={`h-1.5 w-1.5 rounded-full ${c.dot}`} />
                       {seleccionado.estadoTurno.descripcion}
                     </span>
@@ -303,6 +289,18 @@ export default function AgendaPage() {
               ) : (
                 <span className="italic text-muted-foreground">—</span>
               )}
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                Hora
+              </p>
+              <p className="font-medium">{formatHora(seleccionado.fechaHora)}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                ID
+              </p>
+              <p className="font-mono text-muted-foreground">#{seleccionado.id}</p>
             </div>
             {seleccionado.descripcion && (
               <div className="col-span-2">
@@ -313,8 +311,8 @@ export default function AgendaPage() {
               </div>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </FormModal>
     </div>
   )
 }

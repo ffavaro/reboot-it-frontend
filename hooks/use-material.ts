@@ -1,7 +1,7 @@
 import useSWR from "swr"
 import useSWRMutation from "swr/mutation"
 import { fetcher, materialApi } from "@/lib/api"
-import type { Material, CreateMaterialPayload, UpdateMaterialPayload } from "@/lib/type/material"
+import type { Material, CreateMaterialPayload, UpdateMaterialPayload, ClasificarMaterialPayload } from "@/lib/type/material"
 
 export function useMateriales() {
   const { data, isLoading, error, mutate } = useSWR<Material[]>("/material", fetcher)
@@ -34,3 +34,15 @@ export function useDeleteMaterial() {
   )
   return { deleteMaterial: trigger, isLoading: isMutating, error }
 }
+
+export function useClasificarMaterial() {
+  const { trigger, isMutating, error } = useSWRMutation(
+    "/material",
+    (_key: string, { arg }: { arg: { id: number } & ClasificarMaterialPayload }) => {
+      const { id, ...payload } = arg
+      return materialApi.clasificar(id, payload)
+    },
+  )
+  return { clasificarMaterial: trigger, isLoading: isMutating, error }
+}
+

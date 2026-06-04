@@ -8,6 +8,9 @@ import { request } from "./client"
 export const registroFotograficoApi = {
   getAll: () => request<RegistroFotografico[]>("/registro-fotografico"),
 
+  getByTurno: (turnoId: number) =>
+    request<RegistroFotografico[]>(`/registro-fotografico/by-turno/${turnoId}`),
+
   create: (data: CreateRegistroFotograficoPayload) =>
     request<RegistroFotografico>("/registro-fotografico", { method: "POST", body: JSON.stringify(data) }),
 

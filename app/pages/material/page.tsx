@@ -12,16 +12,24 @@ import {
   useCreateMaterial,
   useUpdateMaterial,
   useDeleteMaterial,
+  useClasificarMaterial,
 } from "@/hooks/use-material"
 import { useLotes } from "@/hooks/use-lote"
 import { useTipoMateriales } from "@/hooks/use-tipo-material"
 import { useCondicionesMaterial } from "@/hooks/use-condicion-material"
+import { useTipos } from "@/hooks/use-tipo"
+import { useMarcas } from "@/hooks/use-marca"
+import { useModelos } from "@/hooks/use-modelo"
 import type { Material } from "@/lib/type/material"
 import type { Lote } from "@/lib/type/lote"
 import type { TipoMaterial } from "@/lib/type/tipo-material"
 import type { CondicionMaterial } from "@/lib/type/condicion-material"
+import type { Tipo } from "@/lib/type/tipo"
+import type { Marca } from "@/lib/type/marca"
+import type { Modelo } from "@/lib/type/modelo"
 
 const EMPTY_FORM = { loteId: "", tipoMaterialId: "", condicionMaterialId: "", descripcion: "" }
+const TIPO_ALMACENAMIENTO = "almacenamiento"
 
 const columns: TableColumn<Material>[] = [
   {
@@ -66,15 +74,28 @@ export default function MaterialPage() {
   const { lotes } = useLotes()
   const { tipoMateriales } = useTipoMateriales()
   const { condiciones } = useCondicionesMaterial()
+  const { tipos } = useTipos()
+  const { marcas } = useMarcas()
+  const { modelos } = useModelos()
   const { createMaterial, isLoading: isCreating } = useCreateMaterial()
-  const { updateMaterial, isLoading: isUpdating } = useUpdateMaterial()
+  const { updateMaterial } = useUpdateMaterial()
   const { deleteMaterial, isLoading: isDeleting } = useDeleteMaterial()
+  const { clasificarMaterial, isLoading: isClasificando } = useClasificarMaterial()
 
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Material | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [requiereDestruccion, setRequiereDestruccion] = useState<boolean>(false)
+  const [destruccionTipoId, setDestruccionTipoId] = useState("")
+  const [destruccionMarcaId, setDestruccionMarcaId] = useState("")
+  const [destruccionModeloId, setDestruccionModeloId] = useState("")
+
+  // Filtra modelos según la marca seleccionada
+  const modelosFiltrados = destruccionMarcaId
+    ? modelos.filter((m: Modelo) => String(m.marcaId) === destruccionMarcaId)
+    : modelos
 
   const filtered = materiales.filter((m: Material) => {
     const q = search.toLowerCase()
@@ -88,10 +109,25 @@ export default function MaterialPage() {
     )
   })
 
+  // Resuelve si el tipo seleccionado actualmente es "Almacenamiento"
+  const tipoSeleccionado = tipoMateriales.find(
+    (t: TipoMaterial) => String(t.id) === form.tipoMaterialId,
+  )
+  const esAlmacenamiento =
+    tipoSeleccionado?.nombre?.toLowerCase() === TIPO_ALMACENAMIENTO
+
+  function resetDestruccion() {
+    setRequiereDestruccion(false)
+    setDestruccionTipoId("")
+    setDestruccionMarcaId("")
+    setDestruccionModeloId("")
+  }
+
   function openCreate() {
     setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
+    resetDestruccion()
     setModalOpen(true)
   }
 
@@ -104,6 +140,7 @@ export default function MaterialPage() {
       condicionMaterialId: String(m.condicionMaterialId),
       descripcion: m.descripcion ?? "",
     })
+    resetDestruccion()
     setModalOpen(true)
   }
 
@@ -116,6 +153,7 @@ export default function MaterialPage() {
       condicionMaterialId: String(m.condicionMaterialId),
       descripcion: m.descripcion ?? "",
     })
+    resetDestruccion()
     setModalOpen(true)
   }
 
@@ -124,6 +162,12 @@ export default function MaterialPage() {
       toast.error("Lote, tipo de material y condición son obligatorios")
       return
     }
+    if (esAlmacenamiento && requiereDestruccion) {
+      if (!destruccionTipoId || !destruccionMarcaId || !destruccionModeloId) {
+        toast.error("Para el proceso de destrucción debe seleccionar tipo, marca y modelo del medio de almacenamiento")
+        return
+      }
+    }
     try {
       const payload = {
         loteId: Number(form.loteId),
@@ -131,12 +175,38 @@ export default function MaterialPage() {
         condicionMaterialId: Number(form.condicionMaterialId),
         descripcion: form.descripcion.trim() || undefined,
       }
+
       if (editing) {
         await updateMaterial({ id: editing.id, ...payload })
-        toast.success("Material actualizado")
+        // Si es almacenamiento con destrucción, crear medio + proceso después de actualizar
+        if (esAlmacenamiento && requiereDestruccion) {
+          await clasificarMaterial({
+            id: editing.id,
+            condicionMaterialId: payload.condicionMaterialId,
+            requiereDestruccion: true,
+            tipoId: destruccionTipoId ? Number(destruccionTipoId) : undefined,
+            marcaId: destruccionMarcaId ? Number(destruccionMarcaId) : undefined,
+            modeloId: destruccionModeloId ? Number(destruccionModeloId) : undefined,
+          })
+          toast.success("Material actualizado. Se creó el proceso de destrucción.")
+        } else {
+          toast.success("Material actualizado")
+        }
       } else {
-        await createMaterial(payload)
-        toast.success("Material creado")
+        const created = await createMaterial(payload)
+        if (esAlmacenamiento && requiereDestruccion && created) {
+          await clasificarMaterial({
+            id: (created as Material).id,
+            condicionMaterialId: payload.condicionMaterialId,
+            requiereDestruccion: true,
+            tipoId: destruccionTipoId ? Number(destruccionTipoId) : undefined,
+            marcaId: destruccionMarcaId ? Number(destruccionMarcaId) : undefined,
+            modeloId: destruccionModeloId ? Number(destruccionModeloId) : undefined,
+          })
+          toast.success("Material creado. Se creó el proceso de destrucción.")
+        } else {
+          toast.success("Material creado")
+        }
       }
       await mutate()
       setModalOpen(false)
@@ -200,7 +270,7 @@ export default function MaterialPage() {
         readOnly={isViewing}
         description={editing ? "Modificá los datos del material." : "Registrá un nuevo material en un lote."}
         onSave={handleSave}
-        isLoading={isCreating || isUpdating}
+        isLoading={isCreating || isClasificando}
         saveLabel={editing ? "Guardar cambios" : "Crear material"}
       >
         <div className="flex flex-col gap-2">
@@ -208,7 +278,8 @@ export default function MaterialPage() {
           <select
             value={form.loteId}
             onChange={(e) => setForm((f) => ({ ...f, loteId: e.target.value }))}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            disabled={isViewing}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
           >
             <option value="">Seleccionar lote...</option>
             {lotes.map((l: Lote) => (
@@ -224,8 +295,12 @@ export default function MaterialPage() {
           <label className="text-sm font-medium">Tipo de material</label>
           <select
             value={form.tipoMaterialId}
-            onChange={(e) => setForm((f) => ({ ...f, tipoMaterialId: e.target.value }))}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            onChange={(e) => {
+              setForm((f) => ({ ...f, tipoMaterialId: e.target.value }))
+              setRequiereDestruccion(false)
+            }}
+            disabled={isViewing}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
           >
             <option value="">Seleccionar tipo...</option>
             {tipoMateriales.map((t: TipoMaterial) => (
@@ -239,7 +314,8 @@ export default function MaterialPage() {
           <select
             value={form.condicionMaterialId}
             onChange={(e) => setForm((f) => ({ ...f, condicionMaterialId: e.target.value }))}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            disabled={isViewing}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
           >
             <option value="">Seleccionar condición...</option>
             {condiciones.map((c: CondicionMaterial) => (
@@ -248,6 +324,95 @@ export default function MaterialPage() {
           </select>
         </div>
 
+        {/* Toggle destrucción — solo visible si tipo es Almacenamiento y no es vista */}
+        {esAlmacenamiento && !isViewing && (
+          <div className="flex flex-col gap-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+            <p className="text-sm font-medium text-amber-900">
+              ¿Requiere proceso de destrucción?
+            </p>
+            <p className="text-xs text-amber-700">
+              Al confirmar se creará un <span className="font-medium">Medio de Almacenamiento</span> y un{" "}
+              <span className="font-medium">Proceso de Destrucción</span> asociados a este material.
+            </p>
+            <div className="flex gap-4 mt-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="requiereDestruccion"
+                  checked={requiereDestruccion === true}
+                  onChange={() => setRequiereDestruccion(true)}
+                  className="accent-primary"
+                />
+                <span className="text-sm font-medium">Sí</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="requiereDestruccion"
+                  checked={requiereDestruccion === false}
+                  onChange={() => { setRequiereDestruccion(false); resetDestruccion() }}
+                  className="accent-primary"
+                />
+                <span className="text-sm font-medium">No</span>
+              </label>
+            </div>
+
+            {requiereDestruccion && (
+              <div className="flex flex-col gap-3 border-t border-amber-200 pt-3 mt-1">
+                <p className="text-xs font-medium text-amber-800">Datos del medio de almacenamiento</p>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-amber-800">
+                    Tipo <span className="text-red-600">*</span>
+                  </label>
+                  <select
+                    value={destruccionTipoId}
+                    onChange={(e) => setDestruccionTipoId(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-amber-300 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400"
+                  >
+                    <option value="">Sin tipo...</option>
+                    {tipos.map((t: Tipo) => (
+                      <option key={t.id} value={t.id}>{t.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-amber-800">
+                    Marca <span className="text-red-600">*</span>
+                  </label>
+                  <select
+                    value={destruccionMarcaId}
+                    onChange={(e) => { setDestruccionMarcaId(e.target.value); setDestruccionModeloId("") }}
+                    className="flex h-9 w-full rounded-md border border-amber-300 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400"
+                  >
+                    <option value="">Sin marca...</option>
+                    {marcas.map((m: Marca) => (
+                      <option key={m.id} value={m.id}>{m.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-amber-800">
+                    Modelo <span className="text-red-600">*</span>
+                  </label>
+                  <select
+                    value={destruccionModeloId}
+                    onChange={(e) => setDestruccionModeloId(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-amber-300 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400"
+                  >
+                    <option value="">Sin modelo...</option>
+                    {modelosFiltrados.map((m: Modelo) => (
+                      <option key={m.id} value={m.id}>{m.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">
             Descripción <span className="text-muted-foreground font-normal">(opcional)</span>
@@ -255,6 +420,7 @@ export default function MaterialPage() {
           <Input
             placeholder="Descripción del material..."
             value={form.descripcion}
+            disabled={isViewing}
             onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
           />
         </div>

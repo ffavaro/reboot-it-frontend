@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Truck, Building2, AlertTriangle } from "lucide-react"
 import type { TokenPayload } from "@/lib/auth-utils"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
@@ -33,7 +33,7 @@ const MESES_ES = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ]
 const DIAS_CAL = ["Lu", "Ma", "Mi", "Ju", "Vi"]
-const TIME_SLOTS = Array.from({ length: 11 }, (_, i) => `${String(8 + i).padStart(2, "0")}:00`)
+const TIME_SLOTS = Array.from({ length: 10 }, (_, i) => `${String(8 + i).padStart(2, "0")}:00`)
 
 const ESTADO_COLORS: Record<string, string> = {
   pendiente: "bg-yellow-100 text-yellow-800",
@@ -92,6 +92,8 @@ export default function DonacionPage() {
   const [detalles, setDetalles] = useState<DetalleRow[]>([])
   const [user, setUser] = useState<TokenPayload | null>(null)
 
+  const [necesitaRetiro, setNecesitaRetiro] = useState(false)
+
   const [calYear, setCalYear] = useState(new Date().getFullYear())
   const [calMonth, setCalMonth] = useState(new Date().getMonth())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
@@ -99,13 +101,15 @@ export default function DonacionPage() {
 
   useEffect(() => { setUser(getUser()) }, [])
 
-  const isDonante = user?.rol?.nombre?.toLowerCase() === "donante"
-  const myDonante = isDonante
-    ? donantes.find((d: Donante) => d.usuarioId === user?.id) ?? null
+  const myDonante = user
+    ? donantes.find((d: Donante) => d.usuarioId === user.id) ?? null
     : null
+  const isDonante = user?.rol?.nombre?.toLowerCase() === "donante" || myDonante !== null
 
-  const visibleDonaciones = isDonante
-    ? donaciones.filter((d: Donacion) => d.donanteId === myDonante?.id)
+  const visibleDonaciones = isDonante && myDonante
+    ? donaciones.filter((d: Donacion) => d.donanteId === myDonante.id)
+    : isDonante
+    ? []
     : donaciones
 
   const filtered = visibleDonaciones.filter((d: Donacion) => {
@@ -173,6 +177,7 @@ export default function DonacionPage() {
     setCalMonth(now.getMonth())
     setSelectedDate(null)
     setSelectedTime(null)
+    setNecesitaRetiro(false)
     setForm({
       ...EMPTY_FORM,
       donanteId: myDonante ? String(myDonante.id) : "",
@@ -187,6 +192,7 @@ export default function DonacionPage() {
     setEditing(d)
     setSelectedDate(null)
     setSelectedTime(null)
+    setNecesitaRetiro(d.necesitaRetiro ?? false)
     setForm({
       donanteId: String(d.donanteId),
       fechaHora: "",
@@ -209,6 +215,7 @@ export default function DonacionPage() {
     setEditing(d)
     setSelectedDate(null)
     setSelectedTime(null)
+    setNecesitaRetiro(d.necesitaRetiro ?? false)
     setForm({
       donanteId: String(d.donanteId),
       fechaHora: "",
@@ -247,6 +254,10 @@ export default function DonacionPage() {
       toast.error("Seleccioná una fecha y horario para el turno")
       return
     }
+    if (detalles.length === 0) {
+      toast.error("Agregá al menos un material a la donación")
+      return
+    }
     if (detalles.some((d) => !d.tipoMaterialId)) {
       toast.error("Seleccioná el tipo de material para cada ítem")
       return
@@ -265,6 +276,7 @@ export default function DonacionPage() {
           id: editing.id,
           donanteId: Number(form.donanteId),
           estadoDonacionId: form.estadoDonacionId ? Number(form.estadoDonacionId) : undefined,
+          necesitaRetiro,
           descripcion: form.descripcion.trim() || undefined,
           detalles: detallesPayload,
         })
@@ -274,6 +286,7 @@ export default function DonacionPage() {
           donanteId: Number(form.donanteId),
           fechaHora: form.fechaHora,
           estadoDonacionId: form.estadoDonacionId ? Number(form.estadoDonacionId) : undefined,
+          necesitaRetiro,
           descripcion: form.descripcion.trim() || undefined,
           detalles: detallesPayload,
         })
@@ -281,14 +294,15 @@ export default function DonacionPage() {
       }
       await mutate()
       setSheetOpen(false)
-    } catch {
-      toast.error("Error al guardar la donación")
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message
+      toast.error(msg ?? "Error al guardar la donación")
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: number | string) {
     try {
-      await deleteDonacion(id)
+      await deleteDonacion(Number(id))
       await mutate()
       toast.success("Donación desactivada")
     } catch {
@@ -339,6 +353,21 @@ export default function DonacionPage() {
         </span>
       ),
       className: "w-24",
+    },
+    {
+      key: "retiro",
+      header: "Entrega",
+      cell: (d) =>
+        d.necesitaRetiro ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+            <Truck className="h-3 w-3" /> Retiro
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-700">
+            <Building2 className="h-3 w-3" /> Sucursal
+          </span>
+        ),
+      className: "w-28",
     },
     {
       key: "descripcion",
@@ -578,17 +607,58 @@ export default function DonacionPage() {
             />
           </div>
 
+          {/* Modalidad de entrega */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">¿Cómo entregás los materiales? *</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setNecesitaRetiro(false)}
+                className={[
+                  "flex items-center gap-2.5 rounded-lg border-2 px-4 py-3 text-sm font-medium transition-colors",
+                  !necesitaRetiro
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border bg-background text-muted-foreground hover:border-muted-foreground/50",
+                ].join(" ")}
+              >
+                <Building2 className="h-4 w-4 shrink-0" />
+                <span>Lo llevo a la sucursal</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setNecesitaRetiro(true)}
+                className={[
+                  "flex items-center gap-2.5 rounded-lg border-2 px-4 py-3 text-sm font-medium transition-colors",
+                  necesitaRetiro
+                    ? "border-orange-400 bg-orange-50 text-orange-700"
+                    : "border-border bg-background text-muted-foreground hover:border-muted-foreground/50",
+                ].join(" ")}
+              >
+                <Truck className="h-4 w-4 shrink-0" />
+                <span>Necesito retiro a domicilio</span>
+              </button>
+            </div>
+            {necesitaRetiro && (
+              <div className="flex items-start gap-2 rounded-md border border-orange-200 bg-orange-50 px-3 py-2.5 text-xs text-orange-700">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>
+                  El servicio de retiro a domicilio tiene un <strong>costo adicional</strong> que será coordinado con el equipo de Reboot IT.
+                </span>
+              </div>
+            )}
+          </div>
+
           {/* Materiales — tabla */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Materiales a donar</span>
+              <span className="text-sm font-medium">Materiales a donar *</span>
               <Button variant="outline" size="sm" type="button" onClick={addDetalle}>
                 + Agregar
               </Button>
             </div>
 
             {detalles.length === 0 ? (
-              <p className="text-sm italic text-muted-foreground py-1">Sin materiales cargados.</p>
+              <p className="text-sm italic text-muted-foreground py-1">Sin materiales cargados. Agregá al menos uno.</p>
             ) : (
               <div className="overflow-x-auto rounded-md border">
                 <table className="w-full text-xs">
