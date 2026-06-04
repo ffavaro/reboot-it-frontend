@@ -144,19 +144,27 @@ export default function TurnoPage() {
   }, [fotoPreviewUrl])
 
   const isDonante = user?.rol?.nombre?.toLowerCase() === "donante"
+  const isTransportista = user?.rol?.nombre?.toLowerCase() === "transportista"
+  const isReadOnly = isDonante || isTransportista
+
   const myDonante = isDonante
     ? donantes.find((d: Donante) => d.usuarioId === user?.id) ?? null
+    : null
+  const myTransportista = isTransportista
+    ? transportistas.find((et: EmpleadoTransportista) => et.empleado?.usuarioId === user?.id) ?? null
     : null
 
   const visibleTurnos = isDonante
     ? turnos.filter((t: Turno) => t.donanteId === myDonante?.id)
+    : isTransportista
+    ? turnos.filter((t: Turno) => t.empleadoTransportistaId === myTransportista?.id)
     : turnos
 
   const { fotos: fotosDelTurno, isLoading: isLoadingFotos, mutate: mutateFotos } =
     useRegistrosByTurno(finalizarModalOpen ? (finalizando?.id ?? null) : null)
 
   const columns: TableColumn<Turno>[] = [
-    ...(!isDonante
+    ...(!isReadOnly
       ? [{
           key: "donante",
           header: "Donante",
@@ -214,23 +222,46 @@ export default function TurnoPage() {
         </span>
       ),
     },
-    ...(!isDonante
+    ...(isTransportista
+      ? [{
+          key: "confirmar-retiro",
+          header: "",
+          cell: (t: Turno) => {
+            const estado = t.estadoTurno?.descripcion?.toLowerCase() ?? ""
+            if (estado !== "asignado") return null
+            return (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-blue-700 border-blue-300 hover:bg-blue-50"
+                onClick={(e) => { e.stopPropagation(); handleConfirmarRetiro(t) }}
+              >
+                Confirmar retiro
+              </Button>
+            )
+          },
+        }]
+      : []),
+    ...(!isReadOnly
       ? [{
           key: "acciones-extra",
           header: "",
           cell: (t: Turno) => {
             const yaAsignado = !!(t.empleadoId || t.empleadoTransportistaId)
             const estado = t.estadoTurno?.descripcion?.toLowerCase() ?? ""
+            const puedeAsignarse = estado === "pendiente" || estado === "asignado"
             const puedeFinalizarse = estado === ESTADO_RETIRO_CONFIRMADO
             return (
               <div className="flex gap-1">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={(e) => { e.stopPropagation(); openAsignar(t) }}
-                >
-                  {yaAsignado ? "Reasignar" : "Asignar"}
-                </Button>
+                {puedeAsignarse && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={(e) => { e.stopPropagation(); openAsignar(t) }}
+                  >
+                    {yaAsignado ? "Reasignar" : "Asignar"}
+                  </Button>
+                )}
                 {puedeFinalizarse && (
                   <Button
                     size="sm"
@@ -238,7 +269,7 @@ export default function TurnoPage() {
                     className="text-green-700 border-green-300 hover:bg-green-50"
                     onClick={(e) => { e.stopPropagation(); openFinalizar(t) }}
                   >
-                    Finalizar
+                    Clasificar
                   </Button>
                 )}
               </div>
@@ -453,7 +484,7 @@ export default function TurnoPage() {
     if (!finalizando) return
 
     if (fotosDelTurno.length === 0 && !selectedFile) {
-      toast.error("Seleccioná al menos una foto de los materiales antes de finalizar")
+      toast.error("Seleccioná al menos una foto de los materiales antes de clasificar")
       return
     }
 
@@ -464,13 +495,30 @@ export default function TurnoPage() {
         await createRegistro({ turnoId: finalizando.id, urlImagen: url })
       }
       await finalizarTurno(finalizando.id)
-      toast.success("Turno finalizado correctamente")
+      toast.success("Turno clasificado correctamente")
       await mutate()
       setFinalizarModalOpen(false)
     } catch (err: any) {
-      toast.error(err?.message ?? "Error al finalizar el turno")
+      toast.error(err?.message ?? "Error al clasificar el turno")
     } finally {
       setIsUploading(false)
+    }
+  }
+
+  async function handleConfirmarRetiro(t: Turno) {
+    const estadoObj = estadosTurno.find(
+      (e: EstadoTurno) => e.descripcion.toLowerCase() === ESTADO_RETIRO_CONFIRMADO
+    )
+    if (!estadoObj) {
+      toast.error('No se encontró el estado "Retiro Confirmado"')
+      return
+    }
+    try {
+      await updateTurno({ id: t.id, estadoTurnoId: Number(estadoObj.id) })
+      toast.success("Retiro confirmado")
+      await mutate()
+    } catch {
+      toast.error("Error al confirmar el retiro")
     }
   }
 
@@ -503,7 +551,7 @@ export default function TurnoPage() {
         <span className="text-sm text-muted-foreground">
           {filtered.length} turno{filtered.length !== 1 ? "s" : ""}
         </span>
-        {!isDonante && (
+        {!isReadOnly && (
           <Button className="ml-auto" onClick={openCreate}>
             + Nuevo turno
           </Button>
@@ -519,8 +567,8 @@ export default function TurnoPage() {
         emptySearchText="No se encontraron turnos con ese criterio."
         search={search}
         onView={openView}
-        onEdit={isDonante ? undefined : openEdit}
-        onDelete={isDonante ? undefined : handleDelete}
+        onEdit={isReadOnly ? undefined : openEdit}
+        onDelete={isReadOnly ? undefined : handleDelete}
         isDeleting={isDeleting}
       />
 
@@ -777,7 +825,12 @@ export default function TurnoPage() {
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="">Seleccionar empleado...</option>
-                {empleados.map((emp: Empleado) => (
+                {empleados
+                .filter((emp: Empleado) => {
+                  const rol = emp.rol?.nombre?.toLowerCase() ?? ""
+                  return rol === "transportista" || rol === "administrativo"
+                })
+                .map((emp: Empleado) => (
                   <option key={emp.id} value={emp.id}>
                     {emp.nombre} {emp.apellido}{emp.cargo ? ` — ${emp.cargo}` : ""}
                   </option>
@@ -796,11 +849,11 @@ export default function TurnoPage() {
             setFinalizarModalOpen(open)
             if (!open) { setFinalizando(null); setSelectedFile(null); setFotoPreviewUrl(null) }
           }}
-          title="Finalizar turno"
-          description="Para finalizar el turno debe haber al menos una foto de los materiales."
+          title="Clasificar turno"
+          description="Para clasificar el turno debe haber al menos una foto de los materiales."
           onSave={handleFinalizar}
           isLoading={isFinalizando || isCreatingFoto || isUploading}
-          saveLabel="Confirmar finalización"
+          saveLabel="Clasificar"
         >
           {/* Fotos ya registradas */}
           <div className="flex flex-col gap-2">

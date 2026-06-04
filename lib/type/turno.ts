@@ -19,6 +19,7 @@ export interface TurnoDetalle {
 export interface Turno {
   id: number
   donanteId: number
+  donacionId: number | null
   estadoTurnoId: number
   fechaHora: string
   descripcion: string | null

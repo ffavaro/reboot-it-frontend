@@ -34,6 +34,7 @@ import { NavSection, NavItem } from "@/lib/type/sidebar"
 // Si allowedRoles está definido, solo esos roles pueden verlo.
 // Si no está definido, es visible para todos los roles.
 const DONANTE = ["donante"]
+const TRANSPORTISTA = ["transportista"]
 
 const navMain: NavSection[] = [
   {
@@ -46,15 +47,15 @@ const navMain: NavSection[] = [
       { title: "Constancia de retiro", url: "/pages/constancia-retiro", allowedRoles: DONANTE, icon: FileText },
       { title: "Donaciones", url: "/pages/donacion", allowedRoles: DONANTE, icon: Heart },
       { title: "Registro fotográfico", url: "/pages/registro-fotografico", icon: Camera },
-      { title: "Turnos", url: "/pages/turno", allowedRoles: DONANTE, icon: Clock },
+      { title: "Turnos", url: "/pages/turno", allowedRoles: [...DONANTE, ...TRANSPORTISTA], icon: Clock },
     ],
   },
   {
     title: "Logistica y Distribucion",
     url: "#",
     items: [
-      { title: "Vehiculos", url: "/pages/vehicles", icon: Truck },
-      { title: "Retiros", url: "/pages/retiro", icon: PackageOpen },
+      { title: "Vehiculos", url: "/pages/vehicles", allowedRoles: TRANSPORTISTA, icon: Truck },
+      { title: "Retiros", url: "/pages/retiro", allowedRoles: TRANSPORTISTA, icon: PackageOpen },
       { title: "Empleado Transportista", url: "/pages/empleado-transportista", icon: Car },
     ],
   },
@@ -110,13 +111,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   useEffect(() => { setUser(getUser()) }, [])
   const rolNombre = user?.rol?.nombre?.toLowerCase() ?? ""
   const isDonante = rolNombre === "donante"
+  const isTransportista = rolNombre === "transportista"
 
   const canSeeItem = (item: NavItem): boolean => {
     if (isDonante) {
-      // donante: solo ve los items explícitamente marcados para él
       return item.allowedRoles?.includes("donante") ?? false
     }
-    // cualquier otro rol: ve todo
+    if (isTransportista) {
+      return item.allowedRoles?.includes("transportista") ?? false
+    }
     return true
   }
 

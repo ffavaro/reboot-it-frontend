@@ -8,13 +8,6 @@ import { Input } from "@/components/ui/input"
 import { FormModal } from "@/components/ui/form-modal"
 import { DateInput } from "@/components/ui/date-input"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
   useCertificadosDisposicion,
   useCreateCertificadoDisposicion,
   useUpdateCertificadoDisposicion,
@@ -117,10 +110,19 @@ export default function CertificadoDisposicionPage() {
     )
   })
 
+  const lotesDisponibles = lotes.filter((l: Lote) => {
+    const don = donaciones.find((d) => d.id === l.donacionId)
+    return don?.estadoDonacion?.descripcion === "Pendiente de emision certificado"
+  })
+
   function openCreate() {
     setIsViewing(false)
     setEditing(null)
-    setForm(EMPTY_FORM)
+    setForm({
+      ...EMPTY_FORM,
+      fechaEmision: new Date().toISOString().slice(0, 10),
+      numeroCertificado: `CERT-${new Date().getFullYear()}-`,
+    })
     setSheetOpen(true)
   }
 
@@ -243,40 +245,34 @@ export default function CertificadoDisposicionPage() {
       >
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Lote</label>
-          <Select
+          <select
             value={form.loteId}
-            onValueChange={(val) => setForm((f) => ({ ...f, loteId: val ?? "" }))}
+            onChange={(e) => setForm((f) => ({ ...f, loteId: e.target.value }))}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Seleccionar lote..." />
-            </SelectTrigger>
-            <SelectContent>
-              {lotes.map((l: Lote) => (
-                <SelectItem key={l.id} value={String(l.id)}>
-                  Lote #{l.id}{l.pesoBrutoKg ? ` — ${l.pesoBrutoKg} kg` : ""}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <option value="">Seleccionar lote...</option>
+            {lotesDisponibles.map((l: Lote) => (
+              <option key={l.id} value={String(l.id)}>
+                Lote #{l.id}{l.pesoBrutoKg ? ` — ${l.pesoBrutoKg} kg` : ""}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Gestor ambiental</label>
-          <Select
+          <select
             value={form.gestorAmbientalId}
-            onValueChange={(val) => console.log(val)}//setForm((f) => ({ ...f, gestorAmbientalId: val ?? "" }))}
+            onChange={(e) => setForm((f) => ({ ...f, gestorAmbientalId: e.target.value }))}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Seleccionar gestor..." />
-            </SelectTrigger>
-            <SelectContent>
-              {gestores.map((g: GestorAmbiental) => (
-                <SelectItem key={g.id} value={String(g.id)}>
-                  {g.razonSocial}{g.cuit ? ` — ${g.cuit}` : ""}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <option value="">Seleccionar gestor...</option>
+            {gestores.map((g: GestorAmbiental) => (
+              <option key={g.id} value={String(g.id)}>
+                {g.razonSocial}{g.cuit ? ` — ${g.cuit}` : ""}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="flex flex-col gap-2">

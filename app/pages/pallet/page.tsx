@@ -235,7 +235,15 @@ export default function PalletPage() {
           </label>
           <select
             value={form.loteId}
-            onChange={(e) => setForm((f) => ({ ...f, loteId: e.target.value }))}
+            onChange={(e) => {
+              const loteId = e.target.value
+              const lote = lotes.find((l: Lote) => String(l.id) === loteId)
+              setForm((f) => ({
+                ...f,
+                loteId,
+                peso_kg: lote?.pesoBrutoKg != null ? String(lote.pesoBrutoKg) : f.peso_kg,
+              }))
+            }}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="">Sin lote asignado</option>
@@ -267,7 +275,9 @@ export default function PalletPage() {
             step="0.01"
             placeholder="Ej: 50.00"
             value={form.peso_kg}
+            readOnly={!!form.loteId}
             onChange={(e) => setForm((f) => ({ ...f, peso_kg: e.target.value }))}
+            className={form.loteId ? "bg-muted cursor-not-allowed" : ""}
           />
         </div>
       </FormModal>

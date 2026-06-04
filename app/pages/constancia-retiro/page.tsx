@@ -12,14 +12,14 @@ import {
   useUpdateConstanciaRetiro,
   useDeleteConstanciaRetiro,
 } from "@/hooks/use-constancia-retiro"
-import { useEmpleadosFull } from "@/hooks/use-employees"
+import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
 import { useDonantes } from "@/hooks/use-donantes"
 import { useDonaciones } from "@/hooks/use-donacion"
 import { useRetiros } from "@/hooks/use-retiro"
 import { getUser } from "@/lib/auth-utils"
 import { formatDate } from "@/lib/utils/helpers"
 import type { ConstanciaRetiro } from "@/lib/type/constancia-retiro"
-import type { Empleado } from "@/lib/type/user"
+import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import type { Donante } from "@/lib/type/donante"
 import type { Donacion } from "@/lib/type/donacion"
 import type { Retiro } from "@/lib/type/retiro"
@@ -57,7 +57,7 @@ const columns: TableColumn<ConstanciaRetiro>[] = [
 
 export default function ConstanciaRetiroPage() {
   const { constancias, isLoading, mutate } = useConstanciasRetiro()
-  const { empleados } = useEmpleadosFull()
+  const { transportistas } = useEmpleadosTransportistas()
   const { donantes } = useDonantes()
   const { donaciones } = useDonaciones()
   const { retiros } = useRetiros()
@@ -225,14 +225,33 @@ export default function ConstanciaRetiroPage() {
         saveLabel={editing ? "Guardar cambios" : "Crear constancia"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">ID de Retiro</label>
-          <Input
-            type="number"
+          <label className="text-sm font-medium">Retiro</label>
+          <select
             value={form.retiroId}
-            onChange={(e) => setForm((f) => ({ ...f, retiroId: e.target.value }))}
-            placeholder="Ej: 1"
-            min={1}
-          />
+            onChange={(e) => {
+              const id = e.target.value
+              const r = retiros.find((r: Retiro) => String(r.id) === id)
+              setForm((f) => ({
+                ...f,
+                retiroId: id,
+                fechaEmision: id ? new Date().toISOString().slice(0, 10) : f.fechaEmision,
+                tecnicoId: r?.empleadoTransportista?.empleadoId
+                  ? String(r.empleadoTransportista.empleadoId)
+                  : f.tecnicoId,
+              }))
+            }}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Seleccionar retiro...</option>
+            {retiros
+              .filter((r: Retiro) => !r.fechaRetiro)
+              .map((r: Retiro) => (
+                <option key={r.id} value={r.id}>
+                  #{r.id} — Donación #{r.donacionId}
+                  {r.direccion ? ` — ${r.direccion}` : ""}
+                </option>
+              ))}
+          </select>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -256,9 +275,9 @@ export default function ConstanciaRetiroPage() {
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="">Sin técnico asignado</option>
-            {empleados.map((e: Empleado) => (
-              <option key={e.id} value={e.id}>
-                {e.nombre} {e.apellido}{e.cargo ? ` — ${e.cargo}` : ""}
+            {transportistas.map((t: EmpleadoTransportista) => (
+              <option key={t.empleadoId} value={t.empleadoId}>
+                {t.empleado ? `${t.empleado.nombre} ${t.empleado.apellido}` : `#${t.empleadoId}`}
               </option>
             ))}
           </select>

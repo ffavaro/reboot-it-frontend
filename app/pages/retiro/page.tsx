@@ -15,9 +15,13 @@ import {
 } from "@/hooks/use-retiro"
 import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
 import { useVehiculos } from "@/hooks/use-vehicles"
+import { useDonaciones } from "@/hooks/use-donacion"
+import { useTurnos } from "@/hooks/use-turno"
 import type { Retiro } from "@/lib/type/retiro"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import type { Vehiculo } from "@/lib/type/vehicle"
+import type { Donacion } from "@/lib/type/donacion"
+import type { Turno } from "@/lib/type/turno"
 
 const EMPTY_FORM = {
   donacionId: "",
@@ -79,6 +83,12 @@ export default function RetiroPage() {
   const { retiros, isLoading, mutate } = useRetiros()
   const { transportistas } = useEmpleadosTransportistas()
   const { vehiculos } = useVehiculos()
+  const { donaciones } = useDonaciones()
+  const { turnos } = useTurnos()
+
+  const donacionesEnProceso = donaciones.filter(
+    (d: Donacion) => d.estadoDonacion?.descripcion === "En proceso"
+  )
   const { createRetiro, isLoading: isCreating } = useCreateRetiro()
   const { updateRetiro, isLoading: isUpdating } = useUpdateRetiro()
   const { deleteRetiro, isLoading: isDeleting } = useDeleteRetiro()
@@ -222,13 +232,37 @@ export default function RetiroPage() {
         saveLabel={editing ? "Guardar cambios" : "Crear retiro"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">ID de Donación</label>
-          <Input
-            type="number"
-            placeholder="Ej: 1"
+          <label className="text-sm font-medium">Donación</label>
+          <select
             value={form.donacionId}
-            onChange={(e) => setForm((f) => ({ ...f, donacionId: e.target.value }))}
-          />
+            onChange={(e) => {
+              const donId = e.target.value
+              const don = donaciones.find((d: Donacion) => String(d.id) === donId)
+              const turno = turnos.find((t: Turno) => t.donacionId === Number(donId))
+              setForm((f) => ({
+                ...f,
+                donacionId: donId,
+                empleadoTransportistaId: turno?.empleadoTransportistaId
+                  ? String(turno.empleadoTransportistaId)
+                  : f.empleadoTransportistaId,
+                vehiculoId: turno?.empleadoTransportista?.vehiculoId
+                  ? String(turno.empleadoTransportista.vehiculoId)
+                  : f.vehiculoId,
+                fechaInicio: turno?.fechaHora
+                  ? turno.fechaHora.slice(0, 16)
+                  : f.fechaInicio,
+                direccion: don?.donante?.direccion ?? f.direccion,
+              }))
+            }}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Seleccionar donación...</option>
+            {donacionesEnProceso.map((d: Donacion) => (
+              <option key={d.id} value={d.id}>
+                #{d.id} — {d.donante?.nombre ?? `Donante #${d.donanteId}`}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="flex flex-col gap-2">
