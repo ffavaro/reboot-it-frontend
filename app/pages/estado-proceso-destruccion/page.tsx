@@ -5,47 +5,62 @@ import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DataTable } from "@/components/ui/data-table"
-import { FormModal } from "@/components/ui/form-modal"
-import { useRoles, useCreateRol, useUpdateRol, useDeleteRol } from "@/hooks/use-roles"
-import type { Rol } from "@/lib/type/user"
 import type { TableColumn } from "@/components/ui/data-table"
+import { FormModal } from "@/components/ui/form-modal"
+import {
+  useEstadosProcesoDestruccion,
+  useCreateEstadoProcesoDestruccion,
+  useUpdateEstadoProcesoDestruccion,
+  useDeleteEstadoProcesoDestruccion,
+} from "@/hooks/use-estado-proceso-destruccion"
+import type { EstadoProcesoDestruccion } from "@/lib/type/estado-proceso-destruccion"
+
+const ESTADO_COLORS: Record<string, string> = {
+  Iniciado: "bg-blue-100 text-blue-800",
+  Pendiente: "bg-yellow-100 text-yellow-800",
+  Finalizado: "bg-green-100 text-green-800",
+}
 
 const EMPTY_FORM = { nombre: "", descripcion: "" }
 
-const COLUMNS: TableColumn<Rol>[] = [
+const COLUMNS: TableColumn<EstadoProcesoDestruccion>[] = [
   {
     key: "nombre",
     header: "Nombre",
-    cell: (r) => <span className="font-medium">{r.nombre}</span>,
+    cell: (e) => {
+      const color = ESTADO_COLORS[e.nombre] ?? "bg-gray-100 text-gray-800"
+      return (
+        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}>
+          {e.nombre}
+        </span>
+      )
+    },
   },
   {
     key: "descripcion",
     header: "Descripción",
-    cell: (r) => (
-      <span className="text-muted-foreground">
-        {r.descripcion ?? <span className="italic">—</span>}
-      </span>
-    ),
-    className: "max-w-md truncate",
+    cell: (e) =>
+      e.descripcion
+        ? <span className="text-sm text-muted-foreground">{e.descripcion}</span>
+        : <span className="italic text-muted-foreground">—</span>,
   },
 ]
 
-export default function RolesPage() {
-  const { roles, isLoading, mutate } = useRoles()
-  const { createRol, isLoading: isCreating } = useCreateRol()
-  const { updateRol, isLoading: isUpdating } = useUpdateRol()
-  const { deleteRol, isLoading: isDeleting } = useDeleteRol()
+export default function EstadoProcesoDestruccionPage() {
+  const { estados, isLoading, mutate } = useEstadosProcesoDestruccion()
+  const { createEstado, isLoading: isCreating } = useCreateEstadoProcesoDestruccion()
+  const { updateEstado, isLoading: isUpdating } = useUpdateEstadoProcesoDestruccion()
+  const { deleteEstado, isLoading: isDeleting } = useDeleteEstadoProcesoDestruccion()
 
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
-  const [editing, setEditing] = useState<Rol | null>(null)
+  const [editing, setEditing] = useState<EstadoProcesoDestruccion | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
-  const filtered = roles.filter(
-    (r: Rol) =>
-      r.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      (r.descripcion ?? "").toLowerCase().includes(search.toLowerCase()),
+  const filtered = estados.filter((e: EstadoProcesoDestruccion) =>
+    e.nombre.toLowerCase().includes(search.toLowerCase()) ||
+    (e.descripcion ?? "").toLowerCase().includes(search.toLowerCase()),
   )
 
   function openCreate() {
@@ -55,17 +70,17 @@ export default function RolesPage() {
     setModalOpen(true)
   }
 
-  function openEdit(r: Rol) {
+  function openEdit(e: EstadoProcesoDestruccion) {
     setIsViewing(false)
-    setEditing(r)
-    setForm({ nombre: r.nombre, descripcion: r.descripcion ?? "" })
+    setEditing(e)
+    setForm({ nombre: e.nombre, descripcion: e.descripcion ?? "" })
     setModalOpen(true)
   }
 
-  function openView(r: Rol) {
+  function openView(e: EstadoProcesoDestruccion) {
     setIsViewing(true)
-    setEditing(r)
-    setForm({ nombre: r.nombre, descripcion: r.descripcion ?? "" })
+    setEditing(e)
+    setForm({ nombre: e.nombre, descripcion: e.descripcion ?? "" })
     setModalOpen(true)
   }
 
@@ -80,35 +95,35 @@ export default function RolesPage() {
         descripcion: form.descripcion.trim() || undefined,
       }
       if (editing) {
-        await updateRol({ id: editing.id, ...payload })
-        toast.success("Rol actualizado")
+        await updateEstado({ id: editing.id, ...payload })
+        toast.success("Estado actualizado")
       } else {
-        await createRol(payload)
-        toast.success("Rol creado")
+        await createEstado(payload)
+        toast.success("Estado creado")
       }
       await mutate()
       setModalOpen(false)
     } catch {
-      toast.error("Error al guardar el rol")
+      toast.error("Error al guardar el estado")
     }
   }
 
   async function handleDelete(id: number | string) {
     try {
-      await deleteRol(id as string)
+      await deleteEstado(id as number)
       await mutate()
-      toast.success("Rol desactivado")
+      toast.success("Estado desactivado")
     } catch {
-      toast.error("Error al eliminar el rol")
+      toast.error("Error al eliminar el estado")
     }
   }
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Roles</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Estados de Proceso de Destrucción</h1>
         <p className="text-sm text-muted-foreground">
-          Administrá los roles del sistema y sus descripciones.
+          Administrá los estados posibles de un proceso de destrucción (Iniciado, Pendiente, Finalizado, etc.).
         </p>
       </div>
 
@@ -120,10 +135,10 @@ export default function RolesPage() {
           className="max-w-sm"
         />
         <span className="text-sm text-muted-foreground">
-          {filtered.length} rol{filtered.length !== 1 ? "es" : ""}
+          {filtered.length} estado{filtered.length !== 1 ? "s" : ""}
         </span>
         <Button className="ml-auto" onClick={openCreate}>
-          + Nuevo rol
+          + Nuevo estado
         </Button>
       </div>
 
@@ -131,9 +146,9 @@ export default function RolesPage() {
         data={filtered}
         columns={COLUMNS}
         isLoading={isLoading}
-        loadingText="Cargando roles..."
-        emptyText="No hay roles registrados."
-        emptySearchText="No se encontraron roles con ese criterio."
+        loadingText="Cargando estados..."
+        emptyText="No hay estados registrados."
+        emptySearchText="No se encontraron estados con ese criterio."
         search={search}
         onView={openView}
         onEdit={openEdit}
@@ -144,23 +159,29 @@ export default function RolesPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={isViewing ? "Ver rol" : editing ? "Editar rol" : "Nuevo rol"}
+        title={
+          isViewing
+            ? "Ver estado"
+            : editing
+              ? "Editar estado"
+              : "Nuevo estado de proceso de destrucción"
+        }
         readOnly={isViewing}
         description={
           editing
             ? `Modificá los datos de "${editing.nombre}".`
-            : "Completá los datos del nuevo rol."
+            : "Completá los datos del nuevo estado."
         }
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
-        saveLabel={editing ? "Guardar cambios" : "Crear rol"}
+        saveLabel={editing ? "Guardar cambios" : "Crear estado"}
       >
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Nombre</label>
           <Input
             value={form.nombre}
             onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
-            placeholder="Ej: Administrador, Inspector, Transportista..."
+            placeholder="Ej: Iniciado, Pendiente, Finalizado..."
             maxLength={50}
           />
         </div>
@@ -172,7 +193,7 @@ export default function RolesPage() {
           <Input
             value={form.descripcion}
             onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
-            placeholder="Breve descripción del rol"
+            placeholder="Descripción del estado..."
             maxLength={255}
           />
         </div>

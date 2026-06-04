@@ -5,6 +5,8 @@ import { FieldLabel } from '@/components/ui/field';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { showToast } from './../../lib/toast';
+import { useRouter } from 'next/navigation';
 
 export default function ForgetPasswordPage() {
   const [step, setStep] = useState<'email' | 'verify' | 'reset'>('email');
@@ -13,11 +15,12 @@ export default function ForgetPasswordPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
-      alert('Por favor ingresa tu correo');
+      showToast.error('Por favor ingresa tu correo');
       return;
     }
     setLoading(true);
@@ -31,7 +34,7 @@ export default function ForgetPasswordPage() {
   const handleVerifySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!code) {
-      alert('Por favor ingresa el código');
+      showToast.error('Por favor ingresa el código');
       return;
     }
     setLoading(true);
@@ -45,39 +48,40 @@ export default function ForgetPasswordPage() {
   const handleResetSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      alert('Las contraseñas no coinciden');
+      showToast.error('Las contraseñas no coinciden');
       return;
     }
     if (newPassword.length < 6) {
-      alert('La contraseña debe tener al menos 6 caracteres');
+      showToast.error('La contraseña debe tener al menos 6 caracteres');
       return;
     }
     setLoading(true);
     // Simulate API call
     setTimeout(() => {
       setLoading(false);
-      alert('Contraseña actualizada correctamente');
+      showToast.success('Contraseña actualizada correctamente');
       setStep('email');
       setEmail('');
       setCode('');
       setNewPassword('');
       setConfirmPassword('');
+      router.push('/login');
     }, 1500);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-rose-100  px-4">
       <div className="w-full max-w-md">
         {/* Card Container */}
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
           {/* Header */}
-          <div className="bg-gradient-to-r from-red-600 to-pink-600 px-8 py-10">
-            <h1 className="text-3xl font-bold text-white text-center">
+          <div className="bg-gradient-to-br from-red-500 to-red-300 px-8 py-10">
+            <h1 className="text-3xl font-bold text-black text-center">
               {step === 'email' && 'Recuperar Contraseña'}
               {step === 'verify' && 'Verificar Código'}
               {step === 'reset' && 'Nueva Contraseña'}
             </h1>
-            <p className="text-purple-100 text-center mt-2 text-sm">
+            <p className="text-black text-center mt-2 text-sm">
               {step === 'email' && 'Ingresa tu correo para recibir un código'}
               {step === 'verify' && 'Revisa tu correo y ingresa el código'}
               {step === 'reset' && 'Crea tu nueva contraseña'}
@@ -101,6 +105,7 @@ export default function ForgetPasswordPage() {
                     placeholder="correo@ejemplo.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    onInvalid={(e) => e.currentTarget.setCustomValidity(e.currentTarget.value ? '' : 'Por favor ingresa un correo válido')}
                   />
                   <p className="text-xs text-gray-500 mt-2">
                     Te enviaremos un código de verificación a este correo
@@ -110,7 +115,7 @@ export default function ForgetPasswordPage() {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="w-full mt-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-2.5 rounded-lg transition duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full mt-6 bg-gradient-to-br from-red-50 to-rose-100 text-black font-semibold py-2.5 rounded-lg transition duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Enviando...' : 'Enviar Código'}
                 </Button>
@@ -120,8 +125,8 @@ export default function ForgetPasswordPage() {
             {/* Step 2: Verify Code */}
             {step === 'verify' && (
               <form className="space-y-5" onSubmit={handleVerifySubmit}>
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
-                  <p className="text-sm text-purple-700">
+                <div className="bg-red-100 border border-red-200 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-red-700">
                     Hemos enviado un código de 6 dígitos a:
                     <br />
                     <strong>{email}</strong>
@@ -141,13 +146,14 @@ export default function ForgetPasswordPage() {
                     placeholder="000000"
                     value={code}
                     onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ''))}
+                    onInvalid={(e) => e.currentTarget.setCustomValidity(e.currentTarget.value ? '' : 'Por favor ingresa el código de verificación')}
                   />
                 </div>
 
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="w-full mt-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-2.5 rounded-lg transition duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full mt-6 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-semibold py-2.5 rounded-lg transition duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Verificando...' : 'Verificar Código'}
                 </Button>
@@ -155,7 +161,7 @@ export default function ForgetPasswordPage() {
                 <button
                   type="button"
                   onClick={() => setStep('email')}
-                  className="w-full text-purple-600 hover:text-purple-700 text-sm font-medium"
+                  className="w-full text-red-600 hover:text-red-700 text-sm font-medium"
                 >
                   ← Volver
                 </button>
@@ -177,6 +183,7 @@ export default function ForgetPasswordPage() {
                     placeholder="••••••••"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
+                    onInvalid={(e) => e.currentTarget.setCustomValidity(e.currentTarget.value ? '' : 'Por favor ingresa una nueva contraseña')}
                   />
                 </div>
 
@@ -192,6 +199,7 @@ export default function ForgetPasswordPage() {
                     placeholder="••••••••"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
+                    onInvalid={(e) => e.currentTarget.setCustomValidity(e.currentTarget.value ? '' : 'Por favor confirma tu nueva contraseña')}
                   />
                   <p className="text-xs text-gray-500 mt-2">
                     Mínimo 6 caracteres
@@ -201,7 +209,7 @@ export default function ForgetPasswordPage() {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="w-full mt-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-2.5 rounded-lg transition duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full mt-6 bg-gradient-to-r from-red-600 to-red-600 hover:from-red-700 hover:to-red -700 text-white font-semibold py-2.5 rounded-lg transition duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Actualizando...' : 'Actualizar Contraseña'}
                 </Button>
@@ -209,7 +217,7 @@ export default function ForgetPasswordPage() {
                 <button
                   type="button"
                   onClick={() => setStep('email')}
-                  className="w-full text-purple-600 hover:text-purple-700 text-sm font-medium"
+                  className="w-full text-red-600 hover:text-red-700 text-sm font-medium"
                 >
                   ← Comenzar de nuevo
                 </button>
@@ -229,7 +237,7 @@ export default function ForgetPasswordPage() {
             {/* Login Link */}
             <Link
               href="/login"
-              className="block w-full text-center py-2.5 border-2 border-purple-600 text-purple-600 font-semibold rounded-lg hover:bg-purple-50 transition duration-200"
+              className="block w-full text-center py-2.5 border-2 border-red-600 text-black font-semibold rounded-lg hover:bg-purple-50 transition duration-200"
             >
               Inicia Sesión
             </Link>

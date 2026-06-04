@@ -5,52 +5,53 @@ import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DataTable } from "@/components/ui/data-table"
+import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import {
-  useTipoMateriales,
-  useCreateTipoMaterial,
-  useUpdateTipoMaterial,
-  useDeleteTipoMaterial,
-} from "@/hooks/use-tipo-material"
-import type { TipoMaterial } from "@/lib/type/tipo-material"
-import type { TableColumn } from "@/components/ui/data-table"
+  useMetodosDestruccion,
+  useCreateMetodoDestruccion,
+  useUpdateMetodoDestruccion,
+  useDeleteMetodoDestruccion,
+} from "@/hooks/use-metodo-destruccion"
+import type { MetodoDestruccion } from "@/lib/type/metodo-destruccion"
 
 const EMPTY_FORM = { nombre: "", descripcion: "" }
 
-const COLUMNS: TableColumn<TipoMaterial>[] = [
+const COLUMNS: TableColumn<MetodoDestruccion>[] = [
   {
     key: "nombre",
     header: "Nombre",
-    cell: (t) => <span className="font-medium">{t.nombre}</span>,
+    cell: (m) => (
+      <span className="inline-flex items-center rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800">
+        {m.nombre}
+      </span>
+    ),
   },
   {
     key: "descripcion",
     header: "Descripción",
-    cell: (t) => (
-      <span className="text-muted-foreground">
-        {t.descripcion ?? <span className="italic">—</span>}
-      </span>
-    ),
-    className: "max-w-md truncate",
+    cell: (m) =>
+      m.descripcion
+        ? <span className="text-sm text-muted-foreground">{m.descripcion}</span>
+        : <span className="italic text-muted-foreground">—</span>,
   },
 ]
 
-export default function TipoMaterialPage() {
-  const { tipoMateriales, isLoading, mutate } = useTipoMateriales()
-  const { createTipoMaterial, isLoading: isCreating } = useCreateTipoMaterial()
-  const { updateTipoMaterial, isLoading: isUpdating } = useUpdateTipoMaterial()
-  const { deleteTipoMaterial, isLoading: isDeleting } = useDeleteTipoMaterial()
+export default function MetodoDestruccionPage() {
+  const { metodos, isLoading, mutate } = useMetodosDestruccion()
+  const { createMetodo, isLoading: isCreating } = useCreateMetodoDestruccion()
+  const { updateMetodo, isLoading: isUpdating } = useUpdateMetodoDestruccion()
+  const { deleteMetodo, isLoading: isDeleting } = useDeleteMetodoDestruccion()
 
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
-  const [editing, setEditing] = useState<TipoMaterial | null>(null)
+  const [editing, setEditing] = useState<MetodoDestruccion | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
-  const filtered = tipoMateriales.filter(
-    (t) =>
-      t.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      (t.descripcion ?? "").toLowerCase().includes(search.toLowerCase()),
+  const filtered = metodos.filter((m: MetodoDestruccion) =>
+    m.nombre.toLowerCase().includes(search.toLowerCase()) ||
+    (m.descripcion ?? "").toLowerCase().includes(search.toLowerCase()),
   )
 
   function openCreate() {
@@ -60,17 +61,17 @@ export default function TipoMaterialPage() {
     setModalOpen(true)
   }
 
-  function openEdit(t: TipoMaterial) {
+  function openEdit(m: MetodoDestruccion) {
     setIsViewing(false)
-    setEditing(t)
-    setForm({ nombre: t.nombre, descripcion: t.descripcion ?? "" })
+    setEditing(m)
+    setForm({ nombre: m.nombre, descripcion: m.descripcion ?? "" })
     setModalOpen(true)
   }
 
-  function openView(t: TipoMaterial) {
+  function openView(m: MetodoDestruccion) {
     setIsViewing(true)
-    setEditing(t)
-    setForm({ nombre: t.nombre, descripcion: t.descripcion ?? "" })
+    setEditing(m)
+    setForm({ nombre: m.nombre, descripcion: m.descripcion ?? "" })
     setModalOpen(true)
   }
 
@@ -82,38 +83,38 @@ export default function TipoMaterialPage() {
     try {
       const payload = {
         nombre: form.nombre.trim(),
-        descripcion: form.descripcion.trim() || "",
+        descripcion: form.descripcion.trim() || undefined,
       }
       if (editing) {
-        await updateTipoMaterial({ id: editing.id, ...payload })
-        toast.success("Tipo de material actualizado")
+        await updateMetodo({ id: editing.id, ...payload })
+        toast.success("Método actualizado")
       } else {
-        await createTipoMaterial(payload)
-        toast.success("Tipo de material creado")
+        await createMetodo(payload)
+        toast.success("Método creado")
       }
       await mutate()
       setModalOpen(false)
     } catch {
-      toast.error("Error al guardar el tipo de material")
+      toast.error("Error al guardar el método")
     }
   }
 
   async function handleDelete(id: number | string) {
     try {
-      await deleteTipoMaterial(id as number)
+      await deleteMetodo(id as number)
       await mutate()
-      toast.success("Tipo de material desactivado")
+      toast.success("Método desactivado")
     } catch {
-      toast.error("Error al eliminar el tipo de material")
+      toast.error("Error al eliminar el método")
     }
   }
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Tipos de Material</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Métodos de Destrucción</h1>
         <p className="text-sm text-muted-foreground">
-          Administrá las categorías de materiales que ingresan al sistema.
+          Administrá los métodos de destrucción segura disponibles (Trituración, Desmagnetización, etc.).
         </p>
       </div>
 
@@ -125,10 +126,10 @@ export default function TipoMaterialPage() {
           className="max-w-sm"
         />
         <span className="text-sm text-muted-foreground">
-          {filtered.length} tipo{filtered.length !== 1 ? "s" : ""}
+          {filtered.length} método{filtered.length !== 1 ? "s" : ""}
         </span>
         <Button className="ml-auto" onClick={openCreate}>
-          + Nuevo tipo
+          + Nuevo método
         </Button>
       </div>
 
@@ -136,9 +137,9 @@ export default function TipoMaterialPage() {
         data={filtered}
         columns={COLUMNS}
         isLoading={isLoading}
-        loadingText="Cargando tipos de material..."
-        emptyText="No hay tipos de material registrados."
-        emptySearchText="No se encontraron tipos con ese criterio."
+        loadingText="Cargando métodos de destrucción..."
+        emptyText="No hay métodos de destrucción registrados."
+        emptySearchText="No se encontraron métodos con ese criterio."
         search={search}
         onView={openView}
         onEdit={openEdit}
@@ -149,26 +150,31 @@ export default function TipoMaterialPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={isViewing ? "Ver tipo de material" : editing ? "Editar tipo de material" : "Nuevo tipo de material"}
+        title={
+          isViewing
+            ? "Ver método de destrucción"
+            : editing
+              ? "Editar método de destrucción"
+              : "Nuevo método de destrucción"
+        }
         readOnly={isViewing}
         description={
           editing
             ? `Modificá los datos de "${editing.nombre}".`
-            : "Completá los datos del nuevo tipo de material."
+            : "Completá los datos del nuevo método de destrucción."
         }
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
-        saveLabel={editing ? "Guardar cambios" : "Crear tipo"}
+        saveLabel={editing ? "Guardar cambios" : "Crear método"}
       >
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Nombre</label>
           <Input
             value={form.nombre}
             onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
-            placeholder="Ej: Electrónico, Eléctrico, Batería..."
+            placeholder="Ej: Trituración física, Desmagnetización..."
             maxLength={100}
-            
-         />
+          />
         </div>
 
         <div className="flex flex-col gap-2">
@@ -177,8 +183,8 @@ export default function TipoMaterialPage() {
           </label>
           <Input
             value={form.descripcion}
-            onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value ?? "" }))}
-            placeholder="Breve descripción del tipo de material"
+            onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
+            placeholder="Descripción del método de destrucción..."
             maxLength={255}
           />
         </div>

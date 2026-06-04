@@ -35,9 +35,17 @@ export interface Usuario  {
   empleado?: Empleado | null
 }
 
-export interface UpdateUsuarioPayload  {
-  rol?: Rol
-  empleadoId?: string | null
+export interface CreateUsuarioPayload {
+  nombre: string
+  email: string
+  rolId: number
+  password?: string
+  empleadoId?: number | null
+}
+
+export interface UpdateUsuarioPayload {
+  rolId?: number
+  empleadoId?: number | null
 }
 
 export interface Rol {

@@ -4,14 +4,9 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet"
+import { DataTable } from "@/components/ui/data-table"
+import type { TableColumn } from "@/components/ui/data-table"
+import { FormModal } from "@/components/ui/form-modal"
 import {
   useRetiros,
   useCreateRetiro,
@@ -20,9 +15,13 @@ import {
 } from "@/hooks/use-retiro"
 import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
 import { useVehiculos } from "@/hooks/use-vehicles"
+import { useDonaciones } from "@/hooks/use-donacion"
+import { useTurnos } from "@/hooks/use-turno"
 import type { Retiro } from "@/lib/type/retiro"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import type { Vehiculo } from "@/lib/type/vehicle"
+import type { Donacion } from "@/lib/type/donacion"
+import type { Turno } from "@/lib/type/turno"
 
 const EMPTY_FORM = {
   donacionId: "",
@@ -37,19 +36,68 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
 
+const columns: TableColumn<Retiro>[] = [
+  {
+    key: "donacionId",
+    header: "Donación",
+    cell: (r) => <span className="font-mono text-xs">#{r.donacionId}</span>,
+  },
+  {
+    key: "transportista",
+    header: "Transportista",
+    cell: (r) =>
+      r.empleadoTransportista?.empleado
+        ? `${r.empleadoTransportista.empleado.nombre} ${r.empleadoTransportista.empleado.apellido}`
+        : <span className="italic text-muted-foreground">—</span>,
+  },
+  {
+    key: "vehiculo",
+    header: "Vehículo",
+    cell: (r) =>
+      r.vehiculo
+        ? <span className="font-mono text-xs">{r.vehiculo.patente}</span>
+        : <span className="italic text-muted-foreground">—</span>,
+  },
+  {
+    key: "fechaInicio",
+    header: "Fecha inicio",
+    cell: (r) => (
+      <span className="text-muted-foreground">
+        {formatDate(r.fechaInicio) ?? <span className="italic">—</span>}
+      </span>
+    ),
+  },
+  {
+    key: "direccion",
+    header: "Dirección",
+    className: "max-w-[200px] truncate",
+    cell: (r) => (
+      <span className="text-muted-foreground">
+        {r.direccion ?? <span className="italic">—</span>}
+      </span>
+    ),
+  },
+]
+
 export default function RetiroPage() {
   const { retiros, isLoading, mutate } = useRetiros()
   const { transportistas } = useEmpleadosTransportistas()
   const { vehiculos } = useVehiculos()
+  const { donaciones } = useDonaciones()
+  const { turnos } = useTurnos()
+
+  const donacionesEnProceso = donaciones.filter(
+    (d: Donacion) => d.estadoDonacion?.descripcion === "En proceso"
+  )
   const { createRetiro, isLoading: isCreating } = useCreateRetiro()
   const { updateRetiro, isLoading: isUpdating } = useUpdateRetiro()
   const { deleteRetiro, isLoading: isDeleting } = useDeleteRetiro()
 
   const [search, setSearch] = useState("")
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Retiro | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
-  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const filtered = retiros.filter((r: Retiro) => {
     const q = search.toLowerCase()
@@ -66,12 +114,14 @@ export default function RetiroPage() {
   })
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
-    setSheetOpen(true)
+    setModalOpen(true)
   }
 
   function openEdit(r: Retiro) {
+    setIsViewing(false)
     setEditing(r)
     setForm({
       donacionId: String(r.donacionId),
@@ -80,7 +130,20 @@ export default function RetiroPage() {
       fechaInicio: r.fechaInicio ? r.fechaInicio.slice(0, 16) : "",
       direccion: r.direccion ?? "",
     })
-    setSheetOpen(true)
+    setModalOpen(true)
+  }
+
+  function openView(r: Retiro) {
+    setIsViewing(true)
+    setEditing(r)
+    setForm({
+      donacionId: String(r.donacionId),
+      empleadoTransportistaId: String(r.empleadoTransportistaId),
+      vehiculoId: r.vehiculoId ? String(r.vehiculoId) : "",
+      fechaInicio: r.fechaInicio ? r.fechaInicio.slice(0, 16) : "",
+      direccion: r.direccion ?? "",
+    })
+    setModalOpen(true)
   }
 
   async function handleSave() {
@@ -104,21 +167,19 @@ export default function RetiroPage() {
         toast.success("Retiro creado")
       }
       await mutate()
-      setSheetOpen(false)
+      setModalOpen(false)
     } catch {
       toast.error("Error al guardar el retiro")
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: number | string) {
     try {
-      await deleteRetiro(id)
+      await deleteRetiro(Number(id))
       await mutate()
       toast.success("Retiro desactivado")
     } catch {
       toast.error("Error al eliminar el retiro")
-    } finally {
-      setDeletingId(null)
     }
   }
 
@@ -146,174 +207,120 @@ export default function RetiroPage() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Donación</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Transportista</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Vehículo</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Fecha inicio</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Dirección</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
-                  Cargando retiros...
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
-                  {search ? "No se encontraron retiros con ese criterio." : "No hay retiros registrados."}
-                </td>
-              </tr>
-            ) : (
-              filtered.map((r: Retiro) => (
-                <tr
-                  key={r.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                >
-                  <td className="px-4 py-3 font-mono text-xs">#{r.donacionId}</td>
-                  <td className="px-4 py-3">
-                    {r.empleadoTransportista?.empleado
-                      ? `${r.empleadoTransportista.empleado.nombre} ${r.empleadoTransportista.empleado.apellido}`
-                      : <span className="italic text-muted-foreground">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    {r.vehiculo
-                      ? <span className="font-mono text-xs">{r.vehiculo.patente}</span>
-                      : <span className="italic text-muted-foreground">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatDate(r.fechaInicio) ?? <span className="italic">—</span>}
-                  </td>
-                  <td className="px-4 py-3 max-w-[200px] truncate text-muted-foreground">
-                    {r.direccion ?? <span className="italic">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      {deletingId === r.id ? (
-                        <>
-                          <span className="text-xs text-muted-foreground">¿Confirmar?</span>
-                          <Button size="xs" variant="destructive" onClick={() => handleDelete(r.id)} disabled={isDeleting}>
-                            Eliminar
-                          </Button>
-                          <Button size="xs" variant="ghost" onClick={() => setDeletingId(null)}>
-                            Cancelar
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button size="xs" variant="outline" onClick={() => openEdit(r)}>
-                            Editar
-                          </Button>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeletingId(r.id)}
-                          >
-                            Eliminar
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        data={filtered}
+        columns={columns}
+        isLoading={isLoading}
+        loadingText="Cargando retiros..."
+        emptyText="No hay retiros registrados."
+        emptySearchText="No se encontraron retiros con ese criterio."
+        search={search}
+        onView={openView}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        isDeleting={isDeleting}
+      />
 
-      <Sheet open={sheetOpen} onOpenChange={(open) => !open && setSheetOpen(false)}>
-        <SheetContent side="right">
-          <SheetHeader>
-            <SheetTitle>{editing ? "Editar retiro" : "Nuevo retiro"}</SheetTitle>
-            <SheetDescription>
-              {editing ? "Modificá los datos del retiro." : "Registrá un nuevo retiro de donación."}
-            </SheetDescription>
-          </SheetHeader>
+      <FormModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        title={isViewing ? "Ver retiro" : editing ? "Editar retiro" : "Nuevo retiro"}
+        readOnly={isViewing}
+        description={editing ? "Modificá los datos del retiro." : "Registrá un nuevo retiro de donación."}
+        onSave={handleSave}
+        isLoading={isCreating || isUpdating}
+        saveLabel={editing ? "Guardar cambios" : "Crear retiro"}
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Donación</label>
+          <select
+            value={form.donacionId}
+            onChange={(e) => {
+              const donId = e.target.value
+              const don = donaciones.find((d: Donacion) => String(d.id) === donId)
+              const turno = turnos.find((t: Turno) => t.donacionId === Number(donId))
+              setForm((f) => ({
+                ...f,
+                donacionId: donId,
+                empleadoTransportistaId: turno?.empleadoTransportistaId
+                  ? String(turno.empleadoTransportistaId)
+                  : f.empleadoTransportistaId,
+                vehiculoId: turno?.empleadoTransportista?.vehiculoId
+                  ? String(turno.empleadoTransportista.vehiculoId)
+                  : f.vehiculoId,
+                fechaInicio: turno?.fechaHora
+                  ? turno.fechaHora.slice(0, 16)
+                  : f.fechaInicio,
+                direccion: don?.donante?.direccion ?? f.direccion,
+              }))
+            }}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Seleccionar donación...</option>
+            {donacionesEnProceso.map((d: Donacion) => (
+              <option key={d.id} value={d.id}>
+                #{d.id} — {d.donante?.nombre ?? `Donante #${d.donanteId}`}
+              </option>
+            ))}
+          </select>
+        </div>
 
-          <div className="flex flex-col gap-5 px-6 py-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">ID de Donación</label>
-              <Input
-                type="number"
-                placeholder="Ej: 1"
-                value={form.donacionId}
-                onChange={(e) => setForm((f) => ({ ...f, donacionId: e.target.value }))}
-              />
-            </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Empleado Transportista</label>
+          <select
+            value={form.empleadoTransportistaId}
+            onChange={(e) => setForm((f) => ({ ...f, empleadoTransportistaId: e.target.value }))}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Seleccionar transportista...</option>
+            {transportistas.map((t: EmpleadoTransportista) => (
+              <option key={t.id} value={t.id}>
+                {t.empleado ? `${t.empleado.nombre} ${t.empleado.apellido}` : `#${t.id}`}
+              </option>
+            ))}
+          </select>
+        </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Empleado Transportista</label>
-              <select
-                value={form.empleadoTransportistaId}
-                onChange={(e) => setForm((f) => ({ ...f, empleadoTransportistaId: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="">Seleccionar transportista...</option>
-                {transportistas.map((t: EmpleadoTransportista) => (
-                  <option key={t.id} value={t.id}>
-                    {t.empleado ? `${t.empleado.nombre} ${t.empleado.apellido}` : `#${t.id}`}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Vehículo <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <select
+            value={form.vehiculoId}
+            onChange={(e) => setForm((f) => ({ ...f, vehiculoId: e.target.value }))}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Sin vehículo asignado</option>
+            {vehiculos.map((v: Vehiculo) => (
+              <option key={v.id} value={v.id}>
+                {v.patente} — {v.marca} {v.modelo}
+              </option>
+            ))}
+          </select>
+        </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Vehículo <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <select
-                value={form.vehiculoId}
-                onChange={(e) => setForm((f) => ({ ...f, vehiculoId: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="">Sin vehículo asignado</option>
-                {vehiculos.map((v: Vehiculo) => (
-                  <option key={v.id} value={v.id}>
-                    {v.patente} — {v.marca} {v.modelo}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Fecha de inicio <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            type="datetime-local"
+            value={form.fechaInicio}
+            onChange={(e) => setForm((f) => ({ ...f, fechaInicio: e.target.value }))}
+          />
+        </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Fecha de inicio <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <Input
-                type="datetime-local"
-                value={form.fechaInicio}
-                onChange={(e) => setForm((f) => ({ ...f, fechaInicio: e.target.value }))}
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Dirección <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <Input
-                placeholder="Ej: Av. Corrientes 1234, CABA"
-                value={form.direccion}
-                onChange={(e) => setForm((f) => ({ ...f, direccion: e.target.value }))}
-              />
-            </div>
-          </div>
-
-          <SheetFooter>
-            <Button onClick={handleSave} disabled={isCreating || isUpdating} className="w-full">
-              {isCreating || isUpdating ? "Guardando..." : editing ? "Guardar cambios" : "Crear retiro"}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Dirección <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            placeholder="Ej: Av. Corrientes 1234, CABA"
+            value={form.direccion}
+            onChange={(e) => setForm((f) => ({ ...f, direccion: e.target.value }))}
+          />
+        </div>
+      </FormModal>
     </div>
   )
 }

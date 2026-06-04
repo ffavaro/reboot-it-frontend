@@ -1,7 +1,7 @@
 import useSWR from "swr"
 import useSWRMutation from "swr/mutation"
 import { fetcher, turnoApi } from "@/lib/api"
-import type { Turno, CreateTurnoPayload, UpdateTurnoPayload } from "@/lib/type/turno"
+import type { Turno, CreateTurnoPayload, UpdateTurnoPayload, AsignarEmpleadoPayload } from "@/lib/type/turno"
 
 export function useTurnos() {
   const { data, isLoading, error, mutate } = useSWR<Turno[]>("/turno", fetcher)
@@ -33,4 +33,23 @@ export function useDeleteTurno() {
     (_key: string, { arg }: { arg: number }) => turnoApi.remove(arg),
   )
   return { deleteTurno: trigger, isLoading: isMutating, error }
+}
+
+export function useAsignarEmpleadoTurno() {
+  const { trigger, isMutating, error } = useSWRMutation(
+    "/turno",
+    (_key: string, { arg }: { arg: { id: number } & AsignarEmpleadoPayload }) => {
+      const { id, ...payload } = arg
+      return turnoApi.asignar(id, payload)
+    },
+  )
+  return { asignarEmpleado: trigger, isLoading: isMutating, error }
+}
+
+export function useFinalizarTurno() {
+  const { trigger, isMutating, error } = useSWRMutation(
+    "/turno",
+    (_key: string, { arg }: { arg: number }) => turnoApi.finalizar(arg),
+  )
+  return { finalizarTurno: trigger, isLoading: isMutating, error }
 }

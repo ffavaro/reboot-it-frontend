@@ -4,14 +4,9 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet"
+import { DataTable } from "@/components/ui/data-table"
+import type { TableColumn } from "@/components/ui/data-table"
+import { FormModal } from "@/components/ui/form-modal"
 import {
   useClasificaciones,
   useCreateClasificacion,
@@ -31,6 +26,31 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
 
+const columns: TableColumn<Clasificacion>[] = [
+  {
+    key: "loteId",
+    header: "Lote",
+    cell: (c) => <span className="font-mono text-xs font-medium">#{c.loteId}</span>,
+  },
+  {
+    key: "fecha",
+    header: "Fecha",
+    cell: (c) => (
+      <span className="text-muted-foreground">
+        {formatDate(c.fecha) ?? <span className="italic">—</span>}
+      </span>
+    ),
+  },
+  {
+    key: "empleado",
+    header: "Inspector",
+    cell: (c) =>
+      c.empleado
+        ? `${c.empleado.nombre} ${c.empleado.apellido}`
+        : <span className="italic text-muted-foreground">Sin asignar</span>,
+  },
+]
+
 export default function ClasificacionPage() {
   const { clasificaciones, isLoading, mutate } = useClasificaciones()
   const { lotes } = useLotes()
@@ -40,10 +60,10 @@ export default function ClasificacionPage() {
   const { deleteClasificacion, isLoading: isDeleting } = useDeleteClasificacion()
 
   const [search, setSearch] = useState("")
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Clasificacion | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
-  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const filtered = clasificaciones.filter((c: Clasificacion) => {
     const q = search.toLowerCase()
@@ -54,19 +74,32 @@ export default function ClasificacionPage() {
   })
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
-    setSheetOpen(true)
+    setModalOpen(true)
   }
 
   function openEdit(c: Clasificacion) {
+    setIsViewing(false)
     setEditing(c)
     setForm({
       loteId: String(c.loteId),
       fecha: c.fecha ? c.fecha.slice(0, 10) : "",
       empleadoId: c.empleadoId ? String(c.empleadoId) : "",
     })
-    setSheetOpen(true)
+    setModalOpen(true)
+  }
+
+  function openView(c: Clasificacion) {
+    setIsViewing(true)
+    setEditing(c)
+    setForm({
+      loteId: String(c.loteId),
+      fecha: c.fecha ? c.fecha.slice(0, 10) : "",
+      empleadoId: c.empleadoId ? String(c.empleadoId) : "",
+    })
+    setModalOpen(true)
   }
 
   async function handleSave() {
@@ -88,21 +121,19 @@ export default function ClasificacionPage() {
         toast.success("Clasificación creada")
       }
       await mutate()
-      setSheetOpen(false)
+      setModalOpen(false)
     } catch {
       toast.error("Error al guardar la clasificación")
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: number | string) {
     try {
-      await deleteClasificacion(id)
+      await deleteClasificacion(Number(id))
       await mutate()
       toast.success("Clasificación desactivada")
     } catch {
       toast.error("Error al eliminar la clasificación")
-    } finally {
-      setDeletingId(null)
     }
   }
 
@@ -130,153 +161,79 @@ export default function ClasificacionPage() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Lote</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Fecha</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Inspector</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">
-                  Cargando clasificaciones...
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">
-                  {search
-                    ? "No se encontraron clasificaciones con ese criterio."
-                    : "No hay clasificaciones registradas."}
-                </td>
-              </tr>
-            ) : (
-              filtered.map((c: Clasificacion) => (
-                <tr
-                  key={c.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                >
-                  <td className="px-4 py-3 font-mono text-xs font-medium">
-                    #{c.loteId}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatDate(c.fecha) ?? <span className="italic">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    {c.empleado
-                      ? `${c.empleado.nombre} ${c.empleado.apellido}`
-                      : <span className="italic text-muted-foreground">Sin asignar</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      {deletingId === c.id ? (
-                        <>
-                          <span className="text-xs text-muted-foreground">¿Confirmar?</span>
-                          <Button size="xs" variant="destructive" onClick={() => handleDelete(c.id)} disabled={isDeleting}>
-                            Eliminar
-                          </Button>
-                          <Button size="xs" variant="ghost" onClick={() => setDeletingId(null)}>
-                            Cancelar
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button size="xs" variant="outline" onClick={() => openEdit(c)}>
-                            Editar
-                          </Button>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeletingId(c.id)}
-                          >
-                            Eliminar
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        data={filtered}
+        columns={columns}
+        isLoading={isLoading}
+        loadingText="Cargando clasificaciones..."
+        emptyText="No hay clasificaciones registradas."
+        emptySearchText="No se encontraron clasificaciones con ese criterio."
+        search={search}
+        onView={openView}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        isDeleting={isDeleting}
+      />
 
-      <Sheet open={sheetOpen} onOpenChange={(open) => !open && setSheetOpen(false)}>
-        <SheetContent side="right">
-          <SheetHeader>
-            <SheetTitle>{editing ? "Editar clasificación" : "Nueva clasificación"}</SheetTitle>
-            <SheetDescription>
-              {editing
-                ? `Modificá los datos de la clasificación del lote #${editing.loteId}.`
-                : "Registrá una nueva clasificación de lote."}
-            </SheetDescription>
-          </SheetHeader>
+      <FormModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        title={isViewing ? "Ver clasificación" : editing ? "Editar clasificación" : "Nueva clasificación"}
+        readOnly={isViewing}
+        description={
+          editing
+            ? `Modificá los datos de la clasificación del lote #${editing.loteId}.`
+            : "Registrá una nueva clasificación de lote."
+        }
+        onSave={handleSave}
+        isLoading={isCreating || isUpdating}
+        saveLabel={editing ? "Guardar cambios" : "Crear clasificación"}
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Lote</label>
+          <select
+            value={form.loteId}
+            onChange={(e) => setForm((f) => ({ ...f, loteId: e.target.value }))}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Seleccionar lote...</option>
+            {lotes.map((l: Lote) => (
+              <option key={l.id} value={l.id}>
+                Lote #{l.id}{l.pesoBrutoKg ? ` — ${l.pesoBrutoKg} kg` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
 
-          <div className="flex flex-col gap-5 px-6 py-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Lote</label>
-              <select
-                value={form.loteId}
-                onChange={(e) => setForm((f) => ({ ...f, loteId: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="">Seleccionar lote...</option>
-                {lotes.map((l: Lote) => (
-                  <option key={l.id} value={l.id}>
-                    Lote #{l.id}{l.pesoBrutoKg ? ` — ${l.pesoBrutoKg} kg` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Fecha <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            type="date"
+            value={form.fecha}
+            onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))}
+          />
+        </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Fecha <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <Input
-                type="date"
-                value={form.fecha}
-                onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))}
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Inspector <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <select
-                value={form.empleadoId}
-                onChange={(e) => setForm((f) => ({ ...f, empleadoId: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="">Sin empleado asignado</option>
-                {empleados.map((e: Empleado) => (
-                  <option key={e.id} value={e.id}>
-                    {e.nombre} {e.apellido}{e.cargo ? ` — ${e.cargo}` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <SheetFooter>
-            <Button onClick={handleSave} disabled={isCreating || isUpdating} className="w-full">
-              {isCreating || isUpdating
-                ? "Guardando..."
-                : editing
-                  ? "Guardar cambios"
-                  : "Crear clasificación"}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Inspector <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <select
+            value={form.empleadoId}
+            onChange={(e) => setForm((f) => ({ ...f, empleadoId: e.target.value }))}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Sin empleado asignado</option>
+            {empleados.map((e: Empleado) => (
+              <option key={e.id} value={e.id}>
+                {e.nombre} {e.apellido}{e.cargo ? ` — ${e.cargo}` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      </FormModal>
     </div>
   )
 }

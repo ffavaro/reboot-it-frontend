@@ -4,18 +4,21 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet"
+import { DataTable } from "@/components/ui/data-table"
+import { FormModal } from "@/components/ui/form-modal"
 import { useMarcas, useCreateMarca, useUpdateMarca, useDeleteMarca } from "@/hooks/use-marca"
 import type { Marca } from "@/lib/type/marca"
+import type { TableColumn } from "@/components/ui/data-table"
 
 const EMPTY_FORM = { nombre: "" }
+
+const COLUMNS: TableColumn<Marca>[] = [
+  {
+    key: "nombre",
+    header: "Nombre",
+    cell: (m) => <span className="font-medium">{m.nombre}</span>,
+  },
+]
 
 export default function MarcasPage() {
   const { marcas, isLoading, mutate } = useMarcas()
@@ -24,25 +27,34 @@ export default function MarcasPage() {
   const { deleteMarca, isLoading: isDeleting } = useDeleteMarca()
 
   const [search, setSearch] = useState("")
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Marca | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
-  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const filtered = marcas.filter((m: Marca) =>
     m.nombre.toLowerCase().includes(search.toLowerCase()),
   )
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
-    setSheetOpen(true)
+    setModalOpen(true)
   }
 
   function openEdit(m: Marca) {
+    setIsViewing(false)
     setEditing(m)
     setForm({ nombre: m.nombre })
-    setSheetOpen(true)
+    setModalOpen(true)
+  }
+
+  function openView(m: Marca) {
+    setIsViewing(true)
+    setEditing(m)
+    setForm({ nombre: m.nombre })
+    setModalOpen(true)
   }
 
   async function handleSave() {
@@ -59,21 +71,19 @@ export default function MarcasPage() {
         toast.success("Marca creada")
       }
       await mutate()
-      setSheetOpen(false)
+      setModalOpen(false)
     } catch {
       toast.error("Error al guardar la marca")
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: number | string) {
     try {
-      await deleteMarca(id)
+      await deleteMarca(id as number)
       await mutate()
       toast.success("Marca desactivada")
     } catch {
       toast.error("Error al eliminar la marca")
-    } finally {
-      setDeletingId(null)
     }
   }
 
@@ -101,98 +111,44 @@ export default function MarcasPage() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Nombre</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={2} className="px-4 py-12 text-center text-muted-foreground">
-                  Cargando marcas...
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={2} className="px-4 py-12 text-center text-muted-foreground">
-                  {search ? "No se encontraron marcas con ese criterio." : "No hay marcas registradas."}
-                </td>
-              </tr>
-            ) : (
-              filtered.map((m: Marca) => (
-                <tr
-                  key={m.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                >
-                  <td className="px-4 py-3 font-medium">{m.nombre}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      {deletingId === m.id ? (
-                        <>
-                          <span className="text-xs text-muted-foreground">¿Confirmar?</span>
-                          <Button size="xs" variant="destructive" onClick={() => handleDelete(m.id)} disabled={isDeleting}>
-                            Eliminar
-                          </Button>
-                          <Button size="xs" variant="ghost" onClick={() => setDeletingId(null)}>
-                            Cancelar
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button size="xs" variant="outline" onClick={() => openEdit(m)}>
-                            Editar
-                          </Button>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeletingId(m.id)}
-                          >
-                            Eliminar
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        data={filtered}
+        columns={COLUMNS}
+        isLoading={isLoading}
+        loadingText="Cargando marcas..."
+        emptyText="No hay marcas registradas."
+        emptySearchText="No se encontraron marcas con ese criterio."
+        search={search}
+        onView={openView}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        isDeleting={isDeleting}
+      />
 
-      <Sheet open={sheetOpen} onOpenChange={(open) => !open && setSheetOpen(false)}>
-        <SheetContent side="right">
-          <SheetHeader>
-            <SheetTitle>{editing ? "Editar marca" : "Nueva marca"}</SheetTitle>
-            <SheetDescription>
-              {editing ? `Modificá los datos de "${editing.nombre}".` : "Completá los datos de la nueva marca."}
-            </SheetDescription>
-          </SheetHeader>
-
-          <div className="flex flex-col gap-5 px-6 py-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Nombre</label>
-              <Input
-                value={form.nombre}
-                onChange={(e) => setForm({ nombre: e.target.value })}
-                placeholder="Ej: Seagate, WD, Kingston, Samsung..."
-                maxLength={50}
-              />
-            </div>
-          </div>
-
-          <SheetFooter>
-            <Button onClick={handleSave} disabled={isCreating || isUpdating} className="w-full">
-              {isCreating || isUpdating ? "Guardando..." : editing ? "Guardar cambios" : "Crear marca"}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+      <FormModal
+        open={modalOpen}
+        onOpenChange={(open) => !open && setModalOpen(false)}
+        title={isViewing ? "Ver marca" : editing ? "Editar marca" : "Nueva marca"}
+        readOnly={isViewing}
+        description={
+          editing
+            ? `Modificá los datos de "${editing.nombre}".`
+            : "Completá los datos de la nueva marca."
+        }
+        onSave={handleSave}
+        isLoading={isCreating || isUpdating}
+        saveLabel={editing ? "Guardar cambios" : "Crear marca"}
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Nombre</label>
+          <Input
+            value={form.nombre}
+            onChange={(e) => setForm({ nombre: e.target.value })}
+            placeholder="Ej: Seagate, WD, Kingston, Samsung..."
+            maxLength={50}
+          />
+        </div>
+      </FormModal>
     </div>
   )
 }

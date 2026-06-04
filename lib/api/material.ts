@@ -1,4 +1,4 @@
-import type { Material, CreateMaterialPayload, UpdateMaterialPayload } from "@/lib/type/material"
+import type { Material, CreateMaterialPayload, UpdateMaterialPayload, ClasificarMaterialPayload } from "@/lib/type/material"
 import { request } from "./client"
 
 export const materialApi = {
@@ -9,6 +9,9 @@ export const materialApi = {
 
   update: (id: number, data: UpdateMaterialPayload) =>
     request<Material>(`/material/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+  clasificar: (id: number, data: ClasificarMaterialPayload) =>
+    request<Material>(`/material/${id}/clasificar`, { method: "PATCH", body: JSON.stringify(data) }),
 
   remove: (id: number) =>
     request<void>(`/material/${id}`, { method: "DELETE" }),

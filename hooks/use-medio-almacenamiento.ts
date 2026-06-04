@@ -2,12 +2,13 @@ import useSWR from "swr"
 import useSWRMutation from "swr/mutation"
 import { fetcher, medioAlmacenamientoApi } from "@/lib/api"
 import type {
+  MedioAlmacenamiento,
   CreateMedioAlmacenamientoPayload,
   UpdateMedioAlmacenamientoPayload,
 } from "@/lib/type/medio-almacenamiento"
 
 export function useMediosAlmacenamiento() {
-  const { data, isLoading, error, mutate } = useSWR("/medio-almacenamiento", fetcher)
+  const { data, isLoading, error, mutate } = useSWR<MedioAlmacenamiento[]>("/medio-almacenamiento", fetcher)
   return { medios: data ?? [], isLoading, error, mutate }
 }
 

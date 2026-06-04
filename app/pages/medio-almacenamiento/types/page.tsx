@@ -4,18 +4,21 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet"
+import { DataTable } from "@/components/ui/data-table"
+import { FormModal } from "@/components/ui/form-modal"
 import { useTipos, useCreateTipo, useUpdateTipo, useDeleteTipo } from "@/hooks/use-tipo"
 import type { Tipo } from "@/lib/type/tipo"
+import type { TableColumn } from "@/components/ui/data-table"
 
 const EMPTY_FORM = { nombre: "" }
+
+const COLUMNS: TableColumn<Tipo>[] = [
+  {
+    key: "nombre",
+    header: "Nombre",
+    cell: (t) => <span className="font-medium">{t.nombre}</span>,
+  },
+]
 
 export default function TiposPage() {
   const { tipos, isLoading, mutate } = useTipos()
@@ -24,25 +27,34 @@ export default function TiposPage() {
   const { deleteTipo, isLoading: isDeleting } = useDeleteTipo()
 
   const [search, setSearch] = useState("")
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Tipo | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
-  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const filtered = tipos.filter((t: Tipo) =>
     t.nombre.toLowerCase().includes(search.toLowerCase()),
   )
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
-    setSheetOpen(true)
+    setModalOpen(true)
   }
 
   function openEdit(t: Tipo) {
+    setIsViewing(false)
     setEditing(t)
     setForm({ nombre: t.nombre })
-    setSheetOpen(true)
+    setModalOpen(true)
+  }
+
+  function openView(t: Tipo) {
+    setIsViewing(true)
+    setEditing(t)
+    setForm({ nombre: t.nombre })
+    setModalOpen(true)
   }
 
   async function handleSave() {
@@ -59,21 +71,19 @@ export default function TiposPage() {
         toast.success("Tipo creado")
       }
       await mutate()
-      setSheetOpen(false)
+      setModalOpen(false)
     } catch {
       toast.error("Error al guardar el tipo")
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: number | string) {
     try {
-      await deleteTipo(id)
+      await deleteTipo(id as number)
       await mutate()
       toast.success("Tipo desactivado")
     } catch {
       toast.error("Error al eliminar el tipo")
-    } finally {
-      setDeletingId(null)
     }
   }
 
@@ -101,98 +111,44 @@ export default function TiposPage() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Nombre</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={2} className="px-4 py-12 text-center text-muted-foreground">
-                  Cargando tipos...
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={2} className="px-4 py-12 text-center text-muted-foreground">
-                  {search ? "No se encontraron tipos con ese criterio." : "No hay tipos registrados."}
-                </td>
-              </tr>
-            ) : (
-              filtered.map((t: Tipo) => (
-                <tr
-                  key={t.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                >
-                  <td className="px-4 py-3 font-medium">{t.nombre}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      {deletingId === t.id ? (
-                        <>
-                          <span className="text-xs text-muted-foreground">¿Confirmar?</span>
-                          <Button size="xs" variant="destructive" onClick={() => handleDelete(t.id)} disabled={isDeleting}>
-                            Eliminar
-                          </Button>
-                          <Button size="xs" variant="ghost" onClick={() => setDeletingId(null)}>
-                            Cancelar
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button size="xs" variant="outline" onClick={() => openEdit(t)}>
-                            Editar
-                          </Button>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeletingId(t.id)}
-                          >
-                            Eliminar
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        data={filtered}
+        columns={COLUMNS}
+        isLoading={isLoading}
+        loadingText="Cargando tipos..."
+        emptyText="No hay tipos registrados."
+        emptySearchText="No se encontraron tipos con ese criterio."
+        search={search}
+        onView={openView}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        isDeleting={isDeleting}
+      />
 
-      <Sheet open={sheetOpen} onOpenChange={(open) => !open && setSheetOpen(false)}>
-        <SheetContent side="right">
-          <SheetHeader>
-            <SheetTitle>{editing ? "Editar tipo" : "Nuevo tipo"}</SheetTitle>
-            <SheetDescription>
-              {editing ? `Modificá los datos de "${editing.nombre}".` : "Completá los datos del nuevo tipo."}
-            </SheetDescription>
-          </SheetHeader>
-
-          <div className="flex flex-col gap-5 px-6 py-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Nombre</label>
-              <Input
-                value={form.nombre}
-                onChange={(e) => setForm({ nombre: e.target.value })}
-                placeholder="Ej: HDD, SSD, Pendrive, DVD..."
-                maxLength={50}
-              />
-            </div>
-          </div>
-
-          <SheetFooter>
-            <Button onClick={handleSave} disabled={isCreating || isUpdating} className="w-full">
-              {isCreating || isUpdating ? "Guardando..." : editing ? "Guardar cambios" : "Crear tipo"}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+      <FormModal
+        open={modalOpen}
+        onOpenChange={(open) => !open && setModalOpen(false)}
+        title={isViewing ? "Ver tipo" : editing ? "Editar tipo" : "Nuevo tipo"}
+        readOnly={isViewing}
+        description={
+          editing
+            ? `Modificá los datos de "${editing.nombre}".`
+            : "Completá los datos del nuevo tipo."
+        }
+        onSave={handleSave}
+        isLoading={isCreating || isUpdating}
+        saveLabel={editing ? "Guardar cambios" : "Crear tipo"}
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Nombre</label>
+          <Input
+            value={form.nombre}
+            onChange={(e) => setForm({ nombre: e.target.value })}
+            placeholder="Ej: HDD, SSD, Pendrive, DVD..."
+            maxLength={50}
+          />
+        </div>
+      </FormModal>
     </div>
   )
 }

@@ -3,8 +3,6 @@
 import * as React from "react"
 import { useState, useEffect } from "react"
 import { usePathname, useRouter } from "next/navigation"
-
-import { VersionSwitcher } from "@/components/version-switcher"
 import {
   Collapsible,
   CollapsibleContent,
@@ -13,7 +11,6 @@ import {
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -25,101 +22,104 @@ import {
 } from "@/components/ui/sidebar"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
-import { getUser, clearSession } from "@/lib/auth-utils"
+import {
+  BarChart2, Bookmark, Box, Boxes, CalendarCheck, CalendarDays, Camera, Car,
+  Circle, Clock, FileCheck, FileText, HardDrive, Heart,
+  LayoutList, Layers, Leaf, List, Package, PackageOpen,
+  Server, Shield, Tag, Trash2, Truck, User, UserCog, Users,
+} from "lucide-react"
+import { getUser } from "@/lib/auth-utils"
 import { NavSection, NavItem } from "@/lib/type/sidebar"
 
 // Si allowedRoles está definido, solo esos roles pueden verlo.
 // Si no está definido, es visible para todos los roles.
 const DONANTE = ["donante"]
+const TRANSPORTISTA = ["transportista"]
 
 const navMain: NavSection[] = [
   {
     title: "Gestion de Donantes",
     url: "#",
     items: [
-      { title: "Donantes", url: "/pages/donante" },
-      { title: "Donaciones", url: "/pages/donacion", allowedRoles: DONANTE },
-      { title: "Turnos", url: "/pages/turno", allowedRoles: DONANTE },
-      { title: "Lotes", url: "/pages/lote" },
-      { title: "Certificado de disposicion", url: "/pages/certificado-disposicion", allowedRoles: DONANTE },
-      { title: "Clasificacion", url: "/pages/clasificacion" },
-      { title: "Constancia de retiro", url: "/pages/constancia-retiro", allowedRoles: DONANTE },
-      { title: "Registro fotográfico", url: "/pages/registro-fotografico" },
+      { title: "Agenda", url: "/pages/agenda", icon: CalendarDays },
+      { title: "Certificado de disposicion", url: "/pages/certificado-disposicion", allowedRoles: DONANTE, icon: FileCheck },
+      { title: "Clasificacion", url: "/pages/clasificacion", icon: LayoutList },
+      { title: "Constancia de retiro", url: "/pages/constancia-retiro", allowedRoles: DONANTE, icon: FileText },
+      { title: "Donaciones", url: "/pages/donacion", allowedRoles: DONANTE, icon: Heart },
+      { title: "Registro fotográfico", url: "/pages/registro-fotografico", icon: Camera },
+      { title: "Turnos", url: "/pages/turno", allowedRoles: [...DONANTE, ...TRANSPORTISTA], icon: Clock },
     ],
   },
   {
     title: "Logistica y Distribucion",
     url: "#",
     items: [
-      { title: "Vehiculos", url: "/pages/vehicles" },
-      { title: "Retiros", url: "/pages/retiro" },
+      { title: "Vehiculos", url: "/pages/vehicles", allowedRoles: TRANSPORTISTA, icon: Truck },
+      { title: "Retiros", url: "/pages/retiro", allowedRoles: TRANSPORTISTA, icon: PackageOpen },
+      { title: "Empleado Transportista", url: "/pages/empleado-transportista", icon: Car },
     ],
   },
   {
     title: "Gestion de Clasificacion",
     url: "#",
     items: [
-      { title: "Materiales", url: "/pages/material" },
+      { title: "Materiales", url: "/pages/material", icon: Layers },
+      { title: "Condicion de Material", url: "/pages/material/material-condition", icon: Circle },
+      { title: "Tipos de Material", url: "/pages/material/material-type", icon: Tag },
+      { title: "Proceso de destrucción", url: "/pages/proceso-destruccion", icon: Trash2 },
     ],
   },
   {
     title: "Inventario y almacenamiento",
     url: "#",
     items: [
-      { title: "Medio de Almacenamiento", url: "/pages/medio-almacenamiento" },
-      { title: "Tipos", url: "/pages/medio-almacenamiento/types" },
-      { title: "Marcas", url: "/pages/medio-almacenamiento/brands" },
-      { title: "Modelos", url: "/pages/medio-almacenamiento/models" },
-      { title: "Racks", url: "/pages/rack" },
-      { title: "Proceso de destrucción", url: "/pages/proceso-destruccion" },
-      { title: "Pallets", url: "/pages/pallet" },
+      { title: "Medio de Almacenamiento", url: "/pages/medio-almacenamiento", icon: HardDrive },
+      { title: "Tipos", url: "/pages/medio-almacenamiento/types", icon: List },
+      { title: "Marcas", url: "/pages/medio-almacenamiento/brands", icon: Bookmark },
+      { title: "Modelos", url: "/pages/medio-almacenamiento/models", icon: Box },
+      { title: "Racks", url: "/pages/rack", icon: Server },
+      { title: "Pallets", url: "/pages/pallet", icon: Boxes },
+      { title: "Lotes", url: "/pages/lote", icon: Package },
     ],
   },
   {
     title: "Reportes y Analitica",
     url: "#",
     items: [
-      { title: "Reports Dashboard", url: "#" },
+      { title: "Reportes", url: "#", icon: BarChart2 },
     ],
   },
   {
     title: "Configuracion",
     url: "#",
     items: [
-      { title: "Condicion de Material", url: "/pages/material/material-condition" },
-      { title: "Empleados", url: "/pages/employees" },
-      { title: "Estado de turno", url: "/pages/estado-turno" },
-      { title: "Empleado Transportista", url: "/pages/empleado-transportista" },
-      { title: "Gestora Ambiental", url: "/pages/gestor-ambiental" },
-      { title: "Roles", url: "/pages/roles" },
-      { title: "Tipos de Material", url: "/pages/material/material-type" },
-      { title: "Usuarios", url: "/pages/user-management" },
-    ],
-  },
-  {
-    title: "Mi Cuenta",
-    url: "#",
-    allowedRoles: DONANTE,
-    items: [
-      { title: "Mi Perfil", url: "/pages/perfil", allowedRoles: DONANTE },
+      { title: "Donantes", url: "/pages/donante", icon: Users },
+      { title: "Empleados", url: "/pages/employees", icon: User },
+      { title: "Estado de turno", url: "/pages/estado-turno", icon: CalendarCheck },
+      { title: "Estado de proceso de destrucción", url: "/pages/estado-proceso-destruccion", icon: Layers },
+      { title: "Gestora Ambiental", url: "/pages/gestor-ambiental", icon: Leaf },
+      { title: "Metodos de destrucción", url: "/pages/metodo-destruccion", icon: LayoutList },
+      { title: "Roles", url: "/pages/roles", icon: Shield },
+      { title: "Usuarios", url: "/pages/user-management", icon: UserCog },
     ],
   }
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
-  const router = useRouter()
   const [user, setUser] = useState<ReturnType<typeof getUser>>(null)
   useEffect(() => { setUser(getUser()) }, [])
   const rolNombre = user?.rol?.nombre?.toLowerCase() ?? ""
   const isDonante = rolNombre === "donante"
+  const isTransportista = rolNombre === "transportista"
 
-  function canSeeItem(item: NavItem): boolean {
+  const canSeeItem = (item: NavItem): boolean => {
     if (isDonante) {
-      // donante: solo ve los items explícitamente marcados para él
       return item.allowedRoles?.includes("donante") ?? false
     }
-    // cualquier otro rol: ve todo
+    if (isTransportista) {
+      return item.allowedRoles?.includes("transportista") ?? false
+    }
     return true
   }
 
@@ -130,18 +130,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }))
     .filter((section) => section.items.length > 0)
 
-  function handleLogout() {
-    clearSession()
-    router.push("/login")
-  }
-
   return (
     <Sidebar {...props}>
-      <SidebarHeader>
-        <VersionSwitcher
-          versions={["0.0.1"]}
-          defaultVersion="0.0.1"
-        />
+      <SidebarHeader className="gap-0">
       </SidebarHeader>
       <SidebarContent className="gap-0">
         {visibleSections.map((item) => (
@@ -172,6 +163,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           isActive={pathname === subItem.url}
                           render={<a href={subItem.url} />}
                         >
+                          {subItem.icon && <subItem.icon className="h-4 w-4 shrink-0" />}
                           {subItem.title}
                         </SidebarMenuButton>
                       </SidebarMenuItem>
@@ -183,20 +175,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </Collapsible>
         ))}
       </SidebarContent>
-      <SidebarFooter>
-        {user && (
-          <div className="px-3 py-2 text-xs text-muted-foreground border-b border-border mb-1">
-            <p className="font-medium text-foreground truncate">{user.nombre}</p>
-            <p className="truncate">{user.rol?.nombre ?? ""}</p>
-          </div>
-        )}
-        <button
-          onClick={handleLogout}
-          className="w-full rounded-md bg-sidebar-accent px-3 py-2 text-sm font-medium text-sidebar-accent-foreground hover:bg-sidebar-accent-hover"
-        >
-          Cerrar Sesión
-        </button>
-      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )

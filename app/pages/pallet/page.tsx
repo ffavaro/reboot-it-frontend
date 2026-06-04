@@ -4,14 +4,8 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet"
+import { DataTable, type TableColumn } from "@/components/ui/data-table"
+import { FormModal } from "@/components/ui/form-modal"
 import {
   usePallets,
   useCreatePallet,
@@ -19,34 +13,79 @@ import {
   useDeletePallet,
 } from "@/hooks/use-pallet"
 import { useRacks } from "@/hooks/use-rack"
-import { useMediosAlmacenamiento } from "@/hooks/use-medio-almacenamiento"
+import { useLotes } from "@/hooks/use-lote"
 import type { Pallet } from "@/lib/type/pallet"
 import type { Rack } from "@/lib/type/rack"
-import type { MedioAlmacenamiento } from "@/lib/type/medio-almacenamiento"
+import type { Lote } from "@/lib/type/lote"
 
-const EMPTY_FORM = { rackId: "", mdcId: "", codigo: "", statusKg: "" }
+const EMPTY_FORM = { rackId: "", loteId: "", codigo: "", peso_kg: "" }
 
-function medioLabel(m: MedioAlmacenamiento) {
-  const partes = [`#${m.id}`]
-  if (m.marca?.nombre) partes.push(m.marca.nombre)
-  if (m.modelo?.nombre) partes.push(m.modelo.nombre)
-  if (m.tipo?.nombre) partes.push(`(${m.tipo.nombre})`)
-  return partes.join(" ")
-}
+const COLUMNS: TableColumn<Pallet>[] = [
+  {
+    key: "codigo",
+    header: "Código",
+    cell: (p) =>
+      p.codigo
+        ? <span className="font-mono text-xs">{p.codigo}</span>
+        : <span className="italic text-muted-foreground">—</span>,
+  },
+  {
+    key: "rack",
+    header: "Rack",
+    cell: (p) =>
+      p.rack ? (
+        <div className="flex flex-col">
+          <span className="font-mono text-xs">{p.rack.codigo}</span>
+          {p.rack.ubicacion && (
+            <span className="text-xs text-muted-foreground">{p.rack.ubicacion}</span>
+          )}
+        </div>
+      ) : (
+        <span className="font-mono text-xs text-muted-foreground">#{p.rackId}</span>
+      ),
+  },
+  {
+    key: "lote",
+    header: "Lote",
+    cell: (p) =>
+      p.lote ? (
+        <span className="font-mono text-xs">
+          #{p.lote.id}
+          {p.lote.donacionId && (
+            <span className="ml-1 font-sans text-muted-foreground not-italic">
+              Donación #{p.lote.donacionId}
+            </span>
+          )}
+        </span>
+      ) : p.loteId ? (
+        <span className="font-mono text-xs text-muted-foreground">#{p.loteId}</span>
+      ) : (
+        <span className="italic text-muted-foreground">—</span>
+      ),
+  },
+  {
+    key: "peso_kg",
+    header: "Peso (kg)",
+    cell: (p) =>
+      p.peso_kg !== null && p.peso_kg !== undefined
+        ? `${p.peso_kg} kg`
+        : <span className="italic text-muted-foreground">—</span>,
+  },
+]
 
 export default function PalletPage() {
   const { pallets, isLoading, mutate } = usePallets()
   const { racks } = useRacks()
-  const { medios } = useMediosAlmacenamiento()
+  const { lotes } = useLotes()
   const { createPallet, isLoading: isCreating } = useCreatePallet()
   const { updatePallet, isLoading: isUpdating } = useUpdatePallet()
   const { deletePallet, isLoading: isDeleting } = useDeletePallet()
 
   const [search, setSearch] = useState("")
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Pallet | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
-  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const filtered = pallets.filter((p: Pallet) => {
     const q = search.toLowerCase()
@@ -54,25 +93,40 @@ export default function PalletPage() {
     return (
       (p.codigo ?? "").toLowerCase().includes(q) ||
       rack.includes(q) ||
-      String(p.rackId).includes(q)
+      String(p.rackId).includes(q) ||
+      (p.loteId ? String(p.loteId).includes(q) : false)
     )
   })
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
-    setSheetOpen(true)
+    setModalOpen(true)
   }
 
   function openEdit(p: Pallet) {
+    setIsViewing(false)
     setEditing(p)
     setForm({
       rackId: String(p.rackId),
-      mdcId: p.mdcId ? String(p.mdcId) : "",
+      loteId: p.loteId ? String(p.loteId) : "",
       codigo: p.codigo ?? "",
-      statusKg: p.statusKg !== null && p.statusKg !== undefined ? String(p.statusKg) : "",
+      peso_kg: p.peso_kg !== null && p.peso_kg !== undefined ? String(p.peso_kg) : "",
     })
-    setSheetOpen(true)
+    setModalOpen(true)
+  }
+
+  function openView(p: Pallet) {
+    setIsViewing(true)
+    setEditing(p)
+    setForm({
+      rackId: String(p.rackId),
+      loteId: p.loteId ? String(p.loteId) : "",
+      codigo: p.codigo ?? "",
+      peso_kg: p.peso_kg !== null && p.peso_kg !== undefined ? String(p.peso_kg) : "",
+    })
+    setModalOpen(true)
   }
 
   async function handleSave() {
@@ -83,9 +137,9 @@ export default function PalletPage() {
     try {
       const payload = {
         rackId: Number(form.rackId),
-        mdcId: form.mdcId ? Number(form.mdcId) : undefined,
+        loteId: form.loteId ? Number(form.loteId) : undefined,
         codigo: form.codigo.trim() || undefined,
-        statusKg: form.statusKg !== "" ? Number(form.statusKg) : undefined,
+        peso_kg: form.peso_kg !== "" ? Number(form.peso_kg) : undefined,
       }
       if (editing) {
         await updatePallet({ id: editing.id, ...payload })
@@ -95,21 +149,19 @@ export default function PalletPage() {
         toast.success("Pallet creado")
       }
       await mutate()
-      setSheetOpen(false)
+      setModalOpen(false)
     } catch {
       toast.error("Error al guardar el pallet")
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: number | string) {
     try {
-      await deletePallet(id)
+      await deletePallet(Number(id))
       await mutate()
       toast.success("Pallet desactivado")
     } catch {
       toast.error("Error al eliminar el pallet")
-    } finally {
-      setDeletingId(null)
     }
   }
 
@@ -124,7 +176,7 @@ export default function PalletPage() {
 
       <div className="flex items-center gap-3">
         <Input
-          placeholder="Buscar por código o rack..."
+          placeholder="Buscar por código, rack o lote..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
@@ -137,187 +189,98 @@ export default function PalletPage() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Código</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Rack</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Medio de almacenamiento</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Peso (kg)</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
-                  Cargando pallets...
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
-                  {search ? "No se encontraron pallets con ese criterio." : "No hay pallets registrados."}
-                </td>
-              </tr>
-            ) : (
-              filtered.map((p: Pallet) => (
-                <tr
-                  key={p.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                >
-                  <td className="px-4 py-3">
-                    {p.codigo
-                      ? <span className="font-mono text-xs">{p.codigo}</span>
-                      : <span className="italic text-muted-foreground">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    {p.rack ? (
-                      <div className="flex flex-col">
-                        <span className="font-mono text-xs">{p.rack.codigo}</span>
-                        {p.rack.ubicacion && (
-                          <span className="text-xs text-muted-foreground">{p.rack.ubicacion}</span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="font-mono text-xs text-muted-foreground">#{p.rackId}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {p.medioAlmacenamiento ? (
-                      <span className="font-mono text-xs">
-                        #{p.medioAlmacenamiento.id}
-                        {p.medioAlmacenamiento.marca?.nombre && (
-                          <span className="ml-1 font-sans text-muted-foreground not-italic">
-                            {p.medioAlmacenamiento.marca.nombre}
-                            {p.medioAlmacenamiento.modelo?.nombre && ` ${p.medioAlmacenamiento.modelo.nombre}`}
-                          </span>
-                        )}
-                      </span>
-                    ) : p.mdcId ? (
-                      <span className="font-mono text-xs text-muted-foreground">#{p.mdcId}</span>
-                    ) : (
-                      <span className="italic text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {p.statusKg !== null && p.statusKg !== undefined
-                      ? `${p.statusKg} kg`
-                      : <span className="italic">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      {deletingId === p.id ? (
-                        <>
-                          <span className="text-xs text-muted-foreground">¿Confirmar?</span>
-                          <Button size="xs" variant="destructive" onClick={() => handleDelete(p.id)} disabled={isDeleting}>
-                            Eliminar
-                          </Button>
-                          <Button size="xs" variant="ghost" onClick={() => setDeletingId(null)}>
-                            Cancelar
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button size="xs" variant="outline" onClick={() => openEdit(p)}>
-                            Editar
-                          </Button>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeletingId(p.id)}
-                          >
-                            Eliminar
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        data={filtered}
+        columns={COLUMNS}
+        isLoading={isLoading}
+        loadingText="Cargando pallets..."
+        emptyText="No hay pallets registrados."
+        emptySearchText="No se encontraron pallets con ese criterio."
+        search={search}
+        onView={openView}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        isDeleting={isDeleting}
+      />
 
-      <Sheet open={sheetOpen} onOpenChange={(open) => !open && setSheetOpen(false)}>
-        <SheetContent side="right">
-          <SheetHeader>
-            <SheetTitle>{editing ? "Editar pallet" : "Nuevo pallet"}</SheetTitle>
-            <SheetDescription>
-              {editing ? "Modificá los datos del pallet." : "Registrá un nuevo pallet en un rack."}
-            </SheetDescription>
-          </SheetHeader>
+      <FormModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        title={isViewing ? "Ver pallet" : editing ? "Editar pallet" : "Nuevo pallet"}
+        readOnly={isViewing}
+        description={editing ? "Modificá los datos del pallet." : "Registrá un nuevo pallet en un rack."}
+        onSave={handleSave}
+        isLoading={isCreating || isUpdating}
+        saveLabel={editing ? "Guardar cambios" : "Crear pallet"}
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Rack</label>
+          <select
+            value={form.rackId}
+            onChange={(e) => setForm((f) => ({ ...f, rackId: e.target.value }))}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Seleccionar rack...</option>
+            {racks.map((r: Rack) => (
+              <option key={r.id} value={r.id}>
+                {r.codigo}{r.ubicacion ? ` — ${r.ubicacion}` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
 
-          <div className="flex flex-col gap-5 px-6 py-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Rack</label>
-              <select
-                value={form.rackId}
-                onChange={(e) => setForm((f) => ({ ...f, rackId: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="">Seleccionar rack...</option>
-                {racks.map((r: Rack) => (
-                  <option key={r.id} value={r.id}>
-                    {r.codigo}{r.ubicacion ? ` — ${r.ubicacion}` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Lote <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <select
+            value={form.loteId}
+            onChange={(e) => {
+              const loteId = e.target.value
+              const lote = lotes.find((l: Lote) => String(l.id) === loteId)
+              setForm((f) => ({
+                ...f,
+                loteId,
+                peso_kg: lote?.pesoBrutoKg != null ? String(lote.pesoBrutoKg) : f.peso_kg,
+              }))
+            }}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Sin lote asignado</option>
+            {lotes.map((l: Lote) => (
+              <option key={l.id} value={l.id}>
+                Lote #{l.id}{l.pesoBrutoKg ? ` — ${l.pesoBrutoKg} kg` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Medio de almacenamiento <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <select
-                value={form.mdcId}
-                onChange={(e) => setForm((f) => ({ ...f, mdcId: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="">Sin medio asignado</option>
-                {medios.map((m: MedioAlmacenamiento) => (
-                  <option key={m.id} value={m.id}>
-                    {medioLabel(m)}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Código <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            placeholder="Ej: PLT-001"
+            value={form.codigo}
+            onChange={(e) => setForm((f) => ({ ...f, codigo: e.target.value }))}
+          />
+        </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Código <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <Input
-                placeholder="Ej: PLT-001"
-                value={form.codigo}
-                onChange={(e) => setForm((f) => ({ ...f, codigo: e.target.value }))}
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Peso (kg) <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="Ej: 50.00"
-                value={form.statusKg}
-                onChange={(e) => setForm((f) => ({ ...f, statusKg: e.target.value }))}
-              />
-            </div>
-          </div>
-
-          <SheetFooter>
-            <Button onClick={handleSave} disabled={isCreating || isUpdating} className="w-full">
-              {isCreating || isUpdating ? "Guardando..." : editing ? "Guardar cambios" : "Crear pallet"}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Peso (kg) <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            type="number"
+            step="0.01"
+            placeholder="Ej: 50.00"
+            value={form.peso_kg}
+            readOnly={!!form.loteId}
+            onChange={(e) => setForm((f) => ({ ...f, peso_kg: e.target.value }))}
+            className={form.loteId ? "bg-muted cursor-not-allowed" : ""}
+          />
+        </div>
+      </FormModal>
     </div>
   )
 }

@@ -4,14 +4,9 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet"
+import { DataTable } from "@/components/ui/data-table"
+import type { TableColumn } from "@/components/ui/data-table"
+import { FormModal } from "@/components/ui/form-modal"
 import {
   useLotes,
   useCreateLote,
@@ -22,6 +17,40 @@ import type { Lote } from "@/lib/type/lote"
 
 const EMPTY_FORM = { donacionId: "", pesoBrutoKg: "", observaciones: "" }
 
+const columns: TableColumn<Lote>[] = [
+  {
+    key: "id",
+    header: "ID",
+    cell: (l) => <span className="font-mono text-xs">#{l.id}</span>,
+  },
+  {
+    key: "donacionId",
+    header: "Donación",
+    cell: (l) => <span className="font-mono text-xs">#{l.donacionId}</span>,
+  },
+  {
+    key: "pesoBrutoKg",
+    header: "Peso bruto (kg)",
+    cell: (l) => (
+      <span className="text-muted-foreground">
+        {l.pesoBrutoKg !== null && l.pesoBrutoKg !== undefined
+          ? `${l.pesoBrutoKg} kg`
+          : <span className="italic">—</span>}
+      </span>
+    ),
+  },
+  {
+    key: "observaciones",
+    header: "Observaciones",
+    className: "max-w-[300px] truncate",
+    cell: (l) => (
+      <span className="text-muted-foreground">
+        {l.observaciones ?? <span className="italic">—</span>}
+      </span>
+    ),
+  },
+]
+
 export default function LotePage() {
   const { lotes, isLoading, mutate } = useLotes()
   const { createLote, isLoading: isCreating } = useCreateLote()
@@ -29,10 +58,10 @@ export default function LotePage() {
   const { deleteLote, isLoading: isDeleting } = useDeleteLote()
 
   const [search, setSearch] = useState("")
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Lote | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
-  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const filtered = lotes.filter((l: Lote) => {
     const q = search.toLowerCase()
@@ -44,19 +73,32 @@ export default function LotePage() {
   })
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
-    setSheetOpen(true)
+    setModalOpen(true)
   }
 
   function openEdit(l: Lote) {
+    setIsViewing(false)
     setEditing(l)
     setForm({
       donacionId: String(l.donacionId),
       pesoBrutoKg: l.pesoBrutoKg !== null && l.pesoBrutoKg !== undefined ? String(l.pesoBrutoKg) : "",
       observaciones: l.observaciones ?? "",
     })
-    setSheetOpen(true)
+    setModalOpen(true)
+  }
+
+  function openView(l: Lote) {
+    setIsViewing(true)
+    setEditing(l)
+    setForm({
+      donacionId: String(l.donacionId),
+      pesoBrutoKg: l.pesoBrutoKg !== null && l.pesoBrutoKg !== undefined ? String(l.pesoBrutoKg) : "",
+      observaciones: l.observaciones ?? "",
+    })
+    setModalOpen(true)
   }
 
   async function handleSave() {
@@ -78,21 +120,19 @@ export default function LotePage() {
         toast.success("Lote creado")
       }
       await mutate()
-      setSheetOpen(false)
+      setModalOpen(false)
     } catch {
       toast.error("Error al guardar el lote")
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: number | string) {
     try {
-      await deleteLote(id)
+      await deleteLote(Number(id))
       await mutate()
       toast.success("Lote desactivado")
     } catch {
       toast.error("Error al eliminar el lote")
-    } finally {
-      setDeletingId(null)
     }
   }
 
@@ -120,136 +160,66 @@ export default function LotePage() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">ID</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Donación</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Peso bruto (kg)</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Observaciones</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
-                  Cargando lotes...
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
-                  {search ? "No se encontraron lotes con ese criterio." : "No hay lotes registrados."}
-                </td>
-              </tr>
-            ) : (
-              filtered.map((l: Lote) => (
-                <tr
-                  key={l.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                >
-                  <td className="px-4 py-3 font-mono text-xs">#{l.id}</td>
-                  <td className="px-4 py-3 font-mono text-xs">#{l.donacionId}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {l.pesoBrutoKg !== null && l.pesoBrutoKg !== undefined
-                      ? `${l.pesoBrutoKg} kg`
-                      : <span className="italic">—</span>}
-                  </td>
-                  <td className="px-4 py-3 max-w-[300px] truncate text-muted-foreground">
-                    {l.observaciones ?? <span className="italic">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      {deletingId === l.id ? (
-                        <>
-                          <span className="text-xs text-muted-foreground">¿Confirmar?</span>
-                          <Button size="xs" variant="destructive" onClick={() => handleDelete(l.id)} disabled={isDeleting}>
-                            Eliminar
-                          </Button>
-                          <Button size="xs" variant="ghost" onClick={() => setDeletingId(null)}>
-                            Cancelar
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button size="xs" variant="outline" onClick={() => openEdit(l)}>
-                            Editar
-                          </Button>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeletingId(l.id)}
-                          >
-                            Eliminar
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        data={filtered}
+        columns={columns}
+        isLoading={isLoading}
+        loadingText="Cargando lotes..."
+        emptyText="No hay lotes registrados."
+        emptySearchText="No se encontraron lotes con ese criterio."
+        search={search}
+        onView={openView}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        isDeleting={isDeleting}
+      />
 
-      <Sheet open={sheetOpen} onOpenChange={(open) => !open && setSheetOpen(false)}>
-        <SheetContent side="right">
-          <SheetHeader>
-            <SheetTitle>{editing ? "Editar lote" : "Nuevo lote"}</SheetTitle>
-            <SheetDescription>
-              {editing ? "Modificá los datos del lote." : "Registrá un nuevo lote de materiales."}
-            </SheetDescription>
-          </SheetHeader>
+      <FormModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        title={isViewing ? "Ver lote" : editing ? "Editar lote" : "Nuevo lote"}
+        readOnly={isViewing}
+        description={editing ? "Modificá los datos del lote." : "Registrá un nuevo lote de materiales."}
+        onSave={handleSave}
+        isLoading={isCreating || isUpdating}
+        saveLabel={editing ? "Guardar cambios" : "Crear lote"}
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">ID de Donación</label>
+          <Input
+            type="number"
+            placeholder="Ej: 1"
+            value={form.donacionId}
+            onChange={(e) => setForm((f) => ({ ...f, donacionId: e.target.value }))}
+          />
+        </div>
 
-          <div className="flex flex-col gap-5 px-6 py-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">ID de Donación</label>
-              <Input
-                type="number"
-                placeholder="Ej: 1"
-                value={form.donacionId}
-                onChange={(e) => setForm((f) => ({ ...f, donacionId: e.target.value }))}
-              />
-            </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Peso bruto (kg) <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            type="number"
+            step="0.01"
+            placeholder="Ej: 120.50"
+            value={form.pesoBrutoKg}
+            onChange={(e) => setForm((f) => ({ ...f, pesoBrutoKg: e.target.value }))}
+          />
+        </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Peso bruto (kg) <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="Ej: 120.50"
-                value={form.pesoBrutoKg}
-                onChange={(e) => setForm((f) => ({ ...f, pesoBrutoKg: e.target.value }))}
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Observaciones <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <textarea
-                rows={3}
-                placeholder="Observaciones sobre el lote..."
-                value={form.observaciones}
-                onChange={(e) => setForm((f) => ({ ...f, observaciones: e.target.value }))}
-                className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
-              />
-            </div>
-          </div>
-
-          <SheetFooter>
-            <Button onClick={handleSave} disabled={isCreating || isUpdating} className="w-full">
-              {isCreating || isUpdating ? "Guardando..." : editing ? "Guardar cambios" : "Crear lote"}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Observaciones <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <textarea
+            rows={3}
+            placeholder="Observaciones sobre el lote..."
+            value={form.observaciones}
+            onChange={(e) => setForm((f) => ({ ...f, observaciones: e.target.value }))}
+            className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+          />
+        </div>
+      </FormModal>
     </div>
   )
 }

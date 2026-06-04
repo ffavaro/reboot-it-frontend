@@ -12,14 +12,14 @@ import {
   useUpdateConstanciaRetiro,
   useDeleteConstanciaRetiro,
 } from "@/hooks/use-constancia-retiro"
-import { useEmpleadosFull } from "@/hooks/use-employees"
+import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
 import { useDonantes } from "@/hooks/use-donantes"
 import { useDonaciones } from "@/hooks/use-donacion"
 import { useRetiros } from "@/hooks/use-retiro"
 import { getUser } from "@/lib/auth-utils"
 import { formatDate } from "@/lib/utils/helpers"
 import type { ConstanciaRetiro } from "@/lib/type/constancia-retiro"
-import type { Empleado } from "@/lib/type/user"
+import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import type { Donante } from "@/lib/type/donante"
 import type { Donacion } from "@/lib/type/donacion"
 import type { Retiro } from "@/lib/type/retiro"
@@ -57,7 +57,7 @@ const columns: TableColumn<ConstanciaRetiro>[] = [
 
 export default function ConstanciaRetiroPage() {
   const { constancias, isLoading, mutate } = useConstanciasRetiro()
-  const { empleados } = useEmpleadosFull()
+  const { transportistas } = useEmpleadosTransportistas()
   const { donantes } = useDonantes()
   const { donaciones } = useDonaciones()
   const { retiros } = useRetiros()
@@ -68,6 +68,7 @@ export default function ConstanciaRetiroPage() {
   const [search, setSearch] = useState("")
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<ConstanciaRetiro | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   const user = getUser()
@@ -103,12 +104,26 @@ export default function ConstanciaRetiroPage() {
   })
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
     setSheetOpen(true)
   }
 
   function openEdit(c: ConstanciaRetiro) {
+    setIsViewing(false)
+    setEditing(c)
+    setForm({
+      retiroId: String(c.retiroId),
+      fechaEmision: c.fechaEmision ? c.fechaEmision.slice(0, 10) : "",
+      observaciones: c.observaciones ?? "",
+      tecnicoId: c.tecnicoId ? String(c.tecnicoId) : "",
+    })
+    setSheetOpen(true)
+  }
+
+  function openView(c: ConstanciaRetiro) {
+    setIsViewing(true)
     setEditing(c)
     setForm({
       retiroId: String(c.retiroId),
@@ -189,6 +204,7 @@ export default function ConstanciaRetiroPage() {
         emptyText="No hay constancias de retiro registradas."
         emptySearchText="No se encontraron constancias con ese criterio."
         search={search}
+        onView={openView}
         onEdit={isDonante ? undefined : openEdit}
         onDelete={isDonante ? undefined : handleDelete}
         isDeleting={isDeleting}
@@ -197,7 +213,8 @@ export default function ConstanciaRetiroPage() {
       <FormModal
         open={sheetOpen}
         onOpenChange={(open) => !open && setSheetOpen(false)}
-        title={editing ? "Editar constancia" : "Nueva constancia de retiro"}
+        title={isViewing ? "Ver constancia" : editing ? "Editar constancia" : "Nueva constancia de retiro"}
+        readOnly={isViewing}
         description={
           editing
             ? `Modificá los datos de la constancia del retiro #${editing.retiroId}.`
@@ -208,14 +225,33 @@ export default function ConstanciaRetiroPage() {
         saveLabel={editing ? "Guardar cambios" : "Crear constancia"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">ID de Retiro</label>
-          <Input
-            type="number"
+          <label className="text-sm font-medium">Retiro</label>
+          <select
             value={form.retiroId}
-            onChange={(e) => setForm((f) => ({ ...f, retiroId: e.target.value }))}
-            placeholder="Ej: 1"
-            min={1}
-          />
+            onChange={(e) => {
+              const id = e.target.value
+              const r = retiros.find((r: Retiro) => String(r.id) === id)
+              setForm((f) => ({
+                ...f,
+                retiroId: id,
+                fechaEmision: id ? new Date().toISOString().slice(0, 10) : f.fechaEmision,
+                tecnicoId: r?.empleadoTransportista?.empleadoId
+                  ? String(r.empleadoTransportista.empleadoId)
+                  : f.tecnicoId,
+              }))
+            }}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Seleccionar retiro...</option>
+            {retiros
+              .filter((r: Retiro) => !r.fechaRetiro)
+              .map((r: Retiro) => (
+                <option key={r.id} value={r.id}>
+                  #{r.id} — Donación #{r.donacionId}
+                  {r.direccion ? ` — ${r.direccion}` : ""}
+                </option>
+              ))}
+          </select>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -239,9 +275,9 @@ export default function ConstanciaRetiroPage() {
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="">Sin técnico asignado</option>
-            {empleados.map((e: Empleado) => (
-              <option key={e.id} value={e.id}>
-                {e.nombre} {e.apellido}{e.cargo ? ` — ${e.cargo}` : ""}
+            {transportistas.map((t: EmpleadoTransportista) => (
+              <option key={t.empleadoId} value={t.empleadoId}>
+                {t.empleado ? `${t.empleado.nombre} ${t.empleado.apellido}` : `#${t.empleadoId}`}
               </option>
             ))}
           </select>

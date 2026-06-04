@@ -7,6 +7,7 @@ export interface Retiro {
   empleadoTransportistaId: number
   vehiculoId: number | null
   fechaInicio: string | null
+  fechaRetiro: string | null
   direccion: string | null
   isActive: boolean
   empleadoTransportista?: EmpleadoTransportista
@@ -26,5 +27,6 @@ export interface UpdateRetiroPayload {
   empleadoTransportistaId?: number
   vehiculoId?: number | null
   fechaInicio?: string | null
+  fechaRetiro?: string | null
   direccion?: string | null
 }

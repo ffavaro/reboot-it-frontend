@@ -1,6 +1,7 @@
 import useSWR from "swr"
 import useSWRMutation from "swr/mutation"
-import { fetcher, usuariosApi, empleadosApi, Usuario, Empleado, UpdateUsuarioPayload } from "@/lib/api"
+import { fetcher, usuariosApi, empleadosApi } from "@/lib/api"
+import type { Usuario, Empleado, CreateUsuarioPayload, UpdateUsuarioPayload } from "@/lib/type/user"
 
 export function useUsuarios() {
   const { data, isLoading, error, mutate } = useSWR<Usuario[]>("/usuarios", fetcher)
@@ -29,4 +30,12 @@ export function useDeleteUsuario() {
     (_key: string, { arg }: { arg: string }) => usuariosApi.delete(arg)
   )
   return { deleteUsuario: trigger, isLoading: isMutating, error }
+}
+
+export function useCreateUsuario() {
+  const { trigger, isMutating, error } = useSWRMutation(
+    "/usuarios",
+    (_key: string, { arg }: { arg: CreateUsuarioPayload }) => usuariosApi.create(arg)
+  )
+  return { createUsuario: trigger, isLoading: isMutating, error }
 }

@@ -1,10 +1,10 @@
 import useSWR from "swr"
 import useSWRMutation from "swr/mutation"
 import { fetcher, modeloApi } from "@/lib/api"
-import type { CreateModeloPayload, UpdateModeloPayload } from "@/lib/type/modelo"
+import type { Modelo, CreateModeloPayload, UpdateModeloPayload } from "@/lib/type/modelo"
 
 export function useModelos() {
-  const { data, isLoading, error, mutate } = useSWR("/modelo", fetcher)
+  const { data, isLoading, error, mutate } = useSWR<Modelo[]>("/modelo", fetcher)
   return { modelos: data ?? [], isLoading, error, mutate }
 }
 

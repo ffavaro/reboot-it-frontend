@@ -20,6 +20,7 @@ export interface Donacion {
   id: number
   donanteId: number
   estadoDonacionId: number | null
+  necesitaRetiro: boolean
   descripcion: string | null
   isActive: boolean
   donante?: Donante
@@ -38,6 +39,7 @@ export interface CreateDonacionPayload {
   donanteId: number
   fechaHora: string
   estadoDonacionId?: number
+  necesitaRetiro?: boolean
   descripcion?: string
   detalles?: CreateDetallePayload[]
 }
@@ -45,6 +47,7 @@ export interface CreateDonacionPayload {
 export interface UpdateDonacionPayload {
   donanteId?: number
   estadoDonacionId?: number | null
+  necesitaRetiro?: boolean
   descripcion?: string | null
   detalles?: CreateDetallePayload[]
 }

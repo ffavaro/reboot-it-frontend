@@ -1,10 +1,10 @@
 import useSWR from "swr"
 import useSWRMutation from "swr/mutation"
 import { fetcher, marcaApi } from "@/lib/api"
-import type { CreateMarcaPayload, UpdateMarcaPayload } from "@/lib/type/marca"
+import type { Marca, CreateMarcaPayload, UpdateMarcaPayload } from "@/lib/type/marca"
 
 export function useMarcas() {
-  const { data, isLoading, error, mutate } = useSWR("/marca", fetcher)
+  const { data, isLoading, error, mutate } = useSWR<Marca[]>("/marca", fetcher)
   return { marcas: data ?? [], isLoading, error, mutate }
 }
 
