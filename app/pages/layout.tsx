@@ -36,7 +36,7 @@ export default function RootLayout({
       <ThemeProvider defaultTheme="light">
         <AppSidebar />
         <SidebarInset>
-          <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+          <header className="flex h-16 bg-slate-950 text-white shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
             <div className="flex items-center gap-2 px-4">
               <SidebarTrigger className="-ml-1" />
               <Separator
@@ -47,7 +47,7 @@ export default function RootLayout({
                 <BreadcrumbList>
                   <BreadcrumbPage className="hidden md:block" />
                   <BreadcrumbItem>
-                    <BreadcrumbPage>Reboot IT</BreadcrumbPage>
+                    <BreadcrumbPage className="text-white">Reboot IT</BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
@@ -56,15 +56,15 @@ export default function RootLayout({
               {user && (
                 <DropdownMenu>
                   <DropdownMenuTrigger className="w-full">
-                    <div className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+                    <div className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-primary/50">
                       <Avatar className="h-8 w-8">
                         <AvatarFallback className="text-xs">
                           {user.nombre.split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex flex-col text-left leading-tight">
-                        <span>{user.nombre}</span>
-                        <span className="text-xs font-normal text-muted-foreground">{user.email}</span>
+                        <span className="text-white">{user.nombre}</span>
+                        <span className="text-xs text-white font-normal">{user.email}</span>
                       </div>
                       <ChevronRight className="h-4 w-4 ml-auto" />
                     </div>

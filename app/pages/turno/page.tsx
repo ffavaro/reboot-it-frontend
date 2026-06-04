@@ -32,6 +32,7 @@ import type { Empleado } from "@/lib/type/user"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import { getUser } from "@/lib/auth-utils"
 import type { TokenPayload } from "@/lib/auth-utils"
+import { formatDateTime } from "@/lib/utils/helpers"
 
 const EMPTY_FORM = { donanteId: "", estadoTurnoId: "", fechaHora: "", descripcion: "" }
 const EMPTY_ASIGNAR = { empleadoId: "", empleadoTransportistaId: "" }
@@ -69,13 +70,6 @@ function isFechaValida(d: Date): boolean {
   return d >= hoy && diaSemana !== 0 && diaSemana !== 6
 }
 
-function formatDateTime(iso: string | null) {
-  if (!iso) return null
-  return new Date(iso).toLocaleString("es-AR", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  })
-}
 
 function EmpleadoAsignadoBadge({ turno }: { turno: Turno }) {
   if (turno.necesitaRetiro) {

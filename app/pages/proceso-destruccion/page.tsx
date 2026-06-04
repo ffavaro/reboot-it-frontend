@@ -22,6 +22,7 @@ import type { Empleado } from "@/lib/type/user"
 import type { MedioAlmacenamiento } from "@/lib/type/medio-almacenamiento"
 import type { MetodoDestruccion } from "@/lib/type/metodo-destruccion"
 import type { EstadoProcesoDestruccion } from "@/lib/type/estado-proceso-destruccion"
+import { formatDate } from "@/lib/utils/helpers"
 
 const EMPTY_FORM = {
   medioAlmacenamientoId: "",
@@ -37,10 +38,6 @@ const ESTADO_COLORS: Record<string, string> = {
   Finalizado: "bg-green-100 text-green-800",
 }
 
-function formatDate(iso: string | null) {
-  if (!iso) return null
-  return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
-}
 
 function medioLabel(m: MedioAlmacenamiento) {
   const partes = [`#${m.id}`]

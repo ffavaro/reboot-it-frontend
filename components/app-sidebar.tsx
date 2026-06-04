@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useState, useEffect } from "react"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import {
   Collapsible,
   CollapsibleContent,
@@ -14,7 +14,6 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -43,7 +42,7 @@ const navMain: NavSection[] = [
     items: [
       { title: "Agenda", url: "/pages/agenda", icon: CalendarDays },
       { title: "Certificado de disposicion", url: "/pages/certificado-disposicion", allowedRoles: DONANTE, icon: FileCheck },
-      { title: "Clasificacion", url: "/pages/clasificacion", icon: LayoutList },
+//      { title: "Clasificacion", url: "/pages/clasificacion", icon: LayoutList },
       { title: "Constancia de retiro", url: "/pages/constancia-retiro", allowedRoles: DONANTE, icon: FileText },
       { title: "Donaciones", url: "/pages/donacion", allowedRoles: DONANTE, icon: Heart },
       { title: "Registro fotográfico", url: "/pages/registro-fotografico", icon: Camera },
@@ -132,9 +131,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar {...props}>
-      <SidebarHeader className="gap-0">
-      </SidebarHeader>
-      <SidebarContent className="gap-0">
+      <SidebarContent className="gap-0 bg-slate-950">
         {visibleSections.map((item) => (
           <Collapsible
             key={item.title}
@@ -144,7 +141,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           >
             <SidebarGroup>
               <SidebarGroupLabel
-                className="group/label text-sm text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                className="group/label text-sm text-white hover:bg-red-500 hover:text-white"
                 render={<CollapsibleTrigger />}
               >
                 {item.title}{" "}
@@ -161,6 +158,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       <SidebarMenuItem key={subItem.title}>
                         <SidebarMenuButton
                           isActive={pathname === subItem.url}
+                          className="text-white hover:bg-red-500 hover:text-white data-[active=true]:bg-red-500 data-[active=true]:text-white"
                           render={<a href={subItem.url} />}
                         >
                           {subItem.icon && <subItem.icon className="h-4 w-4 shrink-0" />}

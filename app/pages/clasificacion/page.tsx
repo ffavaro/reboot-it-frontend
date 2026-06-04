@@ -18,13 +18,10 @@ import { useEmpleadosFull } from "@/hooks/use-employees"
 import type { Clasificacion } from "@/lib/type/clasificacion"
 import type { Lote } from "@/lib/type/lote"
 import type { Empleado } from "@/lib/type/user"
+import { formatDate } from "@/lib/utils/helpers"
 
 const EMPTY_FORM = { loteId: "", fecha: "", empleadoId: "" }
 
-function formatDate(iso: string | null) {
-  if (!iso) return null
-  return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
-}
 
 const columns: TableColumn<Clasificacion>[] = [
   {
