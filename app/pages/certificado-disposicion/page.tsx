@@ -33,7 +33,6 @@ const EMPTY_FORM = {
   terminosCondiciones: "",
 }
 
-
 const columns: TableColumn<CertificadoDisposicion>[] = [
   {
     key: "numeroCertificado",
@@ -179,9 +178,9 @@ export default function CertificadoDisposicionPage() {
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: number | string) {
     try {
-      await deleteCertificado(id)
+      await deleteCertificado(Number(id))
       await mutate()
       toast.success("Certificado desactivado")
     } catch {

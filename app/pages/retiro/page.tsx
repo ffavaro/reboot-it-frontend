@@ -22,6 +22,7 @@ import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import type { Vehiculo } from "@/lib/type/vehicle"
 import type { Donacion } from "@/lib/type/donacion"
 import type { Turno } from "@/lib/type/turno"
+import { formatDate } from "@/lib/utils/helpers"
 
 const EMPTY_FORM = {
   donacionId: "",
@@ -31,10 +32,6 @@ const EMPTY_FORM = {
   direccion: "",
 }
 
-function formatDate(iso: string | null) {
-  if (!iso) return null
-  return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
-}
 
 const columns: TableColumn<Retiro>[] = [
   {

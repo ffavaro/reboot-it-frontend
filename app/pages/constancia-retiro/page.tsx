@@ -16,11 +16,9 @@ import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
 import { useDonantes } from "@/hooks/use-donantes"
 import { useDonaciones } from "@/hooks/use-donacion"
 import { useRetiros } from "@/hooks/use-retiro"
-import { getUser } from "@/lib/auth-utils"
-import { formatDate } from "@/lib/utils/helpers"
+import { formatDate, getDonanteActual } from "@/lib/utils/helpers"
 import type { ConstanciaRetiro } from "@/lib/type/constancia-retiro"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
-import type { Donante } from "@/lib/type/donante"
 import type { Donacion } from "@/lib/type/donacion"
 import type { Retiro } from "@/lib/type/retiro"
 
@@ -64,18 +62,13 @@ export default function ConstanciaRetiroPage() {
   const { createConstancia, isLoading: isCreating } = useCreateConstanciaRetiro()
   const { updateConstancia, isLoading: isUpdating } = useUpdateConstanciaRetiro()
   const { deleteConstancia, isLoading: isDeleting } = useDeleteConstanciaRetiro()
-
   const [search, setSearch] = useState("")
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<ConstanciaRetiro | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
-  const user = getUser()
-  const isDonante = user?.rol?.nombre?.toLowerCase() === "donante"
-  const myDonante = isDonante
-    ? donantes.find((d: Donante) => d.usuarioId === user?.id) ?? null
-    : null
+  const { isDonante, myDonante } = getDonanteActual(donantes)
 
   const visibleConstancias = isDonante && myDonante
     ? (() => {
@@ -160,9 +153,9 @@ export default function ConstanciaRetiroPage() {
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: number | string) {
     try {
-      await deleteConstancia(id)
+      await deleteConstancia(Number(id))
       await mutate()
       toast.success("Constancia de retiro desactivada")
     } catch {

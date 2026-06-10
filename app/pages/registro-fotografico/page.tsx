@@ -17,13 +17,9 @@ import { useLotes } from "@/hooks/use-lote"
 import { uploadFoto } from "@/lib/api/client"
 import type { RegistroFotografico } from "@/lib/type/registro-fotografico"
 import type { Lote } from "@/lib/type/lote"
+import { formatDate } from "@/lib/utils/helpers"
 
 const EMPTY_FORM = { loteId: "", fecha: "" }
-
-function formatDate(iso: string | null) {
-  if (!iso) return null
-  return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
-}
 
 const columns: TableColumn<RegistroFotografico>[] = [
   {
