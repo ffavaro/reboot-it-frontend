@@ -8,11 +8,19 @@ import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   useLotes,
   useCreateLote,
   useUpdateLote,
   useDeleteLote,
 } from "@/hooks/use-lote"
+import { useDonaciones } from "@/hooks/use-donacion"
 import type { Lote } from "@/lib/type/lote"
 
 const EMPTY_FORM = { donacionId: "", pesoBrutoKg: "", observaciones: "" }
@@ -52,6 +60,7 @@ const columns: TableColumn<Lote>[] = [
 ]
 
 export default function LotePage() {
+  const { donaciones } = useDonaciones()
   const { lotes, isLoading, mutate } = useLotes()
   const { createLote, isLoading: isCreating } = useCreateLote()
   const { updateLote, isLoading: isUpdating } = useUpdateLote()
@@ -185,13 +194,27 @@ export default function LotePage() {
         saveLabel={editing ? "Guardar cambios" : "Crear lote"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">ID de Donación</label>
-          <Input
-            type="number"
-            placeholder="Ej: 1"
+          <label className="text-sm font-medium">Donación</label>
+          <Select
             value={form.donacionId}
-            onChange={(e) => setForm((f) => ({ ...f, donacionId: e.target.value }))}
-          />
+            onValueChange={(v) => setForm((f) => ({ ...f, donacionId: v ?? "" }))}
+            disabled={isViewing}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Seleccioná una donación" />
+            </SelectTrigger>
+            <SelectContent>
+              {donaciones.map((d) => (
+                <SelectItem key={d.id} value={String(d.id)}>
+                  <span className="font-mono text-xs text-muted-foreground w-8 shrink-0">#{d.id}</span>
+                  <span className="font-medium truncate">{d.donante?.nombre ?? `Donante #${d.donanteId}`}</span>
+                  {d.descripcion && (
+                    <span className="text-xs text-muted-foreground truncate">· {d.descripcion}</span>
+                  )}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="flex flex-col gap-2">
