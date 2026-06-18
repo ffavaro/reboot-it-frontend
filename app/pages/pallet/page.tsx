@@ -2,10 +2,12 @@
 
 import { useState } from "react"
 import { toast } from "react-toastify"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DataTable, type TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
+import { FieldError } from "@/components/ui/field"
 import {
   usePallets,
   useCreatePallet,
@@ -14,6 +16,8 @@ import {
 } from "@/hooks/use-pallet"
 import { useRacks } from "@/hooks/use-rack"
 import { useLotes } from "@/hooks/use-lote"
+import { useFormErrors } from "@/hooks/use-form-errors"
+import { requiredSelect, positiveNumber } from "@/lib/form-validators"
 import type { Pallet } from "@/lib/type/pallet"
 import type { Rack } from "@/lib/type/rack"
 import type { Lote } from "@/lib/type/lote"
@@ -80,6 +84,7 @@ export default function PalletPage() {
   const { createPallet, isLoading: isCreating } = useCreatePallet()
   const { updatePallet, isLoading: isUpdating } = useUpdatePallet()
   const { deletePallet, isLoading: isDeleting } = useDeletePallet()
+  const { errors, validate, clearError, reset } = useFormErrors<typeof EMPTY_FORM>()
 
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
@@ -102,6 +107,7 @@ export default function PalletPage() {
     setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
+    reset()
     setModalOpen(true)
   }
 
@@ -114,6 +120,7 @@ export default function PalletPage() {
       codigo: p.codigo ?? "",
       peso_kg: p.peso_kg !== null && p.peso_kg !== undefined ? String(p.peso_kg) : "",
     })
+    reset()
     setModalOpen(true)
   }
 
@@ -126,14 +133,15 @@ export default function PalletPage() {
       codigo: p.codigo ?? "",
       peso_kg: p.peso_kg !== null && p.peso_kg !== undefined ? String(p.peso_kg) : "",
     })
+    reset()
     setModalOpen(true)
   }
 
   async function handleSave() {
-    if (!form.rackId) {
-      toast.error("El rack es obligatorio")
-      return
-    }
+    if (!validate(form, {
+      rackId: [requiredSelect("un rack")],
+      peso_kg: [positiveNumber()],
+    })) return
     try {
       const payload = {
         rackId: Number(form.rackId),
@@ -217,8 +225,11 @@ export default function PalletPage() {
           <label className="text-sm font-medium">Rack</label>
           <select
             value={form.rackId}
-            onChange={(e) => setForm((f) => ({ ...f, rackId: e.target.value }))}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            onChange={(e) => { setForm((f) => ({ ...f, rackId: e.target.value })); clearError("rackId") }}
+            className={cn(
+              "flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+              errors.rackId ? "border-destructive" : "border-input",
+            )}
           >
             <option value="">Seleccionar rack...</option>
             {racks.map((r: Rack) => (
@@ -227,6 +238,7 @@ export default function PalletPage() {
               </option>
             ))}
           </select>
+          <FieldError>{errors.rackId}</FieldError>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -273,12 +285,17 @@ export default function PalletPage() {
           <Input
             type="number"
             step="0.01"
+            min="0.01"
             placeholder="Ej: 50.00"
             value={form.peso_kg}
             readOnly={!!form.loteId}
-            onChange={(e) => setForm((f) => ({ ...f, peso_kg: e.target.value }))}
-            className={form.loteId ? "bg-muted cursor-not-allowed" : ""}
+            onChange={(e) => { setForm((f) => ({ ...f, peso_kg: e.target.value })); clearError("peso_kg") }}
+            className={cn(
+              form.loteId ? "bg-muted cursor-not-allowed" : "",
+              errors.peso_kg && "border-destructive focus-visible:ring-destructive",
+            )}
           />
+          <FieldError>{errors.peso_kg}</FieldError>
         </div>
       </FormModal>
     </div>

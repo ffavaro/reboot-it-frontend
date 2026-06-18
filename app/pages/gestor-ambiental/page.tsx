@@ -2,16 +2,20 @@
 
 import { useState } from "react"
 import { toast } from "react-toastify"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
+import { FieldError } from "@/components/ui/field"
 import {
   useGestoresAmbientales,
   useCreateGestorAmbiental,
   useUpdateGestorAmbiental,
   useDeleteGestorAmbiental,
 } from "@/hooks/use-gestor-ambiental"
+import { useFormErrors } from "@/hooks/use-form-errors"
+import { required, cuitFormat } from "@/lib/form-validators"
 import type { GestorAmbiental } from "@/lib/type/gestor-ambiental"
 import type { TableColumn } from "@/components/ui/data-table"
 
@@ -60,6 +64,7 @@ export default function GestorAmbientalPage() {
   const { createGestor, isLoading: isCreating } = useCreateGestorAmbiental()
   const { updateGestor, isLoading: isUpdating } = useUpdateGestorAmbiental()
   const { deleteGestor, isLoading: isDeleting } = useDeleteGestorAmbiental()
+  const { errors, validate, clearError, reset } = useFormErrors<typeof EMPTY_FORM>()
 
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
@@ -75,10 +80,16 @@ export default function GestorAmbientalPage() {
       (g.contacto ?? "").toLowerCase().includes(search.toLowerCase()),
   )
 
+  function set(field: keyof typeof EMPTY_FORM, value: string) {
+    setForm((f) => ({ ...f, [field]: value }))
+    clearError(field)
+  }
+
   function openCreate() {
     setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
+    reset()
     setModalOpen(true)
   }
 
@@ -91,6 +102,7 @@ export default function GestorAmbientalPage() {
       habilitacion: g.habilitacion ?? "",
       contacto: g.contacto ?? "",
     })
+    reset()
     setModalOpen(true)
   }
 
@@ -103,18 +115,15 @@ export default function GestorAmbientalPage() {
       habilitacion: g.habilitacion ?? "",
       contacto: g.contacto ?? "",
     })
+    reset()
     setModalOpen(true)
   }
 
-  function set(field: keyof typeof EMPTY_FORM, value: string) {
-    setForm((f) => ({ ...f, [field]: value }))
-  }
-
   async function handleSave() {
-    if (!form.razonSocial.trim()) {
-      toast.error("La razón social es obligatoria")
-      return
-    }
+    if (!validate(form, {
+      razonSocial: [required("la razón social")],
+      cuit: [cuitFormat()],
+    })) return
     try {
       const payload = {
         razonSocial: form.razonSocial.trim(),
@@ -205,7 +214,9 @@ export default function GestorAmbientalPage() {
             onChange={(e) => set("razonSocial", e.target.value)}
             placeholder="Ej: Reciclados S.A."
             maxLength={150}
+            className={cn(errors.razonSocial && "border-destructive focus-visible:ring-destructive")}
           />
+          <FieldError>{errors.razonSocial}</FieldError>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -214,10 +225,12 @@ export default function GestorAmbientalPage() {
           </label>
           <Input
             value={form.cuit}
-            onChange={(e) => set("cuit", e.target.value)}
+            onChange={(e) => set("cuit", e.target.value.replace(/[^0-9-]/g, ""))}
             placeholder="30-12345678-9"
-            maxLength={20}
+            maxLength={13}
+            className={cn(errors.cuit && "border-destructive focus-visible:ring-destructive")}
           />
+          <FieldError>{errors.cuit}</FieldError>
         </div>
 
         <div className="flex flex-col gap-2">

@@ -2,16 +2,20 @@
 
 import { useState } from "react"
 import { toast } from "react-toastify"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
+import { FieldError } from "@/components/ui/field"
 import {
   useCondicionesMaterial,
   useCreateCondicionMaterial,
   useUpdateCondicionMaterial,
   useDeleteCondicionMaterial,
 } from "@/hooks/use-condicion-material"
+import { useFormErrors } from "@/hooks/use-form-errors"
+import { required } from "@/lib/form-validators"
 import type { CondicionMaterial } from "@/lib/type/condicion-material"
 import type { TableColumn } from "@/components/ui/data-table"
 
@@ -56,6 +60,7 @@ export default function CondicionMaterialPage() {
   const { createCondicion, isLoading: isCreating } = useCreateCondicionMaterial()
   const { updateCondicion, isLoading: isUpdating } = useUpdateCondicionMaterial()
   const { deleteCondicion, isLoading: isDeleting } = useDeleteCondicionMaterial()
+  const { errors, validate, clearError, reset } = useFormErrors<typeof EMPTY_FORM>()
 
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
@@ -69,10 +74,16 @@ export default function CondicionMaterialPage() {
       (c.descripcion ?? "").toLowerCase().includes(search.toLowerCase()),
   )
 
+  function set(field: keyof typeof EMPTY_FORM, value: string) {
+    setForm((f) => ({ ...f, [field]: value }))
+    clearError(field)
+  }
+
   function openCreate() {
     setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
+    reset()
     setModalOpen(true)
   }
 
@@ -80,6 +91,7 @@ export default function CondicionMaterialPage() {
     setIsViewing(false)
     setEditing(c)
     setForm({ condicion: c.condicion, descripcion: c.descripcion ?? "" })
+    reset()
     setModalOpen(true)
   }
 
@@ -87,14 +99,12 @@ export default function CondicionMaterialPage() {
     setIsViewing(true)
     setEditing(c)
     setForm({ condicion: c.condicion, descripcion: c.descripcion ?? "" })
+    reset()
     setModalOpen(true)
   }
 
   async function handleSave() {
-    if (!form.condicion.trim()) {
-      toast.error("La condición es obligatoria")
-      return
-    }
+    if (!validate(form, { condicion: [required("la condición")] })) return
     try {
       const payload = {
         condicion: form.condicion.trim(),
@@ -180,10 +190,12 @@ export default function CondicionMaterialPage() {
           <label className="text-sm font-medium">Condición</label>
           <Input
             value={form.condicion}
-            onChange={(e) => setForm((f) => ({ ...f, condicion: e.target.value }))}
+            onChange={(e) => set("condicion", e.target.value)}
             placeholder="Ej: Funcional, Reparable, Obsoleto..."
             maxLength={100}
+            className={cn(errors.condicion && "border-destructive focus-visible:ring-destructive")}
           />
+          <FieldError>{errors.condicion}</FieldError>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -192,7 +204,7 @@ export default function CondicionMaterialPage() {
           </label>
           <Input
             value={form.descripcion}
-            onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
+            onChange={(e) => set("descripcion", e.target.value)}
             placeholder="Breve descripción de la condición"
             maxLength={255}
           />

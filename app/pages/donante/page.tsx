@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
+import { FieldError } from "@/components/ui/field"
 import {
   useDonantes,
   useTipoDonantes,
@@ -19,6 +20,8 @@ import {
   useDeleteTipoDonante,
 } from "@/hooks/use-donantes"
 import { useUsuarios } from "@/hooks/use-users"
+import { useFormErrors } from "@/hooks/use-form-errors"
+import { required, requiredSelect } from "@/lib/form-validators"
 import type { Donante, TipoDonante } from "@/lib/type/donante"
 
 type Tab = "donantes" | "tipos"
@@ -82,6 +85,7 @@ function DonantesTab() {
   const { createDonante, isLoading: isCreating } = useCreateDonante()
   const { updateDonante, isLoading: isUpdating } = useUpdateDonante()
   const { deleteDonante, isLoading: isDeleting } = useDeleteDonante()
+  const { errors, validate, clearError, reset } = useFormErrors<typeof EMPTY_DONANTE>()
 
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
@@ -96,10 +100,16 @@ function DonantesTab() {
       (d.telefono ?? "").toLowerCase().includes(search.toLowerCase()),
   )
 
+  function set(field: keyof typeof EMPTY_DONANTE, value: string | number) {
+    setForm((f) => ({ ...f, [field]: value }))
+    clearError(field)
+  }
+
   function openCreate() {
     setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_DONANTE)
+    reset()
     setModalOpen(true)
   }
 
@@ -114,6 +124,7 @@ function DonantesTab() {
       telefono: d.telefono ?? "",
       direccion: d.direccion ?? "",
     })
+    reset()
     setModalOpen(true)
   }
 
@@ -128,18 +139,16 @@ function DonantesTab() {
       telefono: d.telefono ?? "",
       direccion: d.direccion ?? "",
     })
+    reset()
     setModalOpen(true)
   }
 
-  function set(field: keyof typeof EMPTY_DONANTE, value: string | number) {
-    setForm((f) => ({ ...f, [field]: value }))
-  }
-
   async function handleSave() {
-    if (!form.nombre.trim() || !form.tipoDonanteId) {
-      toast.error("Nombre y tipo de donante son obligatorios")
-      return
-    }
+    if (!validate(form, {
+      nombre: [required("el nombre")],
+      tipoDonanteId: [requiredSelect("un tipo de donante")],
+      usuarioId: [requiredSelect("un usuario")],
+    })) return
     try {
       const payload = {
         usuarioId: form.usuarioId || undefined,
@@ -172,6 +181,12 @@ function DonantesTab() {
       toast.error("Error al eliminar el donante")
     }
   }
+
+  const selectCls = (hasError?: string) => cn(
+    "w-full rounded-4xl border bg-background px-3 py-2 text-sm",
+    "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0",
+    hasError ? "border-destructive" : "border-input",
+  )
 
   return (
     <>
@@ -225,7 +240,9 @@ function DonantesTab() {
             onChange={(e) => set("nombre", e.target.value)}
             placeholder="Juan Pérez"
             maxLength={100}
+            className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
           />
+          <FieldError>{errors.nombre}</FieldError>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -241,24 +258,20 @@ function DonantesTab() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
-            Usuario asociado <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
+          <label className="text-sm font-medium">Usuario asociado</label>
           <select
             value={form.usuarioId}
             onChange={(e) => set("usuarioId", Number(e.target.value))}
-            className={cn(
-              "w-full rounded-4xl border border-input bg-background px-3 py-2 text-sm",
-              "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0",
-            )}
+            className={selectCls(errors.usuarioId)}
           >
-            <option value={0}>— Sin usuario —</option>
+            <option value={0}>— Seleccionar usuario —</option>
             {usuarios.map((u) => (
               <option key={u.id} value={u.id}>
                 {u.nombre} ({u.email})
               </option>
             ))}
           </select>
+          <FieldError>{errors.usuarioId}</FieldError>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -266,10 +279,7 @@ function DonantesTab() {
           <select
             value={form.tipoDonanteId}
             onChange={(e) => set("tipoDonanteId", Number(e.target.value))}
-            className={cn(
-              "w-full rounded-4xl border border-input bg-background px-3 py-2 text-sm",
-              "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0",
-            )}
+            className={selectCls(errors.tipoDonanteId)}
           >
             <option value={0}>— Seleccionar tipo —</option>
             {tipos.map((t) => (
@@ -278,6 +288,7 @@ function DonantesTab() {
               </option>
             ))}
           </select>
+          <FieldError>{errors.tipoDonanteId}</FieldError>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -286,8 +297,9 @@ function DonantesTab() {
           </label>
           <Input
             value={form.telefono}
-            onChange={(e) => set("telefono", e.target.value)}
-            placeholder="+54 9 11 1234-5678"
+            onChange={(e) => set("telefono", e.target.value.replace(/\D/g, ""))}
+            placeholder="5491112345678"
+            inputMode="numeric"
             maxLength={20}
           />
         </div>
@@ -325,6 +337,7 @@ function TiposTab() {
   const { createTipo, isLoading: isCreating } = useCreateTipoDonante()
   const { updateTipo, isLoading: isUpdating } = useUpdateTipoDonante()
   const { deleteTipo, isLoading: isDeleting } = useDeleteTipoDonante()
+  const { errors, validate, clearError, reset } = useFormErrors<typeof EMPTY_TIPO>()
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<TipoDonante | null>(null)
@@ -335,6 +348,7 @@ function TiposTab() {
     setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_TIPO)
+    reset()
     setModalOpen(true)
   }
 
@@ -342,6 +356,7 @@ function TiposTab() {
     setIsViewing(false)
     setEditing(t)
     setForm({ descripcion: t.descripcion })
+    reset()
     setModalOpen(true)
   }
 
@@ -349,14 +364,12 @@ function TiposTab() {
     setIsViewing(true)
     setEditing(t)
     setForm({ descripcion: t.descripcion })
+    reset()
     setModalOpen(true)
   }
 
   async function handleSave() {
-    if (!form.descripcion.trim()) {
-      toast.error("La descripción es obligatoria")
-      return
-    }
+    if (!validate(form, { descripcion: [required("la descripción")] })) return
     try {
       if (editing) {
         await updateTipo({ id: editing.id, ...form })
@@ -420,10 +433,12 @@ function TiposTab() {
           <label className="text-sm font-medium">Descripción</label>
           <Input
             value={form.descripcion}
-            onChange={(e) => setForm({ descripcion: e.target.value })}
+            onChange={(e) => { setForm({ descripcion: e.target.value }); clearError("descripcion") }}
             placeholder="Ej: Persona física, Empresa..."
             maxLength={100}
+            className={cn(errors.descripcion && "border-destructive focus-visible:ring-destructive")}
           />
+          <FieldError>{errors.descripcion}</FieldError>
         </div>
       </FormModal>
     </>

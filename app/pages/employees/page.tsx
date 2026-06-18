@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
+import { FieldError } from "@/components/ui/field"
 import {
   useEmpleadosFull,
   useRoles,
@@ -14,6 +15,8 @@ import {
   useUpdateEmpleado,
   useDeleteEmpleado,
 } from "@/hooks/use-employees"
+import { useFormErrors } from "@/hooks/use-form-errors"
+import { required, requiredSelect } from "@/lib/form-validators"
 import type { Empleado } from "@/lib/type/user"
 import type { TableColumn } from "@/components/ui/data-table"
 
@@ -80,6 +83,7 @@ export default function EmployeePage() {
   const { createEmpleado, isLoading: isCreating } = useCreateEmpleado()
   const { updateEmpleado, isLoading: isUpdating } = useUpdateEmpleado()
   const { deleteEmpleado, isLoading: isDeleting } = useDeleteEmpleado()
+  const { errors, validate, clearError, reset } = useFormErrors<typeof EMPTY_FORM>()
 
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
@@ -94,10 +98,16 @@ export default function EmployeePage() {
       (e.cargo ?? "").toLowerCase().includes(search.toLowerCase()),
   )
 
+  function set(field: keyof typeof EMPTY_FORM, value: string | number) {
+    setForm((f) => ({ ...f, [field]: value }))
+    clearError(field)
+  }
+
   function openCreate() {
     setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
+    reset()
     setModalOpen(true)
   }
 
@@ -111,6 +121,7 @@ export default function EmployeePage() {
       telefono: e.telefono ?? "",
       cargo: e.cargo ?? "",
     })
+    reset()
     setModalOpen(true)
   }
 
@@ -124,18 +135,16 @@ export default function EmployeePage() {
       telefono: e.telefono ?? "",
       cargo: e.cargo ?? "",
     })
+    reset()
     setModalOpen(true)
   }
 
-  function set(field: keyof typeof EMPTY_FORM, value: string | number) {
-    setForm((f) => ({ ...f, [field]: value }))
-  }
-
   async function handleSave() {
-    if (!form.nombre.trim() || !form.apellido.trim() || !form.rolId) {
-      toast.error("Nombre, apellido y rol son obligatorios")
-      return
-    }
+    if (!validate(form, {
+      nombre: [required("el nombre")],
+      apellido: [required("el apellido")],
+      rolId: [requiredSelect("un rol")],
+    })) return
     try {
       const payload = {
         rolId: form.rolId,
@@ -228,7 +237,9 @@ export default function EmployeePage() {
               onChange={(e) => set("nombre", e.target.value)}
               placeholder="Juan"
               maxLength={100}
+              className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
             />
+            <FieldError>{errors.nombre}</FieldError>
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium">Apellido</label>
@@ -237,7 +248,9 @@ export default function EmployeePage() {
               onChange={(e) => set("apellido", e.target.value)}
               placeholder="Pérez"
               maxLength={100}
+              className={cn(errors.apellido && "border-destructive focus-visible:ring-destructive")}
             />
+            <FieldError>{errors.apellido}</FieldError>
           </div>
         </div>
 
@@ -247,8 +260,9 @@ export default function EmployeePage() {
             value={form.rolId}
             onChange={(e) => set("rolId", Number(e.target.value))}
             className={cn(
-              "w-full rounded-4xl border border-input bg-background px-3 py-2 text-sm",
+              "w-full rounded-4xl border bg-background px-3 py-2 text-sm",
               "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0",
+              errors.rolId ? "border-destructive" : "border-input",
             )}
           >
             <option value={0}>— Seleccionar rol —</option>
@@ -258,6 +272,7 @@ export default function EmployeePage() {
               </option>
             ))}
           </select>
+          <FieldError>{errors.rolId}</FieldError>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -278,8 +293,9 @@ export default function EmployeePage() {
           </label>
           <Input
             value={form.telefono}
-            onChange={(e) => set("telefono", e.target.value)}
-            placeholder="+54 9 11 1234-5678"
+            onChange={(e) => set("telefono", e.target.value.replace(/\D/g, ""))}
+            placeholder="5491112345678"
+            inputMode="numeric"
             maxLength={20}
           />
         </div>
