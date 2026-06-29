@@ -2,11 +2,15 @@
 
 import { useState } from "react"
 import { toast } from "react-toastify"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
+import { FieldError } from "@/components/ui/field"
 import { useRoles, useCreateRol, useUpdateRol, useDeleteRol } from "@/hooks/use-roles"
+import { useFormErrors } from "@/hooks/use-form-errors"
+import { required } from "@/lib/form-validators"
 import type { Rol } from "@/lib/type/user"
 import type { TableColumn } from "@/components/ui/data-table"
 
@@ -35,6 +39,7 @@ export default function RolesPage() {
   const { createRol, isLoading: isCreating } = useCreateRol()
   const { updateRol, isLoading: isUpdating } = useUpdateRol()
   const { deleteRol, isLoading: isDeleting } = useDeleteRol()
+  const { errors, validate, clearError, reset } = useFormErrors<typeof EMPTY_FORM>()
 
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
@@ -48,10 +53,16 @@ export default function RolesPage() {
       (r.descripcion ?? "").toLowerCase().includes(search.toLowerCase()),
   )
 
+  function set(field: keyof typeof EMPTY_FORM, value: string) {
+    setForm((f) => ({ ...f, [field]: value }))
+    clearError(field)
+  }
+
   function openCreate() {
     setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
+    reset()
     setModalOpen(true)
   }
 
@@ -59,6 +70,7 @@ export default function RolesPage() {
     setIsViewing(false)
     setEditing(r)
     setForm({ nombre: r.nombre, descripcion: r.descripcion ?? "" })
+    reset()
     setModalOpen(true)
   }
 
@@ -66,14 +78,12 @@ export default function RolesPage() {
     setIsViewing(true)
     setEditing(r)
     setForm({ nombre: r.nombre, descripcion: r.descripcion ?? "" })
+    reset()
     setModalOpen(true)
   }
 
   async function handleSave() {
-    if (!form.nombre.trim()) {
-      toast.error("El nombre es obligatorio")
-      return
-    }
+    if (!validate(form, { nombre: [required("el nombre")] })) return
     try {
       const payload = {
         nombre: form.nombre.trim(),
@@ -159,10 +169,12 @@ export default function RolesPage() {
           <label className="text-sm font-medium">Nombre</label>
           <Input
             value={form.nombre}
-            onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
+            onChange={(e) => set("nombre", e.target.value)}
             placeholder="Ej: Administrador, Inspector, Transportista..."
             maxLength={50}
+            className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
           />
+          <FieldError>{errors.nombre}</FieldError>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -171,7 +183,7 @@ export default function RolesPage() {
           </label>
           <Input
             value={form.descripcion}
-            onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
+            onChange={(e) => set("descripcion", e.target.value)}
             placeholder="Breve descripción del rol"
             maxLength={255}
           />

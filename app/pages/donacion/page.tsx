@@ -67,11 +67,28 @@ function getCalendarDays(year: number, month: number): (Date | null)[] {
   return days
 }
 
+function getMinSelectableDate(): Date {
+  const now = new Date()
+  const minDate = new Date(now)
+  minDate.setHours(0, 0, 0, 0)
+  // El día actual nunca se puede elegir; si ya pasaron las 17hs, se corre
+  // un día más para dar margen de coordinación con el equipo de retiro.
+  minDate.setDate(minDate.getDate() + (now.getHours() >= 17 ? 2 : 1))
+  return minDate
+}
+
+function getEarliestValidDate(): Date {
+  const d = getMinSelectableDate()
+  while (d.getDay() === 0 || d.getDay() === 6) {
+    d.setDate(d.getDate() + 1)
+  }
+  return d
+}
+
 function isFechaValida(d: Date): boolean {
-  const hoy = new Date()
-  hoy.setHours(0, 0, 0, 0)
+  const minDate = getMinSelectableDate()
   const diaSemana = d.getDay()
-  return d >= hoy && diaSemana !== 0 && diaSemana !== 6
+  return d >= minDate && diaSemana !== 0 && diaSemana !== 6
 }
 
 export default function DonacionPage() {
@@ -93,6 +110,8 @@ export default function DonacionPage() {
   const [user, setUser] = useState<TokenPayload | null>(null)
 
   const [necesitaRetiro, setNecesitaRetiro] = useState(false)
+  const [usarOtraDireccion, setUsarOtraDireccion] = useState(false)
+  const [direccionRetiro, setDireccionRetiro] = useState("")
 
   const [calYear, setCalYear] = useState(new Date().getFullYear())
   const [calMonth, setCalMonth] = useState(new Date().getMonth())
@@ -172,12 +191,14 @@ export default function DonacionPage() {
     const estadoPendiente = estadosDonacion.find((e: EstadoDonacion) =>
       e.descripcion.toLowerCase().includes("pendiente")
     )
-    const now = new Date()
-    setCalYear(now.getFullYear())
-    setCalMonth(now.getMonth())
-    setSelectedDate(null)
+    const earliest = getEarliestValidDate()
+    setCalYear(earliest.getFullYear())
+    setCalMonth(earliest.getMonth())
+    setSelectedDate(earliest)
     setSelectedTime(null)
     setNecesitaRetiro(false)
+    setUsarOtraDireccion(false)
+    setDireccionRetiro("")
     setForm({
       ...EMPTY_FORM,
       donanteId: myDonante ? String(myDonante.id) : "",
@@ -193,6 +214,8 @@ export default function DonacionPage() {
     setSelectedDate(null)
     setSelectedTime(null)
     setNecesitaRetiro(d.necesitaRetiro ?? false)
+    setUsarOtraDireccion(!!d.direccionRetiro)
+    setDireccionRetiro(d.direccionRetiro ?? "")
     setForm({
       donanteId: String(d.donanteId),
       fechaHora: "",
@@ -216,6 +239,8 @@ export default function DonacionPage() {
     setSelectedDate(null)
     setSelectedTime(null)
     setNecesitaRetiro(d.necesitaRetiro ?? false)
+    setUsarOtraDireccion(!!d.direccionRetiro)
+    setDireccionRetiro(d.direccionRetiro ?? "")
     setForm({
       donanteId: String(d.donanteId),
       fechaHora: "",
@@ -262,6 +287,10 @@ export default function DonacionPage() {
       toast.error("Seleccioná el tipo de material para cada ítem")
       return
     }
+    if (necesitaRetiro && usarOtraDireccion && !direccionRetiro.trim()) {
+      toast.error("Ingresá la dirección donde se realizará el retiro")
+      return
+    }
 
     const detallesPayload = detalles.map((d) => ({
       tipoMaterialId: Number(d.tipoMaterialId),
@@ -270,6 +299,9 @@ export default function DonacionPage() {
       observaciones: d.observaciones.trim() || undefined,
     }))
 
+    const direccionRetiroPayload =
+      necesitaRetiro && usarOtraDireccion ? direccionRetiro.trim() : undefined
+
     try {
       if (editing) {
         await updateDonacion({
@@ -277,6 +309,7 @@ export default function DonacionPage() {
           donanteId: Number(form.donanteId),
           estadoDonacionId: form.estadoDonacionId ? Number(form.estadoDonacionId) : undefined,
           necesitaRetiro,
+          direccionRetiro: necesitaRetiro ? (direccionRetiroPayload ?? null) : null,
           descripcion: form.descripcion.trim() || undefined,
           detalles: detallesPayload,
         })
@@ -287,6 +320,7 @@ export default function DonacionPage() {
           fechaHora: form.fechaHora,
           estadoDonacionId: form.estadoDonacionId ? Number(form.estadoDonacionId) : undefined,
           necesitaRetiro,
+          direccionRetiro: direccionRetiroPayload,
           descripcion: form.descripcion.trim() || undefined,
           detalles: detallesPayload,
         })
@@ -380,6 +414,7 @@ export default function DonacionPage() {
 
   const calDays = getCalendarDays(calYear, calMonth)
   const hoy = new Date()
+  const donanteSeleccionado = donantes.find((d: Donante) => String(d.id) === form.donanteId) ?? null
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -502,10 +537,10 @@ export default function DonacionPage() {
                           "relative mx-auto flex h-8 w-8 items-center justify-center rounded-full text-xs transition-colors",
                           isSelected
                             ? "bg-primary text-primary-foreground font-semibold"
-                            : isHoy
-                            ? "border border-primary text-primary font-medium"
                             : habilitado
                             ? "hover:bg-muted cursor-pointer"
+                            : isHoy
+                            ? "opacity-40 cursor-not-allowed border border-primary/50 text-primary/70"
                             : "opacity-25 cursor-not-allowed",
                         ].join(" ")}
                       >
@@ -644,6 +679,33 @@ export default function DonacionPage() {
                 <span>
                   El servicio de retiro a domicilio tiene un <strong>costo adicional</strong> que será coordinado con el equipo de Reboot IT.
                 </span>
+              </div>
+            )}
+
+            {necesitaRetiro && (
+              <div className="flex flex-col gap-2 rounded-md border px-3 py-2.5">
+                <p className="text-xs text-muted-foreground">
+                  Dirección registrada:{" "}
+                  <span className="font-medium text-foreground">
+                    {donanteSeleccionado?.direccion ?? "Sin dirección registrada"}
+                  </span>
+                </p>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={usarOtraDireccion}
+                    onChange={(e) => setUsarOtraDireccion(e.target.checked)}
+                    className="h-4 w-4 rounded border-input"
+                  />
+                  Retirar en una dirección distinta a la registrada
+                </label>
+                {usarOtraDireccion && (
+                  <Input
+                    placeholder="Dirección donde se realizará el retiro"
+                    value={direccionRetiro}
+                    onChange={(e) => setDireccionRetiro(e.target.value)}
+                  />
+                )}
               </div>
             )}
           </div>

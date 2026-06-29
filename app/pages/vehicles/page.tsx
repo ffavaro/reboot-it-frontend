@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
+import { FieldError } from "@/components/ui/field"
 import {
   useVehiculos,
   useTipoVehiculos,
@@ -18,6 +19,8 @@ import {
   useUpdateTipoVehiculo,
   useDeleteTipoVehiculo,
 } from "@/hooks/use-vehicles"
+import { useFormErrors } from "@/hooks/use-form-errors"
+import { required, requiredSelect } from "@/lib/form-validators"
 import type { Vehiculo, TipoVehiculo } from "@/lib/type/vehicle"
 
 type Tab = "vehiculos" | "tipos"
@@ -62,6 +65,7 @@ function VehiculosTab() {
   const { createVehiculo, isLoading: isCreating } = useCreateVehiculo()
   const { updateVehiculo, isLoading: isUpdating } = useUpdateVehiculo()
   const { deleteVehiculo, isLoading: isDeleting } = useDeleteVehiculo()
+  const { errors, validate, clearError, reset } = useFormErrors<typeof EMPTY_VEHICULO>()
 
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
@@ -76,10 +80,16 @@ function VehiculosTab() {
       v.modelo.toLowerCase().includes(search.toLowerCase()),
   )
 
+  function set(field: keyof typeof EMPTY_VEHICULO, value: string | number) {
+    setForm((f) => ({ ...f, [field]: value }))
+    clearError(field)
+  }
+
   function openCreate() {
     setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_VEHICULO)
+    reset()
     setModalOpen(true)
   }
 
@@ -87,6 +97,7 @@ function VehiculosTab() {
     setIsViewing(false)
     setEditing(v)
     setForm({ tipoVehiculoId: v.tipoVehiculoId, patente: v.patente, marca: v.marca, modelo: v.modelo })
+    reset()
     setModalOpen(true)
   }
 
@@ -94,14 +105,17 @@ function VehiculosTab() {
     setIsViewing(true)
     setEditing(v)
     setForm({ tipoVehiculoId: v.tipoVehiculoId, patente: v.patente, marca: v.marca, modelo: v.modelo })
+    reset()
     setModalOpen(true)
   }
 
   async function handleSave() {
-    if (!form.patente || !form.marca || !form.modelo || !form.tipoVehiculoId) {
-      toast.error("Completá todos los campos")
-      return
-    }
+    if (!validate(form, {
+      patente: [required("la patente")],
+      marca: [required("la marca")],
+      modelo: [required("el modelo")],
+      tipoVehiculoId: [requiredSelect("un tipo de vehículo")],
+    })) return
     try {
       if (editing) {
         await updateVehiculo({ id: editing.id, ...form })
@@ -173,40 +187,47 @@ function VehiculosTab() {
           <label className="text-sm font-medium">Patente</label>
           <Input
             value={form.patente}
-            onChange={(e) => setForm((f) => ({ ...f, patente: e.target.value.toUpperCase() }))}
+            onChange={(e) => set("patente", e.target.value.toUpperCase())}
             placeholder="ABC123"
             maxLength={20}
+            className={cn(errors.patente && "border-destructive focus-visible:ring-destructive")}
           />
+          <FieldError>{errors.patente}</FieldError>
         </div>
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Marca</label>
           <Input
             value={form.marca}
-            onChange={(e) => setForm((f) => ({ ...f, marca: e.target.value }))}
+            onChange={(e) => set("marca", e.target.value)}
             placeholder="Ford"
             maxLength={50}
+            className={cn(errors.marca && "border-destructive focus-visible:ring-destructive")}
           />
+          <FieldError>{errors.marca}</FieldError>
         </div>
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Modelo</label>
           <Input
             value={form.modelo}
-            onChange={(e) => setForm((f) => ({ ...f, modelo: e.target.value }))}
+            onChange={(e) => set("modelo", e.target.value)}
             placeholder="F-100"
             maxLength={50}
+            className={cn(errors.modelo && "border-destructive focus-visible:ring-destructive")}
           />
+          <FieldError>{errors.modelo}</FieldError>
         </div>
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Tipo de vehículo</label>
           <select
             value={form.tipoVehiculoId}
-            onChange={(e) => setForm((f) => ({ ...f, tipoVehiculoId: Number(e.target.value) }))}
+            onChange={(e) => set("tipoVehiculoId", Number(e.target.value))}
             className={cn(
-              "w-full rounded-4xl border border-input bg-background px-3 py-2 text-sm",
+              "w-full rounded-4xl border bg-background px-3 py-2 text-sm",
               "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0",
+              errors.tipoVehiculoId ? "border-destructive" : "border-input",
             )}
           >
             <option value={0}>— Seleccionar tipo —</option>
@@ -216,6 +237,7 @@ function VehiculosTab() {
               </option>
             ))}
           </select>
+          <FieldError>{errors.tipoVehiculoId}</FieldError>
         </div>
       </FormModal>
     </>
@@ -239,6 +261,7 @@ function TiposTab() {
   const { createTipo, isLoading: isCreating } = useCreateTipoVehiculo()
   const { updateTipo, isLoading: isUpdating } = useUpdateTipoVehiculo()
   const { deleteTipo, isLoading: isDeleting } = useDeleteTipoVehiculo()
+  const { errors, validate, clearError, reset } = useFormErrors<typeof EMPTY_TIPO>()
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<TipoVehiculo | null>(null)
@@ -249,6 +272,7 @@ function TiposTab() {
     setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_TIPO)
+    reset()
     setModalOpen(true)
   }
 
@@ -256,6 +280,7 @@ function TiposTab() {
     setIsViewing(false)
     setEditing(t)
     setForm({ descripcion: t.descripcion })
+    reset()
     setModalOpen(true)
   }
 
@@ -263,14 +288,12 @@ function TiposTab() {
     setIsViewing(true)
     setEditing(t)
     setForm({ descripcion: t.descripcion })
+    reset()
     setModalOpen(true)
   }
 
   async function handleSave() {
-    if (!form.descripcion.trim()) {
-      toast.error("La descripción es obligatoria")
-      return
-    }
+    if (!validate(form, { descripcion: [required("la descripción")] })) return
     try {
       if (editing) {
         await updateTipo({ id: editing.id, ...form })
@@ -334,10 +357,12 @@ function TiposTab() {
           <label className="text-sm font-medium">Descripción</label>
           <Input
             value={form.descripcion}
-            onChange={(e) => setForm({ descripcion: e.target.value })}
+            onChange={(e) => { setForm({ descripcion: e.target.value }); clearError("descripcion") }}
             placeholder="Ej: Camión, Camioneta, Auto..."
             maxLength={100}
+            className={cn(errors.descripcion && "border-destructive focus-visible:ring-destructive")}
           />
+          <FieldError>{errors.descripcion}</FieldError>
         </div>
       </FormModal>
     </>

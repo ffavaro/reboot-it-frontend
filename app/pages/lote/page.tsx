@@ -2,11 +2,13 @@
 
 import { useState } from "react"
 import { toast } from "react-toastify"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
+import { FieldError } from "@/components/ui/field"
 import {
   Select,
   SelectContent,
@@ -21,6 +23,8 @@ import {
   useDeleteLote,
 } from "@/hooks/use-lote"
 import { useDonaciones } from "@/hooks/use-donacion"
+import { useFormErrors } from "@/hooks/use-form-errors"
+import { requiredSelect, positiveNumber } from "@/lib/form-validators"
 import type { Lote } from "@/lib/type/lote"
 
 const EMPTY_FORM = { donacionId: "", pesoBrutoKg: "", observaciones: "" }
@@ -65,6 +69,7 @@ export default function LotePage() {
   const { createLote, isLoading: isCreating } = useCreateLote()
   const { updateLote, isLoading: isUpdating } = useUpdateLote()
   const { deleteLote, isLoading: isDeleting } = useDeleteLote()
+  const { errors, validate, clearError, reset } = useFormErrors<typeof EMPTY_FORM>()
 
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
@@ -85,6 +90,7 @@ export default function LotePage() {
     setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
+    reset()
     setModalOpen(true)
   }
 
@@ -96,6 +102,7 @@ export default function LotePage() {
       pesoBrutoKg: l.pesoBrutoKg !== null && l.pesoBrutoKg !== undefined ? String(l.pesoBrutoKg) : "",
       observaciones: l.observaciones ?? "",
     })
+    reset()
     setModalOpen(true)
   }
 
@@ -107,14 +114,15 @@ export default function LotePage() {
       pesoBrutoKg: l.pesoBrutoKg !== null && l.pesoBrutoKg !== undefined ? String(l.pesoBrutoKg) : "",
       observaciones: l.observaciones ?? "",
     })
+    reset()
     setModalOpen(true)
   }
 
   async function handleSave() {
-    if (!form.donacionId) {
-      toast.error("La donación es obligatoria")
-      return
-    }
+    if (!validate(form, {
+      donacionId: [requiredSelect("una donación")],
+      pesoBrutoKg: [positiveNumber()],
+    })) return
     try {
       const payload = {
         donacionId: Number(form.donacionId),
@@ -197,10 +205,10 @@ export default function LotePage() {
           <label className="text-sm font-medium">Donación</label>
           <Select
             value={form.donacionId}
-            onValueChange={(v) => setForm((f) => ({ ...f, donacionId: v ?? "" }))}
+            onValueChange={(v) => { setForm((f) => ({ ...f, donacionId: v ?? "" })); clearError("donacionId") }}
             disabled={isViewing}
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger className={cn("w-full", errors.donacionId && "border-destructive ring-1 ring-destructive")}>
               <SelectValue placeholder="Seleccioná una donación" />
             </SelectTrigger>
             <SelectContent>
@@ -215,6 +223,7 @@ export default function LotePage() {
               ))}
             </SelectContent>
           </Select>
+          <FieldError>{errors.donacionId}</FieldError>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -224,10 +233,13 @@ export default function LotePage() {
           <Input
             type="number"
             step="0.01"
+            min="0.01"
             placeholder="Ej: 120.50"
             value={form.pesoBrutoKg}
-            onChange={(e) => setForm((f) => ({ ...f, pesoBrutoKg: e.target.value }))}
+            onChange={(e) => { setForm((f) => ({ ...f, pesoBrutoKg: e.target.value })); clearError("pesoBrutoKg") }}
+            className={cn(errors.pesoBrutoKg && "border-destructive focus-visible:ring-destructive")}
           />
+          <FieldError>{errors.pesoBrutoKg}</FieldError>
         </div>
 
         <div className="flex flex-col gap-2">

@@ -42,7 +42,6 @@ const navMain: NavSection[] = [
     items: [
       { title: "Agenda", url: "/pages/agenda", icon: CalendarDays },
       { title: "Certificado de disposicion", url: "/pages/certificado-disposicion", allowedRoles: DONANTE, icon: FileCheck },
-//      { title: "Clasificacion", url: "/pages/clasificacion", icon: LayoutList },
       { title: "Constancia de retiro", url: "/pages/constancia-retiro", allowedRoles: DONANTE, icon: FileText },
       { title: "Donaciones", url: "/pages/donacion", allowedRoles: DONANTE, icon: Heart },
       { title: "Registro fotográfico", url: "/pages/registro-fotografico", icon: Camera },
@@ -85,7 +84,10 @@ const navMain: NavSection[] = [
     title: "Reportes y Analitica",
     url: "#",
     items: [
-      { title: "Reportes", url: "#", icon: BarChart2 },
+      { title: "Reporte de Donaciones", url: "/pages/reportes/donaciones", icon: BarChart2 },
+      { title: "Reporte de Retiros", url: "/pages/reportes/retiros", icon: BarChart2 },
+      { title: "Reporte de Inventario", url: "/pages/reportes/inventario", icon: BarChart2 },
+      { title: "Reporte de Procesos de Destrucción", url: "/pages/reportes/procesos-destruccion", icon: BarChart2 },
     ],
   },
   {
