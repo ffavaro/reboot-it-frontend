@@ -30,3 +30,23 @@ export interface UpdateRetiroPayload {
   fechaRetiro?: string | null
   direccion?: string | null
 }
+
+export interface ReporteRetiroQuery {
+  donanteId?: number
+  empleadoTransportistaId?: number
+  estadoDonacionId?: number
+  fechaDesde?: string
+  fechaHasta?: string
+}
+
+export interface ReporteRetiro extends Retiro {
+  donacion?: {
+    id: number
+    donanteId: number
+    estadoDonacionId: number | null
+    necesitaRetiro: boolean
+    descripcion: string | null
+    donante?: { id: number; nombre: string; razonSocial: string | null; direccion: string | null }
+    estadoDonacion?: { id: number; descripcion: string }
+  } | null
+}

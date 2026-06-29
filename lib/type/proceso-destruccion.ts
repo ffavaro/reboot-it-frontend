@@ -43,3 +43,11 @@ export interface UpdateProcesoDestruccionPayload {
   estadoId?: number
   empleadoId?: number | null
 }
+
+export interface ReporteProcesoDestruccionQuery {
+  estadoId?: number
+  metodoDestruccionId?: number
+  empleadoId?: number
+  fechaDesde?: string
+  fechaHasta?: string
+}
