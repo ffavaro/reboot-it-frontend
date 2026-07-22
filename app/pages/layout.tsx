@@ -16,6 +16,7 @@ import { UserIcon, ChevronRight, LogOut } from "lucide-react"
 import { useEffect, useState } from "react";
 import { getUser, clearSession } from "@/lib/auth-utils"
 import { useRouter } from "next/navigation"
+import { ChatWidget } from "@/components/chat-widget";s
 
 export default function RootLayout({
   children,
@@ -36,7 +37,7 @@ export default function RootLayout({
       <ThemeProvider defaultTheme="light">
         <AppSidebar />
         <SidebarInset>
-          <header className="flex h-16 bg-slate-950 text-white shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+           <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
             <div className="flex items-center gap-2 px-4">
               <SidebarTrigger className="-ml-1" />
               <Separator
@@ -48,6 +49,9 @@ export default function RootLayout({
                   <BreadcrumbPage className="hidden md:block" />
                   <BreadcrumbItem>
                     <BreadcrumbPage className="text-white">Reboot IT</BreadcrumbPage>
+                  </BreadcrumbItem>
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>Dashboard</BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
@@ -87,6 +91,7 @@ export default function RootLayout({
           <main>
             {children}
           </main>
+          <ChatWidget />
         </SidebarInset>
       </ThemeProvider>
     </SidebarProvider>
