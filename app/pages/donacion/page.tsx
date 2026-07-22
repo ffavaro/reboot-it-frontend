@@ -113,12 +113,17 @@ export default function DonacionPage() {
   const [usarOtraDireccion, setUsarOtraDireccion] = useState(false)
   const [direccionRetiro, setDireccionRetiro] = useState("")
 
-  const [calYear, setCalYear] = useState(new Date().getFullYear())
-  const [calMonth, setCalMonth] = useState(new Date().getMonth())
+  const [calYear, setCalYear] = useState(0)
+  const [calMonth, setCalMonth] = useState(0)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
 
-  useEffect(() => { setUser(getUser()) }, [])
+  useEffect(() => {
+    setUser(getUser())
+    const now = new Date()
+    setCalYear(now.getFullYear())
+    setCalMonth(now.getMonth())
+  }, [])
 
   const myDonante = user
     ? donantes.find((d: Donante) => d.usuarioId === user.id) ?? null

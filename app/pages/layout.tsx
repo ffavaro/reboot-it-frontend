@@ -16,7 +16,7 @@ import { UserIcon, ChevronRight, LogOut } from "lucide-react"
 import { useEffect, useState } from "react";
 import { getUser, clearSession } from "@/lib/auth-utils"
 import { useRouter } from "next/navigation"
-import { ChatWidget } from "@/components/chat-widget";s
+import { ChatWidget } from "@/components/chat-widget";
 
 export default function RootLayout({
   children,
@@ -90,8 +90,8 @@ export default function RootLayout({
           </header>
           <main>
             {children}
-          </main>
-          <ChatWidget />
+          </main>{/* 
+          <ChatWidget /> ver de poner en el otro layout */} 
         </SidebarInset>
       </ThemeProvider>
     </SidebarProvider>
