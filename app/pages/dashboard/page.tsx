@@ -7,6 +7,7 @@ import {
 } from "recharts"
 import { useLotes } from "@/hooks/use-lote"
 import { useDonantes } from "@/hooks/use-donantes"
+import { exportToPdf, exportToExcel, type ExportColumn } from "@/lib/utils/export"
 
 // ── Tipos ──────────────────────────────────────────────────────────────────
 type RangoFecha = "hoy" | "semana" | "mes" | "año"
@@ -26,11 +27,23 @@ const BAR_DATA: Record<RangoFecha, { name: string; ingresados: number; clasifica
 const DONUT_COLORS = ["#639922", "#378ADD", "#E24B4A"]
 const DONUT_LABELS = ["Reacondicionamiento / Donación social", "Stock de componentes", "Disposición final / Scrap"]
 
-const KPI_RANGE: Record<RangoFecha, { donaciones: number; raee: string; recuperacion: string }> = {
-  hoy:    { donaciones: 3,   raee: "124 kg", recuperacion: "67%" },
-  semana: { donaciones: 18,  raee: "380 kg", recuperacion: "71%" },
-  mes:    { donaciones: 74,  raee: "1.2 t",  recuperacion: "73%" },
-  año:    { donaciones: 512, raee: "8.4 t",  recuperacion: "73%" },
+// [reacondicionamiento, stock de componentes, disposición final]
+const DONUT_DATA: Record<RangoFecha, number[]> = {
+  hoy:    [4, 1, 3],
+  semana: [12, 9, 5],
+  mes:    [33, 22, 19],
+  año:    [198, 176, 91],
+}
+
+const KPI_RANGE: Record<RangoFecha, {
+  donaciones: number; raee: string; recuperacion: string
+  trendDonaciones: { text: string; up: boolean }
+  trendRecuperacion: { text: string; up: boolean }
+}> = {
+  hoy:    { donaciones: 3,   raee: "124 kg", recuperacion: "67%", trendDonaciones: { text: "-1 vs ayer",              up: false }, trendRecuperacion: { text: "-2.1% vs ayer",              up: false } },
+  semana: { donaciones: 18,  raee: "380 kg", recuperacion: "71%", trendDonaciones: { text: "+6% vs semana anterior",  up: true  }, trendRecuperacion: { text: "+1.5% vs semana anterior",  up: true  } },
+  mes:    { donaciones: 74,  raee: "1.2 t",  recuperacion: "73%", trendDonaciones: { text: "+12% vs mes anterior",    up: true  }, trendRecuperacion: { text: "+3.2% vs mes anterior",    up: true  } },
+  año:    { donaciones: 512, raee: "8.4 t",  recuperacion: "73%", trendDonaciones: { text: "+9% vs año anterior",     up: true  }, trendRecuperacion: { text: "+0.8% vs año anterior",     up: true  } },
 }
 
 const RANGO_LABELS: Record<RangoFecha, string> = {
@@ -86,11 +99,7 @@ export default function DashboardPage() {
   const kpi        = KPI_RANGE[rango]
   const barData    = BAR_DATA[rango]
 
-  const donutData  = [
-    { name: DONUT_LABELS[0], value: 33 },
-    { name: DONUT_LABELS[1], value: 22 },
-    { name: DONUT_LABELS[2], value: 19 },
-  ]
+  const donutData  = DONUT_LABELS.map((label, i) => ({ name: label, value: DONUT_DATA[rango][i] }))
 
   // Tabla de lotes enriquecida (mock de técnico y estado hasta que el back lo exponga)
   const MOCK_DETALLE = [
@@ -109,6 +118,28 @@ export default function DashboardPage() {
     const matchEmpresa = !empresaFiltro || l.donante === empresaFiltro
     return matchSearch && matchEmpresa
   })
+
+  const exportColumns: ExportColumn<typeof MOCK_DETALLE[number]>[] = [
+    { header: "ID Lote", accessor: l => l.id },
+    { header: "Donante", accessor: l => l.donante },
+    { header: "Fecha ingreso", accessor: l => l.fecha },
+    { header: "Técnico responsable", accessor: l => l.tecnico },
+    { header: "Estado actual", accessor: l => l.estado },
+  ]
+
+  const handleExportPdf = () => {
+    exportToPdf(filteredLotes, exportColumns, {
+      fileName: "movimientos-lotes",
+      title: "Últimos movimientos de lotes",
+    })
+  }
+
+  const handleExportExcel = () => {
+    exportToExcel(filteredLotes, exportColumns, {
+      fileName: "movimientos-lotes",
+      sheetName: "Lotes",
+    })
+  }
 
   return (
     <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
@@ -149,7 +180,7 @@ export default function DashboardPage() {
         <KpiCard
           label="Total donaciones recibidas"
           value={kpi.donaciones}
-          trend={{ text: "+12% vs mes anterior", up: true }}
+          trend={kpi.trendDonaciones}
         />
         <KpiCard
           label="Hardware en laboratorio"
@@ -159,7 +190,7 @@ export default function DashboardPage() {
         <KpiCard
           label="Efectividad de recuperación"
           value={kpi.recuperacion}
-          trend={{ text: "+3.2% vs mes anterior", up: true }}
+          trend={kpi.trendRecuperacion}
         />
         <KpiCard
           label="Basura electrónica desechada (RAEE)"
@@ -245,10 +276,18 @@ export default function DashboardPage() {
               className="text-xs px-3 py-1.5 pl-8 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring w-48"
               style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "10px center" }}
             />
-            <button className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors flex items-center gap-1.5">
+            <button
+              onClick={handleExportPdf}
+              disabled={filteredLotes.length === 0}
+              className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               ↓ Exportar PDF
             </button>
-            <button className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors flex items-center gap-1.5">
+            <button
+              onClick={handleExportExcel}
+              disabled={filteredLotes.length === 0}
+              className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               ↓ Exportar Excel
             </button>
           </div>

@@ -40,6 +40,7 @@ const navMain: NavSection[] = [
     title: "Gestion de Donantes",
     url: "#",
     items: [
+      { title: "Dashboard", url: "/pages/dashboard", icon: BarChart2 },
       { title: "Agenda", url: "/pages/agenda", icon: CalendarDays },
       { title: "Certificado de disposicion", url: "/pages/certificado-disposicion", allowedRoles: DONANTE, icon: FileCheck },
       { title: "Constancia de retiro", url: "/pages/constancia-retiro", allowedRoles: DONANTE, icon: FileText },
