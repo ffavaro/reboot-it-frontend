@@ -4,6 +4,7 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useEstadosProcesoDestruccion } from "@/hooks/use-estado-proceso-destruccion"
 import { useMetodosDestruccion } from "@/hooks/use-metodo-destruccion"
 import { useEmpleadosFull } from "@/hooks/use-employees"
@@ -13,9 +14,6 @@ import type { EstadoProcesoDestruccion } from "@/lib/type/estado-proceso-destruc
 import type { MetodoDestruccion } from "@/lib/type/metodo-destruccion"
 import type { Empleado } from "@/lib/type/user"
 import { formatDate } from "@/lib/utils/helpers"
-
-const SELECT_CLASS =
-  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 
 const ESTADO_COLOR: Record<string, string> = {
   Iniciado: "bg-blue-100 text-blue-700",
@@ -106,59 +104,71 @@ export default function ReporteProcesoDestruccionPage() {
         </div>
 
         {/* Filtros */}
-        <div className="no-print rounded-xl border p-4 bg-card flex flex-col gap-4">
+        <div className="no-print rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4 flex flex-col gap-4">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Filtros</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Estado */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Estado del proceso</label>
-              <select
-                value={filters.estadoId ?? ""}
-                onChange={(e) =>
-                  setFilters((f) => ({ ...f, estadoId: e.target.value ? Number(e.target.value) : undefined }))
+              <Select
+                value={filters.estadoId ? String(filters.estadoId) : ""}
+                onValueChange={(v) =>
+                  setFilters((f) => ({ ...f, estadoId: v ? Number(v) : undefined }))
                 }
-                className={SELECT_CLASS}
               >
-                <option value="">Todos los estados</option>
-                {estados.map((e: EstadoProcesoDestruccion) => (
-                  <option key={e.id} value={e.id}>{e.nombre}</option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todos los estados" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos los estados</SelectItem>
+                  {estados.map((e: EstadoProcesoDestruccion) => (
+                    <SelectItem key={e.id} value={String(e.id)}>{e.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Método */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Método de destrucción</label>
-              <select
-                value={filters.metodoDestruccionId ?? ""}
-                onChange={(e) =>
-                  setFilters((f) => ({ ...f, metodoDestruccionId: e.target.value ? Number(e.target.value) : undefined }))
+              <Select
+                value={filters.metodoDestruccionId ? String(filters.metodoDestruccionId) : ""}
+                onValueChange={(v) =>
+                  setFilters((f) => ({ ...f, metodoDestruccionId: v ? Number(v) : undefined }))
                 }
-                className={SELECT_CLASS}
               >
-                <option value="">Todos los métodos</option>
-                {metodos.map((m: MetodoDestruccion) => (
-                  <option key={m.id} value={m.id}>{m.nombre}</option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todos los métodos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos los métodos</SelectItem>
+                  {metodos.map((m: MetodoDestruccion) => (
+                    <SelectItem key={m.id} value={String(m.id)}>{m.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Empleado */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Empleado responsable</label>
-              <select
-                value={filters.empleadoId ?? ""}
-                onChange={(e) =>
-                  setFilters((f) => ({ ...f, empleadoId: e.target.value ? Number(e.target.value) : undefined }))
+              <Select
+                value={filters.empleadoId ? String(filters.empleadoId) : ""}
+                onValueChange={(v) =>
+                  setFilters((f) => ({ ...f, empleadoId: v ? Number(v) : undefined }))
                 }
-                className={SELECT_CLASS}
               >
-                <option value="">Todos los empleados</option>
-                {empleados.map((e: Empleado) => (
-                  <option key={e.id} value={e.id}>{e.nombre} {e.apellido}</option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todos los empleados" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos los empleados</SelectItem>
+                  {empleados.map((e: Empleado) => (
+                    <SelectItem key={e.id} value={String(e.id)}>{e.nombre} {e.apellido}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Fecha desde */}
@@ -209,10 +219,10 @@ export default function ReporteProcesoDestruccionPage() {
                 No se encontraron procesos con los filtros seleccionados.
               </p>
             ) : (
-              <div className="overflow-x-auto rounded-xl border">
+              <div className="overflow-x-auto rounded-xl bg-card shadow-sm ring-1 ring-foreground/5">
                 <table className="w-full text-sm report-table">
                   <thead>
-                    <tr className="border-b bg-muted/50">
+                    <tr className="border-b border-border/60 bg-muted/60">
                       <th className="p-3 text-left font-medium">#</th>
                       <th className="p-3 text-left font-medium">Medio de almacenamiento</th>
                       <th className="p-3 text-left font-medium">Tipo de material</th>
@@ -224,7 +234,7 @@ export default function ReporteProcesoDestruccionPage() {
                   </thead>
                   <tbody>
                     {result.map((p) => (
-                      <tr key={p.id} className="border-b last:border-0 hover:bg-muted/30">
+                      <tr key={p.id} className="border-b border-border/60 last:border-0 hover:bg-muted/40">
                         {/* ID */}
                         <td className="p-3 font-mono text-xs text-muted-foreground">#{p.id}</td>
 

@@ -4,6 +4,7 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useTipoMateriales } from "@/hooks/use-tipo-material"
 import { useCondicionesMaterial } from "@/hooks/use-condicion-material"
 import { materialApi } from "@/lib/api"
@@ -11,9 +12,6 @@ import type { ReporteInventario, ReporteInventarioQuery } from "@/lib/type/mater
 import type { TipoMaterial } from "@/lib/type/tipo-material"
 import type { CondicionMaterial } from "@/lib/type/condicion-material"
 import { formatDate } from "@/lib/utils/helpers"
-
-const SELECT_CLASS =
-  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 
 const ESTADO_COLOR: Record<string, string> = {
   Iniciado: "bg-blue-100 text-blue-700",
@@ -104,61 +102,73 @@ export default function ReporteInventarioPage() {
         </div>
 
         {/* Filtros */}
-        <div className="no-print rounded-xl border p-4 bg-card flex flex-col gap-4">
+        <div className="no-print rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4 flex flex-col gap-4">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Filtros</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Tipo de material */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Tipo de material</label>
-              <select
-                value={filters.tipoMaterialId ?? ""}
-                onChange={(e) =>
-                  setFilters((f) => ({ ...f, tipoMaterialId: e.target.value ? Number(e.target.value) : undefined }))
+              <Select
+                value={filters.tipoMaterialId ? String(filters.tipoMaterialId) : ""}
+                onValueChange={(v) =>
+                  setFilters((f) => ({ ...f, tipoMaterialId: v ? Number(v) : undefined }))
                 }
-                className={SELECT_CLASS}
               >
-                <option value="">Todos los tipos</option>
-                {tipoMateriales.map((t: TipoMaterial) => (
-                  <option key={t.id} value={t.id}>{t.nombre}</option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todos los tipos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos los tipos</SelectItem>
+                  {tipoMateriales.map((t: TipoMaterial) => (
+                    <SelectItem key={t.id} value={String(t.id)}>{t.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Condición */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Condición del material</label>
-              <select
-                value={filters.condicionMaterialId ?? ""}
-                onChange={(e) =>
-                  setFilters((f) => ({ ...f, condicionMaterialId: e.target.value ? Number(e.target.value) : undefined }))
+              <Select
+                value={filters.condicionMaterialId ? String(filters.condicionMaterialId) : ""}
+                onValueChange={(v) =>
+                  setFilters((f) => ({ ...f, condicionMaterialId: v ? Number(v) : undefined }))
                 }
-                className={SELECT_CLASS}
               >
-                <option value="">Todas las condiciones</option>
-                {condiciones.map((c: CondicionMaterial) => (
-                  <option key={c.id} value={c.id}>{c.condicion}</option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todas las condiciones" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todas las condiciones</SelectItem>
+                  {condiciones.map((c: CondicionMaterial) => (
+                    <SelectItem key={c.id} value={String(c.id)}>{c.condicion}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Proceso de destrucción */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Proceso de destrucción</label>
-              <select
+              <Select
                 value={filters.tieneDestruccion === undefined ? "" : String(filters.tieneDestruccion)}
-                onChange={(e) =>
+                onValueChange={(v) =>
                   setFilters((f) => ({
                     ...f,
-                    tieneDestruccion: e.target.value === "" ? undefined : e.target.value === "true",
+                    tieneDestruccion: v === "" ? undefined : v === "true",
                   }))
                 }
-                className={SELECT_CLASS}
               >
-                <option value="">Todos</option>
-                <option value="true">Con proceso de destrucción</option>
-                <option value="false">Sin proceso de destrucción</option>
-              </select>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="true">Con proceso de destrucción</SelectItem>
+                  <SelectItem value="false">Sin proceso de destrucción</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Lote */}
@@ -224,10 +234,10 @@ export default function ReporteInventarioPage() {
                 No se encontraron materiales con los filtros seleccionados.
               </p>
             ) : (
-              <div className="overflow-x-auto rounded-xl border">
+              <div className="overflow-x-auto rounded-xl bg-card shadow-sm ring-1 ring-foreground/5">
                 <table className="w-full text-sm report-table">
                   <thead>
-                    <tr className="border-b bg-muted/50">
+                    <tr className="border-b border-border/60 bg-muted/60">
                       <th className="p-3 text-left font-medium"># Material</th>
                       <th className="p-3 text-left font-medium">Lote / Donación</th>
                       <th className="p-3 text-left font-medium">Tipo</th>
@@ -238,7 +248,7 @@ export default function ReporteInventarioPage() {
                   </thead>
                   <tbody>
                     {result.map((m) => (
-                      <tr key={m.id} className="border-b last:border-0 hover:bg-muted/30">
+                      <tr key={m.id} className="border-b border-border/60 last:border-0 hover:bg-muted/40">
                         {/* ID Material */}
                         <td className="p-3 font-mono text-xs text-muted-foreground">#{m.id}</td>
 

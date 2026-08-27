@@ -1,9 +1,11 @@
 "use client"
+import { Plus } from "lucide-react"
 
 import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
@@ -226,8 +228,8 @@ export default function ProcesoDestruccionPage() {
         </p>
       </div>
 
-      <div className="flex items-center gap-3">
-        <Input
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchInput
           placeholder="Buscar por medio, método, estado o empleado..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -237,7 +239,8 @@ export default function ProcesoDestruccionPage() {
           {filtered.length} proceso{filtered.length !== 1 ? "s" : ""}
         </span>
         <Button className="ml-auto" onClick={openCreate}>
-          + Nuevo proceso
+          <Plus className="h-4 w-4" />
+          Nuevo proceso
         </Button>
       </div>
 

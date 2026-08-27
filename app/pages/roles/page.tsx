@@ -1,10 +1,12 @@
 "use client"
+import { Plus } from "lucide-react"
 
 import { useState } from "react"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { FieldError } from "@/components/ui/field"
@@ -122,8 +124,8 @@ export default function RolesPage() {
         </p>
       </div>
 
-      <div className="flex items-center gap-3">
-        <Input
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchInput
           placeholder="Buscar por nombre o descripción..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -133,7 +135,8 @@ export default function RolesPage() {
           {filtered.length} rol{filtered.length !== 1 ? "es" : ""}
         </span>
         <Button className="ml-auto" onClick={openCreate}>
-          + Nuevo rol
+          <Plus className="h-4 w-4" />
+          Nuevo rol
         </Button>
       </div>
 

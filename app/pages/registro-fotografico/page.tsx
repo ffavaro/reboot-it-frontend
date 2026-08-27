@@ -1,9 +1,11 @@
 "use client"
+import { Plus } from "lucide-react"
 
 import { useState, useEffect } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
@@ -179,8 +181,8 @@ export default function RegistroFotograficoPage() {
         </p>
       </div>
 
-      <div className="flex items-center gap-3">
-        <Input
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchInput
           placeholder="Buscar por lote o ID..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -190,7 +192,8 @@ export default function RegistroFotograficoPage() {
           {filtered.length} registro{filtered.length !== 1 ? "s" : ""}
         </span>
         <Button className="ml-auto" onClick={openCreate}>
-          + Nuevo registro
+          <Plus className="h-4 w-4" />
+          Nuevo registro
         </Button>
       </div>
 

@@ -1,10 +1,12 @@
 "use client"
+import { Plus } from "lucide-react"
 
 import { useState, useEffect } from "react"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { SearchInput } from "@/components/ui/search-input"
 import { DataTable, TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { FieldError } from "@/components/ui/field"
@@ -70,7 +72,7 @@ const COLUMNS: TableColumn<Usuario>[] = [
     key: "nombre",
     header: "Usuario",
     cell: (row) => (
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <AvatarInitials nombre={row.nombre} />
         <span className="font-medium">{row.nombre}</span>
       </div>
@@ -253,14 +255,15 @@ export default function UserManagementPage() {
         </p>
       </div>
 
-      <div className="flex items-center gap-3">
-        <Input
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchInput
           placeholder="Buscar por nombre o email..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
         />
         <Button onClick={openCreate} className="ml-auto">
+          <Plus className="h-4 w-4" />
           Nuevo usuario
         </Button>
       </div>

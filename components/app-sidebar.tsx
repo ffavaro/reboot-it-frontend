@@ -134,7 +134,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar {...props}>
-      <SidebarContent className="gap-0 bg-slate-950">
+      <SidebarContent className="gap-0 bg-slate-900">
         {visibleSections.map((item) => (
           <Collapsible
             key={item.title}
@@ -144,7 +144,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           >
             <SidebarGroup>
               <SidebarGroupLabel
-                className="group/label text-sm text-white hover:bg-red-500 hover:text-white"
+                className="group/label text-sm text-white/70 hover:bg-white/5 hover:text-white"
                 render={<CollapsibleTrigger />}
               >
                 {item.title}{" "}
@@ -161,7 +161,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       <SidebarMenuItem key={subItem.title}>
                         <SidebarMenuButton
                           isActive={pathname === subItem.url}
-                          className="text-white hover:bg-red-500 hover:text-white data-[active=true]:bg-red-500 data-[active=true]:text-white"
+                          className="border-l-2 border-transparent text-white/80 hover:border-red-500/50 hover:bg-white/5 hover:text-white data-[active=true]:border-red-500 data-[active=true]:bg-white/5 data-[active=true]:text-white data-[active=true]:font-medium"
                           render={<a href={subItem.url} />}
                         >
                           {subItem.icon && <subItem.icon className="h-4 w-4 shrink-0" />}

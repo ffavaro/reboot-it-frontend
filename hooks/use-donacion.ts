@@ -1,10 +1,18 @@
 import useSWR from "swr"
 import useSWRMutation from "swr/mutation"
 import { fetcher, donacionApi } from "@/lib/api"
-import type { Donacion, CreateDonacionPayload, UpdateDonacionPayload } from "@/lib/type/donacion"
+import type { Donacion, CreateDonacionPayload, UpdateDonacionPayload, ReporteDonacion, ReporteDonacionQuery } from "@/lib/type/donacion"
 
 export function useDonaciones() {
   const { data, isLoading, error, mutate } = useSWR<Donacion[]>("/donacion", fetcher)
+  return { donaciones: data ?? [], isLoading, error, mutate }
+}
+
+export function useDonacionReporte(params: ReporteDonacionQuery) {
+  const { data, isLoading, error, mutate } = useSWR<ReporteDonacion[]>(
+    ["/donacion/reporte", params],
+    () => donacionApi.getReporte(params),
+  )
   return { donaciones: data ?? [], isLoading, error, mutate }
 }
 

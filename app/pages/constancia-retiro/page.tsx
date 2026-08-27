@@ -1,9 +1,11 @@
 "use client"
+import { Plus } from "lucide-react"
 
 import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { SearchInput } from "@/components/ui/search-input"
 import { FormModal } from "@/components/ui/form-modal"
 import { DataTable, TableColumn } from "@/components/ui/data-table"
 import {
@@ -172,8 +174,8 @@ export default function ConstanciaRetiroPage() {
         </p>
       </div>
 
-      <div className="flex items-center gap-3">
-        <Input
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchInput
           placeholder="Buscar por retiro, técnico u observaciones..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -184,7 +186,8 @@ export default function ConstanciaRetiroPage() {
         </span>
         {!isDonante && (
           <Button className="ml-auto" onClick={openCreate}>
-            + Nueva constancia
+            <Plus className="h-4 w-4" />
+            Nueva constancia
           </Button>
         )}
       </div>
