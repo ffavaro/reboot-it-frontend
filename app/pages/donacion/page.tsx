@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ChevronLeft, ChevronRight, Truck, Building2, AlertTriangle } from "lucide-react"
+import { ChevronLeft, ChevronRight, Truck, Building2, AlertTriangle, Plus } from "lucide-react"
 import type { TokenPayload } from "@/lib/auth-utils"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { SearchInput } from "@/components/ui/search-input"
 import { FormModal } from "@/components/ui/form-modal"
 import { DataTable, TableColumn } from "@/components/ui/data-table"
 import {
@@ -430,8 +431,8 @@ export default function DonacionPage() {
         </p>
       </div>
 
-      <div className="flex items-center gap-3">
-        <Input
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchInput
           placeholder="Buscar por donante, estado o descripción..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -441,7 +442,8 @@ export default function DonacionPage() {
           {filtered.length} donación{filtered.length !== 1 ? "es" : ""}
         </span>
         <Button className="ml-auto" onClick={openCreate}>
-          + Nueva donación
+          <Plus className="h-4 w-4" />
+          Nueva donación
         </Button>
       </div>
 

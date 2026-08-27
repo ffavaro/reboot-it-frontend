@@ -111,17 +111,17 @@ export default function AgendaPage() {
       </div>
 
       {/* Leyenda */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <span className="text-xs font-medium text-muted-foreground">Estado:</span>
+      <div className="flex items-center gap-2 flex-wrap rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-3">
+        <span className="text-xs font-medium text-muted-foreground mr-1">Estado:</span>
         {Object.entries(COLORES_ESTADO).map(([label, c]) => (
-          <span key={label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className={`h-2 w-2 rounded-full ${c.dot}`} />
-            <span className="capitalize">{label}</span>
+          <span key={label} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium capitalize ${c.bg} ${c.text}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${c.dot}`} />
+            {label}
           </span>
         ))}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-3">
         <Button variant="outline" size="icon" onClick={semanaAnterior}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -137,24 +137,24 @@ export default function AgendaPage() {
         </span>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
+      <div className="rounded-2xl bg-card shadow-sm ring-1 ring-foreground/5 overflow-hidden">
         {/* Cabecera fija con los días */}
-        <div className="flex border-b">
-          <div className="w-16 shrink-0 border-r bg-muted/50" />
-          <div className="flex-1 grid grid-cols-5 bg-muted/50">
+        <div className="flex border-b border-border/60">
+          <div className="w-16 shrink-0 border-r border-border/60 bg-muted/40" />
+          <div className="flex-1 grid grid-cols-5 bg-muted/40">
             {diasSemana.map((dia, i) => {
               const esHoy = mismoDia(dia, hoy)
               return (
                 <div
                   key={i}
-                  className={`py-1.5 text-center border-r last:border-r-0${esHoy ? " bg-primary/10" : ""}`}
+                  className={`py-1.5 text-center border-r border-border/60 last:border-r-0${esHoy ? " bg-primary/10" : ""}`}
                 >
                   <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     {DIAS_SEMANA[i]}
                   </div>
                   <div
                     className={`mx-auto mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold${
-                      esHoy ? " bg-primary text-primary-foreground" : ""
+                      esHoy ? " bg-primary text-primary-foreground shadow-sm shadow-primary/30" : ""
                     }`}
                   >
                     {dia.getDate()}
@@ -169,7 +169,7 @@ export default function AgendaPage() {
         <div className="flex overflow-y-auto" style={{ maxHeight: "560px" }}>
           {/* Columna de horas */}
           <div
-            className="relative w-16 shrink-0 border-r bg-background"
+            className="relative w-16 shrink-0 border-r border-border/60 bg-background"
             style={{ height: `${TOTAL_H}px` }}
           >
             {HORAS.map((hora) => (
@@ -215,7 +215,7 @@ export default function AgendaPage() {
               return (
                 <div
                   key={i}
-                  className={`relative border-r last:border-r-0${esHoy ? " bg-primary/5" : ""}`}
+                  className={`relative border-r border-border/60 last:border-r-0${esHoy ? " bg-primary/5" : ""}`}
                 >
                   {items.map((t) => {
                     const top = topPx(t.fechaHora)
@@ -227,7 +227,7 @@ export default function AgendaPage() {
                       <button
                         key={t.id}
                         onClick={() => { setSeleccionado(t); setModalOpen(true) }}
-                        className={`absolute left-1 right-1 rounded-md px-1.5 py-1 text-left text-xs overflow-hidden cursor-pointer border-l-2 transition-opacity hover:opacity-75 ${c.bg} ${c.text} ${c.borde}`}
+                        className={`absolute left-1 right-1 rounded-lg px-1.5 py-1 text-left text-xs overflow-hidden cursor-pointer border-l-2 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${c.bg} ${c.text} ${c.borde}`}
                         style={{ top: `${top}px`, height: `${height}px` }}
                       >
                         <div className="font-semibold leading-tight truncate">

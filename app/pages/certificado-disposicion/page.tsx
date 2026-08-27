@@ -1,10 +1,12 @@
 "use client"
+import { Plus } from "lucide-react"
 
 import { useState, useEffect } from "react"
 import type { TokenPayload } from "@/lib/auth-utils"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { SearchInput } from "@/components/ui/search-input"
 import { FormModal } from "@/components/ui/form-modal"
 import { DateInput } from "@/components/ui/date-input"
 import {
@@ -197,8 +199,8 @@ export default function CertificadoDisposicionPage() {
         </p>
       </div>
 
-      <div className="flex items-center gap-3">
-        <Input
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchInput
           placeholder="Buscar por número, gestor o lote..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -209,7 +211,8 @@ export default function CertificadoDisposicionPage() {
         </span>
         {!isDonante && (
           <Button  className="ml-auto" onClick={openCreate}>
-            + Nuevo certificado
+            <Plus className="h-4 w-4" />
+            Nuevo certificado
           </Button>
         )}
       </div>

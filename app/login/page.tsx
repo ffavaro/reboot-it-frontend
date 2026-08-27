@@ -9,7 +9,7 @@ export default function LoginPages() {
     <div className="grid h-screen lg:grid-cols-2">
         <div className="hidden lg:block w-full h-full overflow-hidden bg-black">
         <img
-          src="../../img/logo_reboot_it.png"
+          src="../../img/logo_Reboot_IT.png"
           alt="Ilustración de Reboot IT"
           className="w-full h-full object-cover"
         />

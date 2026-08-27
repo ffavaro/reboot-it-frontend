@@ -1,9 +1,11 @@
 "use client"
+import { Plus } from "lucide-react"
 
 import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
@@ -143,8 +145,8 @@ export default function ClasificacionPage() {
         </p>
       </div>
 
-      <div className="flex items-center gap-3">
-        <Input
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchInput
           placeholder="Buscar por lote o empleado..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -154,7 +156,8 @@ export default function ClasificacionPage() {
           {filtered.length} clasificación{filtered.length !== 1 ? "es" : ""}
         </span>
         <Button className="ml-auto" onClick={openCreate}>
-          + Nueva clasificación
+          <Plus className="h-4 w-4" />
+          Nueva clasificación
         </Button>
       </div>
 

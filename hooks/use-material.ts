@@ -1,10 +1,18 @@
 import useSWR from "swr"
 import useSWRMutation from "swr/mutation"
 import { fetcher, materialApi } from "@/lib/api"
-import type { Material, CreateMaterialPayload, UpdateMaterialPayload, ClasificarMaterialPayload } from "@/lib/type/material"
+import type { Material, CreateMaterialPayload, UpdateMaterialPayload, ClasificarMaterialPayload, ReporteInventario, ReporteInventarioQuery } from "@/lib/type/material"
 
 export function useMateriales() {
   const { data, isLoading, error, mutate } = useSWR<Material[]>("/material", fetcher)
+  return { materiales: data ?? [], isLoading, error, mutate }
+}
+
+export function useMaterialReporte(params: ReporteInventarioQuery) {
+  const { data, isLoading, error, mutate } = useSWR<ReporteInventario[]>(
+    ["/material/reporte", params],
+    () => materialApi.getReporte(params),
+  )
   return { materiales: data ?? [], isLoading, error, mutate }
 }
 

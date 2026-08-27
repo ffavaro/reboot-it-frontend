@@ -4,6 +4,7 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useDonantes } from "@/hooks/use-donantes"
 import { useEstadosDonacion } from "@/hooks/use-estado-donacion"
 import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
@@ -13,9 +14,6 @@ import type { EstadoDonacion } from "@/lib/type/donacion"
 import type { Donante } from "@/lib/type/donante"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import { formatDate, formatDateTime } from "@/lib/utils/helpers"
-
-const SELECT_CLASS =
-  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 
 export default function ReporteRetirosPage() {
   const { donantes } = useDonantes()
@@ -108,7 +106,7 @@ export default function ReporteRetirosPage() {
         </div>
 
         {/* Panel de filtros */}
-        <div className="no-print rounded-xl border p-4 bg-card flex flex-col gap-4">
+        <div className="no-print rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4 flex flex-col gap-4">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             Filtros
           </p>
@@ -117,67 +115,70 @@ export default function ReporteRetirosPage() {
             {/* Donante */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Donante</label>
-              <select
-                value={filters.donanteId ?? ""}
-                onChange={(e) =>
-                  setFilters((f) => ({
-                    ...f,
-                    donanteId: e.target.value ? Number(e.target.value) : undefined,
-                  }))
+              <Select
+                value={filters.donanteId ? String(filters.donanteId) : ""}
+                onValueChange={(v) =>
+                  setFilters((f) => ({ ...f, donanteId: v ? Number(v) : undefined }))
                 }
-                className={SELECT_CLASS}
               >
-                <option value="">Todos los donantes</option>
-                {donantes.map((d: Donante) => (
-                  <option key={d.id} value={d.id}>
-                    {d.nombre}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todos los donantes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos los donantes</SelectItem>
+                  {donantes.map((d: Donante) => (
+                    <SelectItem key={d.id} value={String(d.id)}>
+                      {d.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Transportista */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Transportista</label>
-              <select
-                value={filters.empleadoTransportistaId ?? ""}
-                onChange={(e) =>
-                  setFilters((f) => ({
-                    ...f,
-                    empleadoTransportistaId: e.target.value ? Number(e.target.value) : undefined,
-                  }))
+              <Select
+                value={filters.empleadoTransportistaId ? String(filters.empleadoTransportistaId) : ""}
+                onValueChange={(v) =>
+                  setFilters((f) => ({ ...f, empleadoTransportistaId: v ? Number(v) : undefined }))
                 }
-                className={SELECT_CLASS}
               >
-                <option value="">Todos los transportistas</option>
-                {transportistas.map((t: EmpleadoTransportista) => (
-                  <option key={t.id} value={t.id}>
-                    {transportistaNombre(t)}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todos los transportistas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos los transportistas</SelectItem>
+                  {transportistas.map((t: EmpleadoTransportista) => (
+                    <SelectItem key={t.id} value={String(t.id)}>
+                      {transportistaNombre(t)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Estado de la donación */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Estado de la donación</label>
-              <select
-                value={filters.estadoDonacionId ?? ""}
-                onChange={(e) =>
-                  setFilters((f) => ({
-                    ...f,
-                    estadoDonacionId: e.target.value ? Number(e.target.value) : undefined,
-                  }))
+              <Select
+                value={filters.estadoDonacionId ? String(filters.estadoDonacionId) : ""}
+                onValueChange={(v) =>
+                  setFilters((f) => ({ ...f, estadoDonacionId: v ? Number(v) : undefined }))
                 }
-                className={SELECT_CLASS}
               >
-                <option value="">Todos los estados</option>
-                {estadosDonacion.map((e: EstadoDonacion) => (
-                  <option key={e.id} value={e.id}>
-                    {e.descripcion}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todos los estados" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos los estados</SelectItem>
+                  {estadosDonacion.map((e: EstadoDonacion) => (
+                    <SelectItem key={e.id} value={String(e.id)}>
+                      {e.descripcion}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Fecha desde */}
@@ -237,10 +238,10 @@ export default function ReporteRetirosPage() {
                 No se encontraron retiros con los filtros seleccionados.
               </p>
             ) : (
-              <div className="overflow-x-auto rounded-xl border">
+              <div className="overflow-x-auto rounded-xl bg-card shadow-sm ring-1 ring-foreground/5">
                 <table className="w-full text-sm report-table">
                   <thead>
-                    <tr className="border-b bg-muted/50">
+                    <tr className="border-b border-border/60 bg-muted/60">
                       <th className="p-3 text-left font-medium">#</th>
                       <th className="p-3 text-left font-medium">Donante</th>
                       <th className="p-3 text-left font-medium">Donación</th>
@@ -254,7 +255,7 @@ export default function ReporteRetirosPage() {
                   </thead>
                   <tbody>
                     {result.map((r) => (
-                      <tr key={r.id} className="border-b last:border-0 hover:bg-muted/30">
+                      <tr key={r.id} className="border-b border-border/60 last:border-0 hover:bg-muted/40">
                         {/* ID */}
                         <td className="p-3 font-mono text-xs text-muted-foreground">#{r.id}</td>
 

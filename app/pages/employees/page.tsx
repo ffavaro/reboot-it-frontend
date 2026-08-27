@@ -1,10 +1,12 @@
 "use client"
+import { Plus } from "lucide-react"
 
 import { useState } from "react"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { FieldError } from "@/components/ui/field"
@@ -42,7 +44,7 @@ const COLUMNS: TableColumn<Empleado>[] = [
     key: "nombre",
     header: "Empleado",
     cell: (emp) => (
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <AvatarInitials nombre={emp.nombre} apellido={emp.apellido} />
         <span className="font-medium">{emp.nombre} {emp.apellido}</span>
       </div>
@@ -186,8 +188,8 @@ export default function EmployeePage() {
         </p>
       </div>
 
-      <div className="flex items-center gap-3">
-        <Input
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchInput
           placeholder="Buscar por nombre, apellido o cargo..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -197,7 +199,8 @@ export default function EmployeePage() {
           {filtered.length} empleado{filtered.length !== 1 ? "s" : ""}
         </span>
         <Button className="ml-auto" onClick={openCreate}>
-          + Nuevo empleado
+          <Plus className="h-4 w-4" />
+          Nuevo empleado
         </Button>
       </div>
 

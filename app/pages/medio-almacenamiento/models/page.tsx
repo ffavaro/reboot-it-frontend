@@ -1,9 +1,11 @@
 "use client"
+import { Plus } from "lucide-react"
 
 import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { useModelos, useCreateModelo, useUpdateModelo, useDeleteModelo } from "@/hooks/use-modelo"
@@ -119,8 +121,8 @@ export default function ModelosPage() {
         </p>
       </div>
 
-      <div className="flex items-center gap-3">
-        <Input
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchInput
           placeholder="Buscar por nombre, marca o tipo..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -130,7 +132,8 @@ export default function ModelosPage() {
           {filtered.length} modelo{filtered.length !== 1 ? "s" : ""}
         </span>
         <Button className="ml-auto" onClick={openCreate}>
-          + Nuevo modelo
+          <Plus className="h-4 w-4" />
+          Nuevo modelo
         </Button>
       </div>
 

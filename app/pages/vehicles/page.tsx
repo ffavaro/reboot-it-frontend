@@ -1,10 +1,12 @@
 "use client"
+import { Plus } from "lucide-react"
 
 import { useState } from "react"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
@@ -143,15 +145,16 @@ function VehiculosTab() {
 
   return (
     <>
-      <div className="flex items-center gap-3">
-        <Input
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchInput
           placeholder="Buscar por patente, marca o modelo..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
         />
         <Button className="ml-auto" onClick={openCreate}>
-          + Nuevo vehículo
+          <Plus className="h-4 w-4" />
+          Nuevo vehículo
         </Button>
       </div>
 
@@ -323,7 +326,8 @@ function TiposTab() {
     <>
       <div className="flex items-center">
         <Button className="ml-auto" onClick={openCreate}>
-          + Nuevo tipo
+          <Plus className="h-4 w-4" />
+          Nuevo tipo
         </Button>
       </div>
 

@@ -120,7 +120,7 @@ export default function PerfilPage() {
       </div>
 
       {/* Datos de cuenta — solo lectura */}
-      <div className="rounded-2xl border border-border p-5 flex flex-col gap-3">
+      <div className="rounded-2xl bg-card shadow-sm ring-1 ring-foreground/5 p-5 flex flex-col gap-3">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
           Datos de cuenta
         </h2>
@@ -144,15 +144,15 @@ export default function PerfilPage() {
 
       {/* Datos editables */}
       {notFound ? (
-        <div className="rounded-2xl border border-border p-5 text-sm text-muted-foreground">
+        <div className="rounded-2xl bg-card shadow-sm ring-1 ring-foreground/5 p-5 text-sm text-muted-foreground">
           No se encontró un perfil de donante asociado a tu cuenta.
         </div>
       ) : !donante ? (
-        <div className="rounded-2xl border border-border p-5 text-sm text-muted-foreground">
+        <div className="rounded-2xl bg-card shadow-sm ring-1 ring-foreground/5 p-5 text-sm text-muted-foreground">
           Cargando perfil...
         </div>
       ) : (
-        <div className="rounded-2xl border border-border p-5 flex flex-col gap-4">
+        <div className="rounded-2xl bg-card shadow-sm ring-1 ring-foreground/5 p-5 flex flex-col gap-4">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             Datos de donante
           </h2>
@@ -160,7 +160,7 @@ export default function PerfilPage() {
           {/* Nombre o Razón Social según tipo */}
           {usesRazonSocial ? (
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">
                 Razón Social
               </label>
               <Input
@@ -176,7 +176,7 @@ export default function PerfilPage() {
             </div>
           ) : (
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">
                 Nombre Completo
               </label>
               <Input
@@ -194,7 +194,7 @@ export default function PerfilPage() {
 
           {/* Dirección */}
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
+            <label className="block text-xs font-semibold text-muted-foreground mb-1">
               Dirección
             </label>
             <Input
@@ -211,8 +211,8 @@ export default function PerfilPage() {
 
           {/* Teléfono */}
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
-              Teléfono <span className="font-normal text-gray-400">(opcional)</span>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1">
+              Teléfono <span className="font-normal text-muted-foreground/70">(opcional)</span>
             </label>
             <Input
               name="telefono"
