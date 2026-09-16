@@ -13,10 +13,20 @@ import { FormModal } from "@/components/ui/form-modal"
 import { FieldError } from "@/components/ui/field"
 import { useRacks, useCreateRack, useUpdateRack, useDeleteRack } from "@/hooks/use-rack"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import { required } from "@/lib/form-validators"
+import { required, maxLength as maxLengthValidator } from "@/lib/form-validators"
+import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { Rack } from "@/lib/type/rack"
 
 const EMPTY_FORM = { codigo: "", ubicacion: "" }
+
+function generateRackCodigo(racks: Rack[]): string {
+  const maxNumero = racks.reduce((max, r) => {
+    const match = r.codigo.match(/(\d+)$/)
+    const numero = match ? parseInt(match[1], 10) : 0
+    return Math.max(max, numero)
+  }, 0)
+  return `RACK-${String(maxNumero + 1).padStart(3, "0")}`
+}
 
 const columns: TableColumn<Rack>[] = [
   {
@@ -64,7 +74,7 @@ export default function RackPage() {
   function openCreate() {
     setIsViewing(false)
     setEditing(null)
-    setForm(EMPTY_FORM)
+    setForm({ ...EMPTY_FORM, codigo: generateRackCodigo(racks) })
     reset()
     setModalOpen(true)
   }
@@ -86,11 +96,14 @@ export default function RackPage() {
   }
 
   async function handleSave() {
-    if (!validate(form, { codigo: [required("el código")] })) return
+    if (!validate(form, {
+      codigo: [required("el código")],
+      ubicacion: [required("la ubicación"), maxLengthValidator(DEFAULT_TEXT_MAX)],
+    })) return
     try {
       const payload = {
         codigo: form.codigo.trim(),
-        ubicacion: form.ubicacion.trim() || undefined,
+        ubicacion: form.ubicacion.trim(),
       }
       if (editing) {
         await updateRack({ id: editing.id, ...payload })
@@ -115,6 +128,8 @@ export default function RackPage() {
       toast.error("Error al eliminar el rack")
     }
   }
+
+  const canSave = !!form.ubicacion.trim()
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -167,14 +182,16 @@ export default function RackPage() {
         }
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
+        saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear rack"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Código</label>
+          <label className="text-sm font-medium">
+            Código <span className="text-muted-foreground font-normal">(autogenerado)</span>
+          </label>
           <Input
             value={form.codigo}
-            onChange={(e) => set("codigo", e.target.value)}
-            placeholder="Ej: RACK-A1, R-001..."
+            disabled
             maxLength={50}
             className={cn(errors.codigo && "border-destructive focus-visible:ring-destructive")}
           />
@@ -182,15 +199,14 @@ export default function RackPage() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
-            Ubicación <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
+          <label className="text-sm font-medium">Ubicación *</label>
           <Input
             value={form.ubicacion}
-            onChange={(e) => set("ubicacion", e.target.value)}
+            onChange={(e) => set("ubicacion", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La ubicación"))}
             placeholder="Ej: Depósito A, Sector 2, Pasillo 3..."
-            maxLength={150}
+            className={cn(errors.ubicacion && "border-destructive focus-visible:ring-destructive")}
           />
+          <FieldError>{errors.ubicacion}</FieldError>
         </div>
       </FormModal>
     </div>

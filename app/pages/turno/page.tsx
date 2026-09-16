@@ -18,6 +18,8 @@ import {
   useFinalizarTurno,
 } from "@/hooks/use-turno"
 import { useDonantes } from "@/hooks/use-donantes"
+import { useDonaciones } from "@/hooks/use-donacion"
+import { useUsuarios } from "@/hooks/use-users"
 import { useEstadosTurno } from "@/hooks/use-estado-turno"
 import { useEmpleadosFull } from "@/hooks/use-employees"
 import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
@@ -28,12 +30,13 @@ import {
 import { uploadFoto } from "@/lib/api/client"
 import type { Turno, TurnoDetalle } from "@/lib/type/turno"
 import type { Donante } from "@/lib/type/donante"
+import type { Donacion } from "@/lib/type/donacion"
 import type { EstadoTurno } from "@/lib/type/estado-turno"
 import type { Empleado } from "@/lib/type/user"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import { getUser } from "@/lib/auth-utils"
 import type { TokenPayload } from "@/lib/auth-utils"
-import { formatDateTime } from "@/lib/utils/helpers"
+import { formatDateTime, getTransportistaActual } from "@/lib/utils/helpers"
 
 const EMPTY_FORM = { donanteId: "", estadoTurnoId: "", fechaHora: "", descripcion: "" }
 const EMPTY_ASIGNAR = { empleadoId: "", empleadoTransportistaId: "" }
@@ -99,6 +102,8 @@ function EmpleadoAsignadoBadge({ turno }: { turno: Turno }) {
 export default function TurnoPage() {
   const { turnos, isLoading, mutate } = useTurnos()
   const { donantes } = useDonantes()
+  const { donaciones } = useDonaciones()
+  const { usuarios } = useUsuarios()
   const { estadosTurno } = useEstadosTurno()
   const { empleados } = useEmpleadosFull()
   const { transportistas } = useEmpleadosTransportistas()
@@ -139,14 +144,11 @@ export default function TurnoPage() {
   }, [fotoPreviewUrl])
 
   const isDonante = user?.rol?.nombre?.toLowerCase() === "donante"
-  const isTransportista = user?.rol?.nombre?.toLowerCase() === "transportista"
+  const { isTransportista, myTransportista } = getTransportistaActual(usuarios, transportistas)
   const isReadOnly = isDonante || isTransportista
 
   const myDonante = isDonante
     ? donantes.find((d: Donante) => d.usuarioId === user?.id) ?? null
-    : null
-  const myTransportista = isTransportista
-    ? transportistas.find((et: EmpleadoTransportista) => et.empleado?.usuarioId === user?.id) ?? null
     : null
 
   const visibleTurnos = isDonante
@@ -441,6 +443,32 @@ export default function TurnoPage() {
     if (!needsRetiro && !asignarForm.empleadoId) {
       toast.error("Seleccioná un empleado")
       return
+    }
+
+    if (needsRetiro && asignarForm.empleadoTransportistaId) {
+      const transportista = transportistas.find(
+        (t: EmpleadoTransportista) => String(t.id) === asignarForm.empleadoTransportistaId,
+      )
+      const tipoVehiculo = transportista?.vehiculo?.tipoVehiculo
+      const donacion = asignando.donacionId
+        ? donaciones.find((d: Donacion) => d.id === asignando.donacionId)
+        : null
+      const pesoEstimado = donacion?.pesoEstimadoKg
+
+      if (tipoVehiculo?.pesoMinimo != null && tipoVehiculo?.pesoMaximo != null && pesoEstimado != null) {
+        // pesoMinimo/pesoMaximo/pesoEstimado llegan como string desde columnas DECIMAL de MySQL:
+        // comparar sin convertir a Number hace comparación lexicográfica ("85.00" > "150.00" == true)
+        const pesoEstimadoNum = Number(pesoEstimado)
+        const pesoMinimoNum = Number(tipoVehiculo.pesoMinimo)
+        const pesoMaximoNum = Number(tipoVehiculo.pesoMaximo)
+        if (pesoEstimadoNum < pesoMinimoNum || pesoEstimadoNum > pesoMaximoNum) {
+          toast.error(
+            `El vehículo de este transportista soporta entre ${pesoMinimoNum} y ${pesoMaximoNum} kg, ` +
+            `y la donación tiene un peso estimado de ${pesoEstimadoNum} kg. Elegí otro transportista o vehículo.`
+          )
+          return
+        }
+      }
     }
 
     try {

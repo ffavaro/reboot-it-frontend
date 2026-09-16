@@ -17,7 +17,8 @@ import {
   useDeleteTipoMaterial,
 } from "@/hooks/use-tipo-material"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import { required } from "@/lib/form-validators"
+import { required, maxLength as maxLengthValidator } from "@/lib/form-validators"
+import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { TipoMaterial } from "@/lib/type/tipo-material"
 import type { TableColumn } from "@/components/ui/data-table"
 
@@ -90,7 +91,10 @@ export default function TipoMaterialPage() {
   }
 
   async function handleSave() {
-    if (!validate(form, { nombre: [required("el nombre")] })) return
+    if (!validate(form, {
+      nombre: [required("el nombre"), maxLengthValidator(DEFAULT_TEXT_MAX)],
+      descripcion: [maxLengthValidator(DEFAULT_TEXT_MAX)],
+    })) return
     try {
       const payload = {
         nombre: form.nombre.trim(),
@@ -119,6 +123,8 @@ export default function TipoMaterialPage() {
       toast.error("Error al eliminar el tipo de material")
     }
   }
+
+  const canSave = !!form.nombre.trim()
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -171,15 +177,15 @@ export default function TipoMaterialPage() {
         }
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
+        saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear tipo"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Nombre</label>
+          <label className="text-sm font-medium">Nombre *</label>
           <Input
             value={form.nombre}
-            onChange={(e) => set("nombre", e.target.value)}
+            onChange={(e) => set("nombre", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"))}
             placeholder="Ej: Electrónico, Eléctrico, Batería..."
-            maxLength={100}
             className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
           />
           <FieldError>{errors.nombre}</FieldError>
@@ -191,10 +197,10 @@ export default function TipoMaterialPage() {
           </label>
           <Input
             value={form.descripcion}
-            onChange={(e) => set("descripcion", e.target.value)}
+            onChange={(e) => set("descripcion", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción"))}
             placeholder="Breve descripción del tipo de material"
-            maxLength={255}
           />
+          <FieldError>{errors.descripcion}</FieldError>
         </div>
       </FormModal>
     </div>

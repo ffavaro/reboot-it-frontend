@@ -22,13 +22,19 @@ import {
   useDeleteTipoVehiculo,
 } from "@/hooks/use-vehicles"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import { required, requiredSelect } from "@/lib/form-validators"
+import { required, requiredSelect, maxLength as maxLengthValidator, positiveNumber, maxDigits } from "@/lib/form-validators"
+import { enforceMaxLength } from "@/lib/utils/text-limit"
+import { enforceDecimalInput } from "@/lib/utils/number-limit"
 import type { Vehiculo, TipoVehiculo } from "@/lib/type/vehicle"
 
 type Tab = "vehiculos" | "tipos"
 
+const DESCRIPCION_MAX = 35
+const PESO_MINIMO_MAX_DIGITS = 2
+const PESO_MAXIMO_MAX_DIGITS = 3
+
 const EMPTY_VEHICULO = { tipoVehiculoId: 0, patente: "", marca: "", modelo: "" }
-const EMPTY_TIPO = { descripcion: "" }
+const EMPTY_TIPO = { descripcion: "", pesoMinimo: "", pesoMaximo: "" }
 
 // ---------------------------------------------------------------------------
 // Vehículos tab
@@ -63,17 +69,27 @@ const vehiculoColumns: TableColumn<Vehiculo>[] = [
 
 function VehiculosTab() {
   const { vehiculos, isLoading, mutate } = useVehiculos()
-  const { tipos } = useTipoVehiculos()
+  const { tipos, mutate: mutateTipos } = useTipoVehiculos()
   const { createVehiculo, isLoading: isCreating } = useCreateVehiculo()
   const { updateVehiculo, isLoading: isUpdating } = useUpdateVehiculo()
   const { deleteVehiculo, isLoading: isDeleting } = useDeleteVehiculo()
+  const { createTipo, isLoading: isCreatingTipo } = useCreateTipoVehiculo()
   const { errors, validate, clearError, reset } = useFormErrors<typeof EMPTY_VEHICULO>()
+  const {
+    errors: tipoErrors,
+    validate: validateTipo,
+    clearError: clearTipoError,
+    reset: resetTipoErrors,
+  } = useFormErrors<typeof EMPTY_TIPO>()
 
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Vehiculo | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_VEHICULO)
+
+  const [quickTipoOpen, setQuickTipoOpen] = useState(false)
+  const [quickTipoForm, setQuickTipoForm] = useState(EMPTY_TIPO)
 
   const filtered = vehiculos.filter(
     (v) =>
@@ -142,6 +158,43 @@ function VehiculosTab() {
       toast.error("Error al eliminar el vehículo")
     }
   }
+
+  function openQuickTipo() {
+    setQuickTipoForm(EMPTY_TIPO)
+    resetTipoErrors()
+    setQuickTipoOpen(true)
+  }
+
+  async function handleSaveQuickTipo() {
+    if (!validateTipo(quickTipoForm, {
+      descripcion: [required("la descripción"), maxLengthValidator(DESCRIPCION_MAX)],
+      pesoMinimo: [positiveNumber(), maxDigits(PESO_MINIMO_MAX_DIGITS)],
+      pesoMaximo: [positiveNumber(), maxDigits(PESO_MAXIMO_MAX_DIGITS)],
+    })) return
+    if (
+      quickTipoForm.pesoMinimo !== "" &&
+      quickTipoForm.pesoMaximo !== "" &&
+      Number(quickTipoForm.pesoMinimo) > Number(quickTipoForm.pesoMaximo)
+    ) {
+      toast.error("El peso mínimo no puede ser mayor al peso máximo")
+      return
+    }
+    try {
+      const nuevo = await createTipo({
+        descripcion: quickTipoForm.descripcion.trim(),
+        pesoMinimo: quickTipoForm.pesoMinimo !== "" ? Number(quickTipoForm.pesoMinimo) : undefined,
+        pesoMaximo: quickTipoForm.pesoMaximo !== "" ? Number(quickTipoForm.pesoMaximo) : undefined,
+      })
+      await mutateTipos()
+      if (nuevo) set("tipoVehiculoId", nuevo.id)
+      toast.success("Tipo de vehículo creado")
+      setQuickTipoOpen(false)
+    } catch {
+      toast.error("Error al crear el tipo de vehículo")
+    }
+  }
+
+  const canSaveQuickTipo = !!quickTipoForm.descripcion.trim()
 
   return (
     <>
@@ -224,23 +277,105 @@ function VehiculosTab() {
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Tipo de vehículo</label>
-          <select
-            value={form.tipoVehiculoId}
-            onChange={(e) => set("tipoVehiculoId", Number(e.target.value))}
-            className={cn(
-              "w-full rounded-4xl border bg-background px-3 py-2 text-sm",
-              "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0",
-              errors.tipoVehiculoId ? "border-destructive" : "border-input",
+          <div className="flex gap-2">
+            <select
+              value={form.tipoVehiculoId}
+              onChange={(e) => set("tipoVehiculoId", Number(e.target.value))}
+              className={cn(
+                "w-full rounded-4xl border bg-background px-3 py-2 text-sm",
+                "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0",
+                errors.tipoVehiculoId ? "border-destructive" : "border-input",
+              )}
+            >
+              <option value={0}>— Seleccionar tipo —</option>
+              {tipos.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.descripcion}
+                </option>
+              ))}
+            </select>
+            {!isViewing && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                title="No está en la lista: crear nuevo tipo de vehículo"
+                onClick={openQuickTipo}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
             )}
-          >
-            <option value={0}>— Seleccionar tipo —</option>
-            {tipos.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.descripcion}
-              </option>
-            ))}
-          </select>
+          </div>
           <FieldError>{errors.tipoVehiculoId}</FieldError>
+        </div>
+      </FormModal>
+
+      {/* Alta rápida de tipo de vehículo */}
+      <FormModal
+        open={quickTipoOpen}
+        onOpenChange={setQuickTipoOpen}
+        title="Nuevo tipo de vehículo"
+        description="Cargá los datos del tipo para asociarlo al vehículo."
+        onSave={handleSaveQuickTipo}
+        isLoading={isCreatingTipo}
+        saveDisabled={!canSaveQuickTipo}
+        saveLabel="Crear tipo"
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Descripción *</label>
+          <Input
+            value={quickTipoForm.descripcion}
+            onChange={(e) => {
+              setQuickTipoForm((f) => ({
+                ...f,
+                descripcion: enforceMaxLength(e.target.value, DESCRIPCION_MAX, "La descripción"),
+              }))
+              clearTipoError("descripcion")
+            }}
+            placeholder="Ej: Camión, Camioneta, Auto..."
+            className={cn(tipoErrors.descripcion && "border-destructive focus-visible:ring-destructive")}
+          />
+          <FieldError>{tipoErrors.descripcion}</FieldError>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Peso mínimo (kg) <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            inputMode="decimal"
+            placeholder="Ej: 10"
+            value={quickTipoForm.pesoMinimo}
+            onChange={(e) => {
+              setQuickTipoForm((f) => ({
+                ...f,
+                pesoMinimo: enforceDecimalInput(e.target.value, PESO_MINIMO_MAX_DIGITS, "El peso mínimo"),
+              }))
+              clearTipoError("pesoMinimo")
+            }}
+            className={cn(tipoErrors.pesoMinimo && "border-destructive focus-visible:ring-destructive")}
+          />
+          <FieldError>{tipoErrors.pesoMinimo}</FieldError>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Peso máximo (kg) <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            inputMode="decimal"
+            placeholder="Ej: 90"
+            value={quickTipoForm.pesoMaximo}
+            onChange={(e) => {
+              setQuickTipoForm((f) => ({
+                ...f,
+                pesoMaximo: enforceDecimalInput(e.target.value, PESO_MAXIMO_MAX_DIGITS, "El peso máximo"),
+              }))
+              clearTipoError("pesoMaximo")
+            }}
+            className={cn(tipoErrors.pesoMaximo && "border-destructive focus-visible:ring-destructive")}
+          />
+          <FieldError>{tipoErrors.pesoMaximo}</FieldError>
         </div>
       </FormModal>
     </>
@@ -256,6 +391,24 @@ const tipoVehiculoColumns: TableColumn<TipoVehiculo>[] = [
     key: "descripcion",
     header: "Descripción",
     cell: (t) => <span className="font-medium">{t.descripcion}</span>,
+  },
+  {
+    key: "pesoMinimo",
+    header: "Peso mínimo (kg)",
+    cell: (t) => (
+      <span className="text-muted-foreground">
+        {t.pesoMinimo ?? <span className="italic">—</span>}
+      </span>
+    ),
+  },
+  {
+    key: "pesoMaximo",
+    header: "Peso máximo (kg)",
+    cell: (t) => (
+      <span className="text-muted-foreground">
+        {t.pesoMaximo ?? <span className="italic">—</span>}
+      </span>
+    ),
   },
 ]
 
@@ -282,7 +435,11 @@ function TiposTab() {
   function openEdit(t: TipoVehiculo) {
     setIsViewing(false)
     setEditing(t)
-    setForm({ descripcion: t.descripcion })
+    setForm({
+      descripcion: t.descripcion,
+      pesoMinimo: t.pesoMinimo != null ? String(t.pesoMinimo) : "",
+      pesoMaximo: t.pesoMaximo != null ? String(t.pesoMaximo) : "",
+    })
     reset()
     setModalOpen(true)
   }
@@ -290,19 +447,40 @@ function TiposTab() {
   function openView(t: TipoVehiculo) {
     setIsViewing(true)
     setEditing(t)
-    setForm({ descripcion: t.descripcion })
+    setForm({
+      descripcion: t.descripcion,
+      pesoMinimo: t.pesoMinimo != null ? String(t.pesoMinimo) : "",
+      pesoMaximo: t.pesoMaximo != null ? String(t.pesoMaximo) : "",
+    })
     reset()
     setModalOpen(true)
   }
 
   async function handleSave() {
-    if (!validate(form, { descripcion: [required("la descripción")] })) return
+    if (!validate(form, {
+      descripcion: [required("la descripción"), maxLengthValidator(DESCRIPCION_MAX)],
+      pesoMinimo: [positiveNumber(), maxDigits(PESO_MINIMO_MAX_DIGITS)],
+      pesoMaximo: [positiveNumber(), maxDigits(PESO_MAXIMO_MAX_DIGITS)],
+    })) return
+    if (
+      form.pesoMinimo !== "" &&
+      form.pesoMaximo !== "" &&
+      Number(form.pesoMinimo) > Number(form.pesoMaximo)
+    ) {
+      toast.error("El peso mínimo no puede ser mayor al peso máximo")
+      return
+    }
     try {
+      const payload = {
+        descripcion: form.descripcion.trim(),
+        pesoMinimo: form.pesoMinimo !== "" ? Number(form.pesoMinimo) : undefined,
+        pesoMaximo: form.pesoMaximo !== "" ? Number(form.pesoMaximo) : undefined,
+      }
       if (editing) {
-        await updateTipo({ id: editing.id, ...form })
+        await updateTipo({ id: editing.id, ...payload })
         toast.success("Tipo actualizado")
       } else {
-        await createTipo(form)
+        await createTipo(payload)
         toast.success("Tipo creado")
       }
       await mutate()
@@ -321,6 +499,8 @@ function TiposTab() {
       toast.error("Error al eliminar el tipo")
     }
   }
+
+  const canSave = !!form.descripcion.trim()
 
   return (
     <>
@@ -355,18 +535,55 @@ function TiposTab() {
         }
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
+        saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear tipo"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Descripción</label>
+          <label className="text-sm font-medium">Descripción *</label>
           <Input
             value={form.descripcion}
-            onChange={(e) => { setForm({ descripcion: e.target.value }); clearError("descripcion") }}
+            onChange={(e) => {
+              setForm((f) => ({ ...f, descripcion: enforceMaxLength(e.target.value, DESCRIPCION_MAX, "La descripción") }))
+              clearError("descripcion")
+            }}
             placeholder="Ej: Camión, Camioneta, Auto..."
-            maxLength={100}
             className={cn(errors.descripcion && "border-destructive focus-visible:ring-destructive")}
           />
           <FieldError>{errors.descripcion}</FieldError>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Peso mínimo (kg) <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            inputMode="decimal"
+            placeholder="Ej: 10"
+            value={form.pesoMinimo}
+            onChange={(e) => {
+              setForm((f) => ({ ...f, pesoMinimo: enforceDecimalInput(e.target.value, PESO_MINIMO_MAX_DIGITS, "El peso mínimo") }))
+              clearError("pesoMinimo")
+            }}
+            className={cn(errors.pesoMinimo && "border-destructive focus-visible:ring-destructive")}
+          />
+          <FieldError>{errors.pesoMinimo}</FieldError>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Peso máximo (kg) <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            inputMode="decimal"
+            placeholder="Ej: 90"
+            value={form.pesoMaximo}
+            onChange={(e) => {
+              setForm((f) => ({ ...f, pesoMaximo: enforceDecimalInput(e.target.value, PESO_MAXIMO_MAX_DIGITS, "El peso máximo") }))
+              clearError("pesoMaximo")
+            }}
+            className={cn(errors.pesoMaximo && "border-destructive focus-visible:ring-destructive")}
+          />
+          <FieldError>{errors.pesoMaximo}</FieldError>
         </div>
       </FormModal>
     </>

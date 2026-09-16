@@ -16,15 +16,11 @@ export interface CertificadoDisposicion {
 export interface CreateCertificadoDisposicionPayload {
   loteId: number
   gestorAmbientalId: number
-  fechaEmision?: string
-  numeroCertificado?: string
   terminosCondiciones?: string
 }
 
 export interface UpdateCertificadoDisposicionPayload {
   loteId?: number
   gestorAmbientalId?: number
-  fechaEmision?: string | null
-  numeroCertificado?: string | null
   terminosCondiciones?: string | null
 }

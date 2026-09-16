@@ -23,6 +23,12 @@ import { formatDate } from "@/lib/utils/helpers"
 
 const EMPTY_FORM = { loteId: "", fecha: "" }
 
+function todayISO(): string {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+}
+
 const columns: TableColumn<RegistroFotografico>[] = [
   {
     key: "loteId",
@@ -100,7 +106,7 @@ export default function RegistroFotograficoPage() {
   function openCreate() {
     setIsViewing(false)
     setEditing(null)
-    setForm(EMPTY_FORM)
+    setForm({ ...EMPTY_FORM, fecha: todayISO() })
     resetFileState()
     setModalOpen(true)
   }
@@ -133,6 +139,10 @@ export default function RegistroFotograficoPage() {
       toast.error("Seleccioná una foto para el registro")
       return
     }
+    if (!form.loteId) {
+      toast.error("El lote es obligatorio")
+      return
+    }
     setIsUploading(true)
     try {
       let urlImagen = editing?.urlImagen ?? ""
@@ -141,7 +151,7 @@ export default function RegistroFotograficoPage() {
       }
 
       const payload = {
-        loteId: form.loteId ? Number(form.loteId) : undefined,
+        loteId: Number(form.loteId),
         urlImagen,
         fecha: form.fecha || undefined,
       }
@@ -171,6 +181,8 @@ export default function RegistroFotograficoPage() {
       toast.error("Error al eliminar el registro fotográfico")
     }
   }
+
+  const canSave = !!form.loteId && (!!editing || !!selectedFile)
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -232,6 +244,7 @@ export default function RegistroFotograficoPage() {
         }
         onSave={handleSave}
         isLoading={isCreating || isUpdating || isUploading}
+        saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear registro"}
       >
         {/* Foto actual (modo edición/vista) */}
@@ -276,18 +289,16 @@ export default function RegistroFotograficoPage() {
           </div>
         )}
 
-        {/* Lote (opcional) */}
+        {/* Lote */}
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
-            Lote <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
+          <label className="text-sm font-medium">Lote *</label>
           <select
             value={form.loteId}
             onChange={(e) => setForm((f) => ({ ...f, loteId: e.target.value }))}
             disabled={isViewing}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
           >
-            <option value="">Sin lote asignado</option>
+            <option value="">Seleccionar lote...</option>
             {lotes.map((l: Lote) => (
               <option key={l.id} value={l.id}>
                 Lote #{l.id}{l.pesoBrutoKg ? ` — ${l.pesoBrutoKg} kg` : ""}
@@ -297,14 +308,12 @@ export default function RegistroFotograficoPage() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
-            Fecha <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
+          <label className="text-sm font-medium">Fecha</label>
           <Input
             type="date"
             value={form.fecha}
             onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))}
-            disabled={isViewing}
+            disabled={isViewing || !editing}
           />
         </div>
       </FormModal>

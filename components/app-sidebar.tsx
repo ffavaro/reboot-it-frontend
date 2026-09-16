@@ -24,7 +24,7 @@ import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
 import {
   BarChart2, Bookmark, Box, Boxes, CalendarCheck, CalendarDays, Camera, Car,
   Circle, Clock, FileCheck, FileText, HardDrive, Heart,
-  LayoutList, Layers, Leaf, List, Package, PackageOpen,
+  LayoutList, Layers, Leaf, List, MapPin, Package, PackageOpen,
   Server, Shield, Tag, Trash2, Truck, User, UserCog, Users,
 } from "lucide-react"
 import { getUser } from "@/lib/auth-utils"
@@ -55,6 +55,7 @@ const navMain: NavSection[] = [
     items: [
       { title: "Vehiculos", url: "/pages/vehicles", allowedRoles: TRANSPORTISTA, icon: Truck },
       { title: "Retiros", url: "/pages/retiro", allowedRoles: TRANSPORTISTA, icon: PackageOpen },
+      { title: "Hoja de ruta", url: "/pages/hoja-ruta", allowedRoles: TRANSPORTISTA, icon: MapPin },
       { title: "Empleado Transportista", url: "/pages/empleado-transportista", icon: Car },
     ],
   },

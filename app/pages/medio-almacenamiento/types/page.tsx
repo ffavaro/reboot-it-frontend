@@ -9,6 +9,7 @@ import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { useTipos, useCreateTipo, useUpdateTipo, useDeleteTipo } from "@/hooks/use-tipo"
+import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { Tipo } from "@/lib/type/tipo"
 import type { TableColumn } from "@/components/ui/data-table"
 
@@ -89,6 +90,8 @@ export default function TiposPage() {
     }
   }
 
+  const canSave = !!form.nombre.trim()
+
   return (
     <div className="flex flex-col gap-6 p-6">
       <div className="flex flex-col gap-1">
@@ -140,15 +143,15 @@ export default function TiposPage() {
         }
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
+        saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear tipo"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Nombre</label>
+          <label className="text-sm font-medium">Nombre *</label>
           <Input
             value={form.nombre}
-            onChange={(e) => setForm({ nombre: e.target.value })}
+            onChange={(e) => setForm({ nombre: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre") })}
             placeholder="Ej: HDD, SSD, Pendrive, DVD..."
-            maxLength={50}
           />
         </div>
       </FormModal>

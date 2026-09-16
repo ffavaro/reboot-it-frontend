@@ -23,7 +23,8 @@ import {
 } from "@/hooks/use-donantes"
 import { useUsuarios } from "@/hooks/use-users"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import { required, requiredSelect } from "@/lib/form-validators"
+import { required, requiredSelect, maxLength as maxLengthValidator } from "@/lib/form-validators"
+import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { Donante, TipoDonante } from "@/lib/type/donante"
 
 type Tab = "donantes" | "tipos"
@@ -147,9 +148,11 @@ function DonantesTab() {
 
   async function handleSave() {
     if (!validate(form, {
-      nombre: [required("el nombre")],
+      nombre: [required("el nombre"), maxLengthValidator(DEFAULT_TEXT_MAX)],
       tipoDonanteId: [requiredSelect("un tipo de donante")],
       usuarioId: [requiredSelect("un usuario")],
+      razonSocial: [maxLengthValidator(DEFAULT_TEXT_MAX)],
+      direccion: [maxLengthValidator(DEFAULT_TEXT_MAX)],
     })) return
     try {
       const payload = {
@@ -189,6 +192,8 @@ function DonantesTab() {
     "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0",
     hasError ? "border-destructive" : "border-input",
   )
+
+  const canSave = !!form.nombre.trim() && form.tipoDonanteId !== 0 && form.usuarioId !== 0
 
   return (
     <>
@@ -234,15 +239,15 @@ function DonantesTab() {
         }
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
+        saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear donante"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Nombre</label>
+          <label className="text-sm font-medium">Nombre *</label>
           <Input
             value={form.nombre}
-            onChange={(e) => set("nombre", e.target.value)}
+            onChange={(e) => set("nombre", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"))}
             placeholder="Juan Pérez"
-            maxLength={100}
             className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
           />
           <FieldError>{errors.nombre}</FieldError>
@@ -254,14 +259,14 @@ function DonantesTab() {
           </label>
           <Input
             value={form.razonSocial}
-            onChange={(e) => set("razonSocial", e.target.value)}
+            onChange={(e) => set("razonSocial", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La razón social"))}
             placeholder="Empresa S.A."
-            maxLength={150}
           />
+          <FieldError>{errors.razonSocial}</FieldError>
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Usuario asociado</label>
+          <label className="text-sm font-medium">Usuario asociado *</label>
           <select
             value={form.usuarioId}
             onChange={(e) => set("usuarioId", Number(e.target.value))}
@@ -278,7 +283,7 @@ function DonantesTab() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Tipo de donante</label>
+          <label className="text-sm font-medium">Tipo de donante *</label>
           <select
             value={form.tipoDonanteId}
             onChange={(e) => set("tipoDonanteId", Number(e.target.value))}
@@ -313,10 +318,10 @@ function DonantesTab() {
           </label>
           <Input
             value={form.direccion}
-            onChange={(e) => set("direccion", e.target.value)}
+            onChange={(e) => set("direccion", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La dirección"))}
             placeholder="Av. Corrientes 1234, CABA"
-            maxLength={255}
           />
+          <FieldError>{errors.direccion}</FieldError>
         </div>
       </FormModal>
     </>
@@ -372,7 +377,7 @@ function TiposTab() {
   }
 
   async function handleSave() {
-    if (!validate(form, { descripcion: [required("la descripción")] })) return
+    if (!validate(form, { descripcion: [required("la descripción"), maxLengthValidator(DEFAULT_TEXT_MAX)] })) return
     try {
       if (editing) {
         await updateTipo({ id: editing.id, ...form })
@@ -397,6 +402,8 @@ function TiposTab() {
       toast.error("Error al eliminar el tipo")
     }
   }
+
+  const canSave = !!form.descripcion.trim()
 
   return (
     <>
@@ -431,15 +438,18 @@ function TiposTab() {
         }
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
+        saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear tipo"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Descripción</label>
+          <label className="text-sm font-medium">Descripción *</label>
           <Input
             value={form.descripcion}
-            onChange={(e) => { setForm({ descripcion: e.target.value }); clearError("descripcion") }}
+            onChange={(e) => {
+              setForm({ descripcion: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción") })
+              clearError("descripcion")
+            }}
             placeholder="Ej: Persona física, Empresa..."
-            maxLength={100}
             className={cn(errors.descripcion && "border-destructive focus-visible:ring-destructive")}
           />
           <FieldError>{errors.descripcion}</FieldError>

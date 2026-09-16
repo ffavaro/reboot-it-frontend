@@ -35,6 +35,19 @@ const EMPTY_FORM = {
   terminosCondiciones: "",
 }
 
+function todayISO(): string {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+}
+
+function previewNumeroCertificado(certificados: CertificadoDisposicion[]): string {
+  const anio = new Date().getFullYear()
+  const prefijo = `CERT-${anio}-`
+  const cantidad = certificados.filter((c) => c.numeroCertificado?.startsWith(prefijo)).length
+  return `${prefijo}${String(cantidad + 1).padStart(4, "0")}`
+}
+
 const columns: TableColumn<CertificadoDisposicion>[] = [
   {
     key: "numeroCertificado",
@@ -121,8 +134,8 @@ export default function CertificadoDisposicionPage() {
     setEditing(null)
     setForm({
       ...EMPTY_FORM,
-      fechaEmision: new Date().toISOString().slice(0, 10),
-      numeroCertificado: `CERT-${new Date().getFullYear()}-`,
+      fechaEmision: todayISO(),
+      numeroCertificado: previewNumeroCertificado(certificados),
     })
     setSheetOpen(true)
   }
@@ -162,8 +175,6 @@ export default function CertificadoDisposicionPage() {
       const payload = {
         loteId: Number(form.loteId),
         gestorAmbientalId: Number(form.gestorAmbientalId),
-        fechaEmision: form.fechaEmision || undefined,
-        numeroCertificado: form.numeroCertificado.trim() || undefined,
         terminosCondiciones: form.terminosCondiciones.trim() || undefined,
       }
       if (editing) {
@@ -189,6 +200,8 @@ export default function CertificadoDisposicionPage() {
       toast.error("Error al eliminar el certificado")
     }
   }
+
+  const canSave = !!form.loteId && !!form.gestorAmbientalId
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -243,10 +256,11 @@ export default function CertificadoDisposicionPage() {
         }
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
+        saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear certificado"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Lote</label>
+          <label className="text-sm font-medium">Lote *</label>
           <select
             value={form.loteId}
             onChange={(e) => setForm((f) => ({ ...f, loteId: e.target.value }))}
@@ -262,7 +276,7 @@ export default function CertificadoDisposicionPage() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Gestor ambiental</label>
+          <label className="text-sm font-medium">Gestor ambiental *</label>
           <select
             value={form.gestorAmbientalId}
             onChange={(e) => setForm((f) => ({ ...f, gestorAmbientalId: e.target.value }))}
@@ -279,23 +293,22 @@ export default function CertificadoDisposicionPage() {
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">
-            N° Certificado <span className="text-muted-foreground font-normal">(opcional)</span>
+            N° Certificado <span className="text-muted-foreground font-normal">(autogenerado)</span>
           </label>
           <Input
             value={form.numeroCertificado}
-            onChange={(e) => setForm((f) => ({ ...f, numeroCertificado: e.target.value }))}
-            placeholder="Ej: CERT-2025-0001"
-            maxLength={100}
+            readOnly
+            className="bg-muted cursor-not-allowed"
           />
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
-            Fecha de emisión <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
+          <label className="text-sm font-medium">Fecha de emisión</label>
           <DateInput
             value={form.fechaEmision}
-            onChange={(val) => setForm((f) => ({ ...f, fechaEmision: val }))}
+            onChange={() => {}}
+            readOnly
+            className="bg-muted cursor-not-allowed"
           />
         </div>
 

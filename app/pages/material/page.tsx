@@ -10,18 +10,28 @@ import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   useMateriales,
   useCreateMaterial,
   useUpdateMaterial,
   useDeleteMaterial,
   useClasificarMaterial,
 } from "@/hooks/use-material"
-import { useLotes } from "@/hooks/use-lote"
-import { useTipoMateriales } from "@/hooks/use-tipo-material"
+import { useLotes, useCreateLote } from "@/hooks/use-lote"
+import { useDonaciones } from "@/hooks/use-donacion"
+import { useTipoMateriales, useCreateTipoMaterial } from "@/hooks/use-tipo-material"
 import { useCondicionesMaterial } from "@/hooks/use-condicion-material"
 import { useTipos } from "@/hooks/use-tipo"
 import { useMarcas } from "@/hooks/use-marca"
 import { useModelos } from "@/hooks/use-modelo"
+import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
+import { enforceDecimalInput, DEFAULT_WEIGHT_MAX_DIGITS } from "@/lib/utils/number-limit"
 import type { Material } from "@/lib/type/material"
 import type { Lote } from "@/lib/type/lote"
 import type { TipoMaterial } from "@/lib/type/tipo-material"
@@ -31,6 +41,8 @@ import type { Marca } from "@/lib/type/marca"
 import type { Modelo } from "@/lib/type/modelo"
 
 const EMPTY_FORM = { loteId: "", tipoMaterialId: "", condicionMaterialId: "", descripcion: "" }
+const EMPTY_QUICK_TIPO = { nombre: "", descripcion: "" }
+const EMPTY_QUICK_LOTE = { donacionId: "", pesoBrutoKg: "", observaciones: "" }
 const TIPO_ALMACENAMIENTO = "almacenamiento"
 
 const columns: TableColumn<Material>[] = [
@@ -73,8 +85,9 @@ const columns: TableColumn<Material>[] = [
 
 export default function MaterialPage() {
   const { materiales, isLoading, mutate } = useMateriales()
-  const { lotes } = useLotes()
-  const { tipoMateriales } = useTipoMateriales()
+  const { lotes, mutate: mutateLotes } = useLotes()
+  const { donaciones } = useDonaciones()
+  const { tipoMateriales, mutate: mutateTipoMateriales } = useTipoMateriales()
   const { condiciones } = useCondicionesMaterial()
   const { tipos } = useTipos()
   const { marcas } = useMarcas()
@@ -83,6 +96,8 @@ export default function MaterialPage() {
   const { updateMaterial } = useUpdateMaterial()
   const { deleteMaterial, isLoading: isDeleting } = useDeleteMaterial()
   const { clasificarMaterial, isLoading: isClasificando } = useClasificarMaterial()
+  const { createTipoMaterial, isLoading: isCreatingTipo } = useCreateTipoMaterial()
+  const { createLote, isLoading: isCreatingLote } = useCreateLote()
 
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
@@ -93,6 +108,11 @@ export default function MaterialPage() {
   const [destruccionTipoId, setDestruccionTipoId] = useState("")
   const [destruccionMarcaId, setDestruccionMarcaId] = useState("")
   const [destruccionModeloId, setDestruccionModeloId] = useState("")
+
+  const [quickTipoOpen, setQuickTipoOpen] = useState(false)
+  const [quickLoteOpen, setQuickLoteOpen] = useState(false)
+  const [quickTipoForm, setQuickTipoForm] = useState(EMPTY_QUICK_TIPO)
+  const [quickLoteForm, setQuickLoteForm] = useState(EMPTY_QUICK_LOTE)
 
   // Filtra modelos según la marca seleccionada
   const modelosFiltrados = destruccionMarcaId
@@ -118,6 +138,11 @@ export default function MaterialPage() {
   const esAlmacenamiento =
     tipoSeleccionado?.nombre?.toLowerCase() === TIPO_ALMACENAMIENTO
 
+  // Condición por defecto de todo material nuevo: se define recién al clasificarlo
+  const condicionADefinir = condiciones.find(
+    (c: CondicionMaterial) => c.condicion.toLowerCase() === "a definir",
+  )
+
   function resetDestruccion() {
     setRequiereDestruccion(false)
     setDestruccionTipoId("")
@@ -128,7 +153,10 @@ export default function MaterialPage() {
   function openCreate() {
     setIsViewing(false)
     setEditing(null)
-    setForm(EMPTY_FORM)
+    setForm({
+      ...EMPTY_FORM,
+      condicionMaterialId: condicionADefinir ? String(condicionADefinir.id) : "",
+    })
     resetDestruccion()
     setModalOpen(true)
   }
@@ -137,9 +165,11 @@ export default function MaterialPage() {
     setIsViewing(false)
     setEditing(m)
     setForm({
-      loteId: String(m.loteId),
+      loteId: m.loteId ? String(m.loteId) : "",
       tipoMaterialId: String(m.tipoMaterialId),
-      condicionMaterialId: String(m.condicionMaterialId),
+      condicionMaterialId: m.condicionMaterialId
+        ? String(m.condicionMaterialId)
+        : condicionADefinir ? String(condicionADefinir.id) : "",
       descripcion: m.descripcion ?? "",
     })
     resetDestruccion()
@@ -150,9 +180,11 @@ export default function MaterialPage() {
     setIsViewing(true)
     setEditing(m)
     setForm({
-      loteId: String(m.loteId),
+      loteId: m.loteId ? String(m.loteId) : "",
       tipoMaterialId: String(m.tipoMaterialId),
-      condicionMaterialId: String(m.condicionMaterialId),
+      condicionMaterialId: m.condicionMaterialId
+        ? String(m.condicionMaterialId)
+        : condicionADefinir ? String(condicionADefinir.id) : "",
       descripcion: m.descripcion ?? "",
     })
     resetDestruccion()
@@ -160,8 +192,12 @@ export default function MaterialPage() {
   }
 
   async function handleSave() {
-    if (!form.loteId || !form.tipoMaterialId || !form.condicionMaterialId) {
-      toast.error("Lote, tipo de material y condición son obligatorios")
+    if (!form.descripcion.trim()) {
+      toast.error("La descripción es obligatoria")
+      return
+    }
+    if (!form.tipoMaterialId) {
+      toast.error("El tipo de material es obligatorio")
       return
     }
     if (esAlmacenamiento && requiereDestruccion) {
@@ -172,16 +208,16 @@ export default function MaterialPage() {
     }
     try {
       const payload = {
-        loteId: Number(form.loteId),
+        loteId: form.loteId ? Number(form.loteId) : undefined,
         tipoMaterialId: Number(form.tipoMaterialId),
-        condicionMaterialId: Number(form.condicionMaterialId),
-        descripcion: form.descripcion.trim() || undefined,
+        condicionMaterialId: form.condicionMaterialId ? Number(form.condicionMaterialId) : undefined,
+        descripcion: form.descripcion.trim(),
       }
 
       if (editing) {
         await updateMaterial({ id: editing.id, ...payload })
         // Si es almacenamiento con destrucción, crear medio + proceso después de actualizar
-        if (esAlmacenamiento && requiereDestruccion) {
+        if (esAlmacenamiento && requiereDestruccion && payload.condicionMaterialId) {
           await clasificarMaterial({
             id: editing.id,
             condicionMaterialId: payload.condicionMaterialId,
@@ -196,7 +232,7 @@ export default function MaterialPage() {
         }
       } else {
         const created = await createMaterial(payload)
-        if (esAlmacenamiento && requiereDestruccion && created) {
+        if (esAlmacenamiento && requiereDestruccion && created && payload.condicionMaterialId) {
           await clasificarMaterial({
             id: (created as Material).id,
             condicionMaterialId: payload.condicionMaterialId,
@@ -226,6 +262,58 @@ export default function MaterialPage() {
       toast.error("Error al eliminar el material")
     }
   }
+
+  function openQuickTipo() {
+    setQuickTipoForm(EMPTY_QUICK_TIPO)
+    setQuickTipoOpen(true)
+  }
+
+  function openQuickLote() {
+    setQuickLoteForm(EMPTY_QUICK_LOTE)
+    setQuickLoteOpen(true)
+  }
+
+  async function handleSaveQuickTipo() {
+    if (!quickTipoForm.nombre.trim()) {
+      toast.error("El nombre es obligatorio")
+      return
+    }
+    try {
+      const nuevo = await createTipoMaterial({
+        nombre: quickTipoForm.nombre.trim(),
+        descripcion: quickTipoForm.descripcion.trim() || undefined,
+      })
+      await mutateTipoMateriales()
+      if (nuevo) setForm((f) => ({ ...f, tipoMaterialId: String(nuevo.id) }))
+      toast.success("Tipo de material creado")
+      setQuickTipoOpen(false)
+    } catch {
+      toast.error("Error al crear el tipo de material")
+    }
+  }
+
+  async function handleSaveQuickLote() {
+    if (!quickLoteForm.donacionId) {
+      toast.error("La donación es obligatoria")
+      return
+    }
+    try {
+      const nuevo = await createLote({
+        donacionId: Number(quickLoteForm.donacionId),
+        pesoBrutoKg: quickLoteForm.pesoBrutoKg !== "" ? Number(quickLoteForm.pesoBrutoKg) : undefined,
+        observaciones: quickLoteForm.observaciones.trim() || undefined,
+      })
+      await mutateLotes()
+      if (nuevo) setForm((f) => ({ ...f, loteId: String(nuevo.id) }))
+      toast.success("Lote creado")
+      setQuickLoteOpen(false)
+    } catch {
+      toast.error("Error al crear el lote")
+    }
+  }
+
+  const canSaveQuickTipo = !!quickTipoForm.nombre.trim()
+  const canSaveQuickLote = !!quickLoteForm.donacionId
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -277,54 +365,44 @@ export default function MaterialPage() {
         saveLabel={editing ? "Guardar cambios" : "Crear material"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Lote</label>
-          <select
-            value={form.loteId}
-            onChange={(e) => setForm((f) => ({ ...f, loteId: e.target.value }))}
+          <label className="text-sm font-medium">Descripción *</label>
+          <Input
+            placeholder="Descripción del material..."
+            value={form.descripcion}
             disabled={isViewing}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
-          >
-            <option value="">Seleccionar lote...</option>
-            {lotes.map((l: Lote) => (
-              <option key={l.id} value={l.id}>
-                #{l.id} — Donación #{l.donacionId}
-                {l.pesoBrutoKg ? ` (${l.pesoBrutoKg} kg)` : ""}
-              </option>
-            ))}
-          </select>
+            onChange={(e) => setForm((f) => ({ ...f, descripcion: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción") }))}
+          />
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Tipo de material</label>
-          <select
-            value={form.tipoMaterialId}
-            onChange={(e) => {
-              setForm((f) => ({ ...f, tipoMaterialId: e.target.value }))
-              setRequiereDestruccion(false)
-            }}
-            disabled={isViewing}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
-          >
-            <option value="">Seleccionar tipo...</option>
-            {tipoMateriales.map((t: TipoMaterial) => (
-              <option key={t.id} value={t.id}>{t.nombre}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Condición</label>
-          <select
-            value={form.condicionMaterialId}
-            onChange={(e) => setForm((f) => ({ ...f, condicionMaterialId: e.target.value }))}
-            disabled={isViewing}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
-          >
-            <option value="">Seleccionar condición...</option>
-            {condiciones.map((c: CondicionMaterial) => (
-              <option key={c.id} value={c.id}>{c.condicion}</option>
-            ))}
-          </select>
+          <label className="text-sm font-medium">Tipo de material *</label>
+          <div className="flex gap-2">
+            <select
+              value={form.tipoMaterialId}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, tipoMaterialId: e.target.value }))
+                setRequiereDestruccion(false)
+              }}
+              disabled={isViewing}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
+            >
+              <option value="">Seleccionar tipo...</option>
+              {tipoMateriales.map((t: TipoMaterial) => (
+                <option key={t.id} value={t.id}>{t.nombre}</option>
+              ))}
+            </select>
+            {!isViewing && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                title="No está en la lista: crear nuevo tipo de material"
+                onClick={openQuickTipo}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Toggle destrucción — solo visible si tipo es Almacenamiento y no es vista */}
@@ -418,13 +496,141 @@ export default function MaterialPage() {
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">
+            Condición <span className="text-muted-foreground font-normal">(se define al clasificar el material)</span>
+          </label>
+          <select
+            value={form.condicionMaterialId}
+            disabled
+            className="flex h-9 w-full rounded-md border border-input bg-muted px-3 py-1 text-sm shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            {condiciones.map((c: CondicionMaterial) => (
+              <option key={c.id} value={c.id}>{c.condicion}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Lote <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <div className="flex gap-2">
+            <select
+              value={form.loteId}
+              onChange={(e) => setForm((f) => ({ ...f, loteId: e.target.value }))}
+              disabled={isViewing}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
+            >
+              <option value="">Sin lote asignado</option>
+              {lotes.map((l: Lote) => (
+                <option key={l.id} value={l.id}>
+                  #{l.id} — Donación #{l.donacionId}
+                  {l.pesoBrutoKg ? ` (${l.pesoBrutoKg} kg)` : ""}
+                </option>
+              ))}
+            </select>
+            {!isViewing && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                title="No está en la lista: crear nuevo lote"
+                onClick={openQuickLote}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </FormModal>
+
+      {/* Alta rápida de tipo de material */}
+      <FormModal
+        open={quickTipoOpen}
+        onOpenChange={setQuickTipoOpen}
+        title="Nuevo tipo de material"
+        description="Cargá los datos del tipo para asociarlo al material."
+        onSave={handleSaveQuickTipo}
+        isLoading={isCreatingTipo}
+        saveDisabled={!canSaveQuickTipo}
+        saveLabel="Crear tipo"
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Nombre *</label>
+          <Input
+            value={quickTipoForm.nombre}
+            onChange={(e) => setQuickTipoForm((f) => ({ ...f, nombre: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre") }))}
+            placeholder="Ej: Electrónico, Eléctrico, Batería..."
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
             Descripción <span className="text-muted-foreground font-normal">(opcional)</span>
           </label>
           <Input
-            placeholder="Descripción del material..."
-            value={form.descripcion}
-            disabled={isViewing}
-            onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
+            value={quickTipoForm.descripcion}
+            onChange={(e) => setQuickTipoForm((f) => ({ ...f, descripcion: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción") }))}
+            placeholder="Breve descripción del tipo de material"
+          />
+        </div>
+      </FormModal>
+
+      {/* Alta rápida de lote */}
+      <FormModal
+        open={quickLoteOpen}
+        onOpenChange={setQuickLoteOpen}
+        title="Nuevo lote"
+        description="Cargá los datos del lote para asociarlo al material."
+        onSave={handleSaveQuickLote}
+        isLoading={isCreatingLote}
+        saveDisabled={!canSaveQuickLote}
+        saveLabel="Crear lote"
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Donación *</label>
+          <Select
+            value={quickLoteForm.donacionId}
+            onValueChange={(v) => setQuickLoteForm((f) => ({ ...f, donacionId: v ?? "" }))}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Seleccioná una donación" />
+            </SelectTrigger>
+            <SelectContent>
+              {donaciones.map((d) => (
+                <SelectItem key={d.id} value={String(d.id)}>
+                  <span className="font-mono text-xs text-muted-foreground w-8 shrink-0">#{d.id}</span>
+                  <span className="font-medium truncate">{d.donante?.nombre ?? `Donante #${d.donanteId}`}</span>
+                  {d.descripcion && (
+                    <span className="text-xs text-muted-foreground truncate">· {d.descripcion}</span>
+                  )}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Peso bruto (kg) <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            inputMode="decimal"
+            placeholder="Ej: 120.50"
+            value={quickLoteForm.pesoBrutoKg}
+            onChange={(e) => setQuickLoteForm((f) => ({ ...f, pesoBrutoKg: enforceDecimalInput(e.target.value, DEFAULT_WEIGHT_MAX_DIGITS, "El peso bruto") }))}
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Observaciones <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <textarea
+            rows={3}
+            placeholder="Observaciones sobre el lote..."
+            value={quickLoteForm.observaciones}
+            onChange={(e) => setQuickLoteForm((f) => ({ ...f, observaciones: e.target.value }))}
+            className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
           />
         </div>
       </FormModal>

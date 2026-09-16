@@ -1,5 +1,6 @@
 import type { Donante } from "./donante"
 import type { TipoMaterial } from "./tipo-material"
+import type { CondicionMaterial } from "./condicion-material"
 
 export interface EstadoDonacion {
   id: number
@@ -10,10 +11,10 @@ export interface DonacionDetalle {
   id: number
   donacionId: number
   tipoMaterialId: number
-  descripcion: string | null
+  condicionMaterialId: number | null
   cantidadEstimada: number | null
-  observaciones: string | null
   tipoMaterial?: TipoMaterial
+  condicionMaterial?: CondicionMaterial
 }
 
 export interface Donacion {
@@ -22,6 +23,7 @@ export interface Donacion {
   estadoDonacionId: number | null
   necesitaRetiro: boolean
   direccionRetiro: string | null
+  pesoEstimadoKg: number | null
   descripcion: string | null
   isActive: boolean
   donante?: Donante
@@ -31,9 +33,8 @@ export interface Donacion {
 
 export interface CreateDetallePayload {
   tipoMaterialId: number
-  descripcion?: string
+  condicionMaterialId: number
   cantidadEstimada?: number
-  observaciones?: string
 }
 
 export interface CreateDonacionPayload {
@@ -42,6 +43,7 @@ export interface CreateDonacionPayload {
   estadoDonacionId?: number
   necesitaRetiro?: boolean
   direccionRetiro?: string
+  pesoEstimadoKg?: number
   descripcion?: string
   detalles?: CreateDetallePayload[]
 }
@@ -51,6 +53,7 @@ export interface UpdateDonacionPayload {
   estadoDonacionId?: number | null
   necesitaRetiro?: boolean
   direccionRetiro?: string | null
+  pesoEstimadoKg?: number | null
   descripcion?: string | null
   detalles?: CreateDetallePayload[]
 }

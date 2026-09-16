@@ -16,6 +16,7 @@ type FormModalProps = {
   description?: string
   onSave?: () => void
   isLoading?: boolean
+  saveDisabled?: boolean
   saveLabel?: string
   readOnly?: boolean
   children: React.ReactNode
@@ -28,6 +29,7 @@ export function FormModal({
   description,
   onSave,
   isLoading,
+  saveDisabled = false,
   saveLabel = "Guardar",
   readOnly = false,
   children,
@@ -66,7 +68,7 @@ export function FormModal({
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
                 Cancelar
               </Button>
-              <Button onClick={onSave} disabled={isLoading}>
+              <Button onClick={onSave} disabled={isLoading || saveDisabled}>
                 {isLoading ? "Guardando..." : saveLabel}
               </Button>
             </>

@@ -17,17 +17,21 @@ import {
 } from "@/hooks/use-donacion"
 import { useDonantes } from "@/hooks/use-donantes"
 import { useTipoMateriales } from "@/hooks/use-tipo-material"
+import { useCondicionesMaterial } from "@/hooks/use-condicion-material"
 import { useEstadosDonacion } from "@/hooks/use-estado-donacion"
 import { useTurnos } from "@/hooks/use-turno"
 import type { Donacion, EstadoDonacion } from "@/lib/type/donacion"
 import type { Donante } from "@/lib/type/donante"
 import type { TipoMaterial } from "@/lib/type/tipo-material"
+import type { CondicionMaterial } from "@/lib/type/condicion-material"
 import type { Turno } from "@/lib/type/turno"
 import { getUser } from "@/lib/auth-utils"
+import { enforceDecimalInput } from "@/lib/utils/number-limit"
 
 const EMPTY_FORM = { donanteId: "", fechaHora: "", estadoDonacionId: "", descripcion: "" }
-const EMPTY_DETALLE = { tipoMaterialId: "", descripcion: "", cantidadEstimada: "", observaciones: "" }
+const EMPTY_DETALLE = { tipoMaterialId: "", condicionMaterialId: "", cantidadEstimada: "" }
 type DetalleRow = typeof EMPTY_DETALLE
+const PESO_ESTIMADO_MAX_DIGITS = 3
 
 const MESES_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -96,6 +100,7 @@ export default function DonacionPage() {
   const { donaciones, isLoading, mutate } = useDonaciones()
   const { donantes } = useDonantes()
   const { tipoMateriales } = useTipoMateriales()
+  const { condiciones } = useCondicionesMaterial()
   const { estadosDonacion } = useEstadosDonacion()
   const { turnos } = useTurnos()
   const { createDonacion, isLoading: isCreating } = useCreateDonacion()
@@ -113,6 +118,7 @@ export default function DonacionPage() {
   const [necesitaRetiro, setNecesitaRetiro] = useState(false)
   const [usarOtraDireccion, setUsarOtraDireccion] = useState(false)
   const [direccionRetiro, setDireccionRetiro] = useState("")
+  const [pesoEstimadoKg, setPesoEstimadoKg] = useState("")
 
   const [calYear, setCalYear] = useState(0)
   const [calMonth, setCalMonth] = useState(0)
@@ -130,6 +136,11 @@ export default function DonacionPage() {
     ? donantes.find((d: Donante) => d.usuarioId === user.id) ?? null
     : null
   const isDonante = user?.rol?.nombre?.toLowerCase() === "donante" || myDonante !== null
+
+  // Condición por defecto de todo material cargado: se define recién al clasificarlo
+  const condicionADefinir = condiciones.find(
+    (c: CondicionMaterial) => c.condicion.toLowerCase() === "a definir",
+  )
 
   const visibleDonaciones = isDonante && myDonante
     ? donaciones.filter((d: Donacion) => d.donanteId === myDonante.id)
@@ -205,6 +216,7 @@ export default function DonacionPage() {
     setNecesitaRetiro(false)
     setUsarOtraDireccion(false)
     setDireccionRetiro("")
+    setPesoEstimadoKg("")
     setForm({
       ...EMPTY_FORM,
       donanteId: myDonante ? String(myDonante.id) : "",
@@ -222,6 +234,7 @@ export default function DonacionPage() {
     setNecesitaRetiro(d.necesitaRetiro ?? false)
     setUsarOtraDireccion(!!d.direccionRetiro)
     setDireccionRetiro(d.direccionRetiro ?? "")
+    setPesoEstimadoKg(d.pesoEstimadoKg != null ? String(d.pesoEstimadoKg) : "")
     setForm({
       donanteId: String(d.donanteId),
       fechaHora: "",
@@ -231,9 +244,8 @@ export default function DonacionPage() {
     setDetalles(
       (d.detalles ?? []).map((det) => ({
         tipoMaterialId: String(det.tipoMaterialId),
-        descripcion: det.descripcion ?? "",
+        condicionMaterialId: det.condicionMaterialId != null ? String(det.condicionMaterialId) : "",
         cantidadEstimada: det.cantidadEstimada != null ? String(det.cantidadEstimada) : "",
-        observaciones: det.observaciones ?? "",
       })),
     )
     setSheetOpen(true)
@@ -247,6 +259,7 @@ export default function DonacionPage() {
     setNecesitaRetiro(d.necesitaRetiro ?? false)
     setUsarOtraDireccion(!!d.direccionRetiro)
     setDireccionRetiro(d.direccionRetiro ?? "")
+    setPesoEstimadoKg(d.pesoEstimadoKg != null ? String(d.pesoEstimadoKg) : "")
     setForm({
       donanteId: String(d.donanteId),
       fechaHora: "",
@@ -256,16 +269,18 @@ export default function DonacionPage() {
     setDetalles(
       (d.detalles ?? []).map((det) => ({
         tipoMaterialId: String(det.tipoMaterialId),
-        descripcion: det.descripcion ?? "",
+        condicionMaterialId: det.condicionMaterialId != null ? String(det.condicionMaterialId) : "",
         cantidadEstimada: det.cantidadEstimada != null ? String(det.cantidadEstimada) : "",
-        observaciones: det.observaciones ?? "",
       })),
     )
     setSheetOpen(true)
   }
 
   function addDetalle() {
-    setDetalles((prev) => [...prev, { ...EMPTY_DETALLE }])
+    setDetalles((prev) => [
+      ...prev,
+      { ...EMPTY_DETALLE, condicionMaterialId: condicionADefinir ? String(condicionADefinir.id) : "" },
+    ])
   }
 
   function removeDetalle(idx: number) {
@@ -297,16 +312,21 @@ export default function DonacionPage() {
       toast.error("Ingresá la dirección donde se realizará el retiro")
       return
     }
+    if (necesitaRetiro && !pesoEstimadoKg.trim()) {
+      toast.error("Ingresá el peso estimado de la donación para el retiro")
+      return
+    }
 
     const detallesPayload = detalles.map((d) => ({
       tipoMaterialId: Number(d.tipoMaterialId),
-      descripcion: d.descripcion.trim() || undefined,
+      condicionMaterialId: Number(d.condicionMaterialId),
       cantidadEstimada: d.cantidadEstimada ? Number(d.cantidadEstimada) : undefined,
-      observaciones: d.observaciones.trim() || undefined,
     }))
 
     const direccionRetiroPayload =
       necesitaRetiro && usarOtraDireccion ? direccionRetiro.trim() : undefined
+    const pesoEstimadoPayload =
+      necesitaRetiro && pesoEstimadoKg !== "" ? Number(pesoEstimadoKg) : undefined
 
     try {
       if (editing) {
@@ -316,6 +336,7 @@ export default function DonacionPage() {
           estadoDonacionId: form.estadoDonacionId ? Number(form.estadoDonacionId) : undefined,
           necesitaRetiro,
           direccionRetiro: necesitaRetiro ? (direccionRetiroPayload ?? null) : null,
+          pesoEstimadoKg: necesitaRetiro ? (pesoEstimadoPayload ?? null) : null,
           descripcion: form.descripcion.trim() || undefined,
           detalles: detallesPayload,
         })
@@ -327,6 +348,7 @@ export default function DonacionPage() {
           estadoDonacionId: form.estadoDonacionId ? Number(form.estadoDonacionId) : undefined,
           necesitaRetiro,
           direccionRetiro: direccionRetiroPayload,
+          pesoEstimadoKg: pesoEstimadoPayload,
           descripcion: form.descripcion.trim() || undefined,
           detalles: detallesPayload,
         })
@@ -713,6 +735,20 @@ export default function DonacionPage() {
                     onChange={(e) => setDireccionRetiro(e.target.value)}
                   />
                 )}
+                <div className="flex flex-col gap-1.5 pt-1">
+                  <label className="text-xs font-medium">
+                    Peso estimado de la donación (kg) *
+                  </label>
+                  <Input
+                    inputMode="decimal"
+                    placeholder="Ej: 25.50"
+                    value={pesoEstimadoKg}
+                    onChange={(e) => setPesoEstimadoKg(enforceDecimalInput(e.target.value, PESO_ESTIMADO_MAX_DIGITS, "El peso estimado"))}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Se usa para asignar un transportista cuyo vehículo soporte esta carga.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -740,10 +776,7 @@ export default function DonacionPage() {
                         Cant.
                       </th>
                       <th className="px-3 py-2 text-left font-medium text-muted-foreground">
-                        Descripción
-                      </th>
-                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">
-                        Observaciones
+                        Condición del material
                       </th>
                       <th className="w-8" />
                     </tr>
@@ -774,20 +807,15 @@ export default function DonacionPage() {
                           />
                         </td>
                         <td className="px-2 py-1.5">
-                          <Input
-                            placeholder="(opcional)"
-                            value={det.descripcion}
-                            onChange={(e) => updateDetalleField(idx, "descripcion", e.target.value)}
-                            className="h-8 text-xs"
-                          />
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <Input
-                            placeholder="(opcional)"
-                            value={det.observaciones}
-                            onChange={(e) => updateDetalleField(idx, "observaciones", e.target.value)}
-                            className="h-8 text-xs"
-                          />
+                          <select
+                            value={det.condicionMaterialId}
+                            disabled
+                            className="h-8 w-full rounded-md border border-input bg-muted px-2 py-1 text-xs shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+                          >
+                            {condiciones.map((c: CondicionMaterial) => (
+                              <option key={c.id} value={c.id}>{c.condicion}</option>
+                            ))}
+                          </select>
                         </td>
                         <td className="px-2 py-1.5 text-center">
                           <button

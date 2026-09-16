@@ -1,5 +1,7 @@
 import { getUser } from "@/lib/auth-utils"
 import type { Donante } from "@/lib/type/donante"
+import type { Usuario } from "@/lib/type/user"
+import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 
 export function getDonanteActual(donantes: Donante[]) {
   const user = getUser()
@@ -8,6 +10,19 @@ export function getDonanteActual(donantes: Donante[]) {
     ? donantes.find((d) => d.usuarioId === user?.id) ?? null
     : null
   return { user, isDonante, myDonante }
+}
+
+// El vínculo usuario↔empleado se guarda en usuario.empleadoId (no al revés en
+// empleado.usuarioId, que ningún formulario completa), así que hay que pasar
+// por el usuario logueado para encontrar su ficha de Empleado Transportista.
+export function getTransportistaActual(usuarios: Usuario[], transportistas: EmpleadoTransportista[]) {
+  const user = getUser()
+  const isTransportista = user?.rol?.nombre?.toLowerCase() === "transportista"
+  const myUsuario = user ? usuarios.find((u) => String(u.id) === String(user.id)) : null
+  const myTransportista = isTransportista && myUsuario?.empleadoId
+    ? transportistas.find((et) => String(et.empleadoId) === String(myUsuario.empleadoId)) ?? null
+    : null
+  return { user, isTransportista, myTransportista }
 }
 
 export const formatDate = (iso: string | null) => {

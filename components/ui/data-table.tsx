@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Eye, FileDown, Pencil, Trash2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Eye, FileDown, Pencil, Trash2 } from "lucide-react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { InboxIcon, SearchRemoveIcon } from "@hugeicons/core-free-icons"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,13 @@ import {
 } from "@/components/ui/tooltip"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   Table,
   TableBody,
   TableCell,
@@ -20,6 +27,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+
+const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100]
 
 export type TableColumn<T> = {
   key: string
@@ -42,6 +51,7 @@ type DataTableProps<T extends { id: number | string }> = {
   onDelete?: (id: number | string) => void
   onDownload?: (row: T) => void
   isDeleting?: boolean
+  pageSizeOptions?: number[]
 }
 
 function ActionBtn({
@@ -137,9 +147,26 @@ export function DataTable<T extends { id: number | string }>({
   onDelete,
   onDownload,
   isDeleting,
+  pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
 }: DataTableProps<T>) {
   const hasActions = !!onView || !!onEdit || !!onDelete || !!onDownload
   const colSpan = columns.length + (hasActions ? 1 : 0)
+
+  const [pageSize, setPageSize] = React.useState(pageSizeOptions[0] ?? 10)
+  const [page, setPage] = React.useState(1)
+
+  const totalItems = data.length
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
+
+  // Si cambia la búsqueda o el resultado filtrado deja de tener tantas páginas, volvemos a una válida
+  React.useEffect(() => { setPage(1) }, [search])
+  React.useEffect(() => { setPage((p) => Math.min(p, totalPages)) }, [totalPages])
+
+  const currentPage = Math.min(page, totalPages)
+  const startIndex = (currentPage - 1) * pageSize
+  const pagedData = data.slice(startIndex, startIndex + pageSize)
+  const rangeStart = totalItems === 0 ? 0 : startIndex + 1
+  const rangeEnd = Math.min(startIndex + pageSize, totalItems)
 
   return (
     <TooltipProvider>
@@ -178,7 +205,7 @@ export function DataTable<T extends { id: number | string }>({
                 </TableCell>
               </TableRow>
             ) : (
-              data.map((row) => (
+              pagedData.map((row) => (
                 <TableRow key={row.id}>
                   {columns.map((col) => (
                     <TableCell key={col.key} className={col.className}>
@@ -228,6 +255,50 @@ export function DataTable<T extends { id: number | string }>({
             )}
           </TableBody>
         </Table>
+
+        {!isLoading && totalItems > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Mostrando {rangeStart}–{rangeEnd} de {totalItems}</span>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(val) => { setPageSize(Number(val)); setPage(1) }}
+              >
+                <SelectTrigger size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {pageSizeOptions.map((size) => (
+                    <SelectItem key={size} value={String(size)}>{size} por página</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                className="h-8 w-8 p-0"
+                disabled={currentPage <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                aria-label="Página anterior"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
+                Página {currentPage} de {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                className="h-8 w-8 p-0"
+                disabled={currentPage >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                aria-label="Página siguiente"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </TooltipProvider>
   )

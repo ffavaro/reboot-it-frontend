@@ -18,7 +18,8 @@ import {
   useDeleteEmpleado,
 } from "@/hooks/use-employees"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import { required, requiredSelect } from "@/lib/form-validators"
+import { required, requiredSelect, maxLength as maxLengthValidator } from "@/lib/form-validators"
+import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { Empleado } from "@/lib/type/user"
 import type { TableColumn } from "@/components/ui/data-table"
 
@@ -143,9 +144,10 @@ export default function EmployeePage() {
 
   async function handleSave() {
     if (!validate(form, {
-      nombre: [required("el nombre")],
-      apellido: [required("el apellido")],
+      nombre: [required("el nombre"), maxLengthValidator(DEFAULT_TEXT_MAX)],
+      apellido: [required("el apellido"), maxLengthValidator(DEFAULT_TEXT_MAX)],
       rolId: [requiredSelect("un rol")],
+      cargo: [maxLengthValidator(DEFAULT_TEXT_MAX)],
     })) return
     try {
       const payload = {
@@ -178,6 +180,8 @@ export default function EmployeePage() {
       toast.error("Error al eliminar el empleado")
     }
   }
+
+  const canSave = !!form.nombre.trim() && !!form.apellido.trim() && form.rolId !== 0
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -230,27 +234,26 @@ export default function EmployeePage() {
         }
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
+        saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear empleado"}
       >
         <div className="grid grid-cols-2 gap-4">
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">Nombre</label>
+            <label className="text-sm font-medium">Nombre *</label>
             <Input
               value={form.nombre}
-              onChange={(e) => set("nombre", e.target.value)}
+              onChange={(e) => set("nombre", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"))}
               placeholder="Juan"
-              maxLength={100}
               className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
             />
             <FieldError>{errors.nombre}</FieldError>
           </div>
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">Apellido</label>
+            <label className="text-sm font-medium">Apellido *</label>
             <Input
               value={form.apellido}
-              onChange={(e) => set("apellido", e.target.value)}
+              onChange={(e) => set("apellido", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El apellido"))}
               placeholder="Pérez"
-              maxLength={100}
               className={cn(errors.apellido && "border-destructive focus-visible:ring-destructive")}
             />
             <FieldError>{errors.apellido}</FieldError>
@@ -258,7 +261,7 @@ export default function EmployeePage() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Rol</label>
+          <label className="text-sm font-medium">Rol *</label>
           <select
             value={form.rolId}
             onChange={(e) => set("rolId", Number(e.target.value))}
@@ -284,10 +287,10 @@ export default function EmployeePage() {
           </label>
           <Input
             value={form.cargo}
-            onChange={(e) => set("cargo", e.target.value)}
+            onChange={(e) => set("cargo", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El cargo"))}
             placeholder="Técnico IT"
-            maxLength={100}
           />
+          <FieldError>{errors.cargo}</FieldError>
         </div>
 
         <div className="flex flex-col gap-2">

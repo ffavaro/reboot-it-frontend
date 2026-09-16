@@ -60,6 +60,52 @@ export function getRangoFechas(periodo: Periodo, ref: Date = new Date()): RangoF
   return { fechaDesde: toISODate(start), fechaHasta: toISODate(end), label: `Año ${year}`, meses }
 }
 
+export function getRangoCustom(fechaDesde: string, fechaHasta: string): RangoFechas {
+  return { fechaDesde, fechaHasta, label: `${fechaDesde} al ${fechaHasta}`, meses: [] }
+}
+
+export function getRangoAnteriorCustom(fechaDesde: string, fechaHasta: string): RangoFechas {
+  const start = new Date(fechaDesde)
+  const end = new Date(fechaHasta)
+  const diffDays = Math.round((end.getTime() - start.getTime()) / 86400000) + 1
+  const prevEnd = new Date(start)
+  prevEnd.setDate(prevEnd.getDate() - 1)
+  const prevStart = new Date(prevEnd)
+  prevStart.setDate(prevStart.getDate() - diffDays + 1)
+  return { fechaDesde: toISODate(prevStart), fechaHasta: toISODate(prevEnd), label: "período anterior", meses: [] }
+}
+
+export function getBucketOrderCustom(fechaDesde: string, fechaHasta: string): string[] {
+  const start = new Date(fechaDesde)
+  const end = new Date(fechaHasta)
+  const diffDays = Math.round((end.getTime() - start.getTime()) / 86400000)
+  if (diffDays <= 35) {
+    const weeks = Math.ceil((diffDays + 1) / 7)
+    return Array.from({ length: weeks }, (_, i) => `Sem ${i + 1}`)
+  }
+  const buckets: string[] = []
+  const cur = new Date(start.getFullYear(), start.getMonth(), 1)
+  while (cur <= end) {
+    const sufijo = cur.getFullYear() !== start.getFullYear() ? ` '${String(cur.getFullYear()).slice(2)}` : ""
+    buckets.push(`${MESES_CORTOS[cur.getMonth()]}${sufijo}`)
+    cur.setMonth(cur.getMonth() + 1)
+  }
+  return buckets
+}
+
+export function getBucketKeyCustom(iso: string, fechaDesde: string, fechaHasta: string): string {
+  const start = new Date(fechaDesde)
+  const end = new Date(fechaHasta)
+  const diffDays = Math.round((end.getTime() - start.getTime()) / 86400000)
+  const d = new Date(iso)
+  if (diffDays <= 35) {
+    const offsetDays = Math.floor((d.getTime() - start.getTime()) / 86400000)
+    return `Sem ${Math.floor(offsetDays / 7) + 1}`
+  }
+  const sufijo = d.getFullYear() !== start.getFullYear() ? ` '${String(d.getFullYear()).slice(2)}` : ""
+  return `${MESES_CORTOS[d.getMonth()]}${sufijo}`
+}
+
 export function getRangoAnterior(periodo: Periodo, ref: Date = new Date()): RangoFechas {
   const year = ref.getFullYear()
   const month = ref.getMonth()
@@ -89,7 +135,7 @@ export type ClasificacionCounts = { reutilizable: number; reciclable: number; de
 export function clasificarMateriales(materiales: ReporteInventario[], condicionPorId: Map<number, string>): ClasificacionCounts {
   const counts: ClasificacionCounts = { reutilizable: 0, reciclable: 0, desecho: 0, pendiente: 0 }
   materiales.forEach(m => {
-    const nombre = (condicionPorId.get(m.condicionMaterialId) ?? "").toLowerCase()
+    const nombre = (condicionPorId.get(m.condicionMaterialId ?? -1) ?? "").toLowerCase()
     if (nombre.includes("reutil")) counts.reutilizable++
     else if (nombre.includes("recicl")) counts.reciclable++
     else if (nombre.includes("desecho")) counts.desecho++

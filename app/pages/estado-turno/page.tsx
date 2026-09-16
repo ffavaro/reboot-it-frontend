@@ -14,6 +14,7 @@ import {
   useUpdateEstadoTurno,
   useDeleteEstadoTurno,
 } from "@/hooks/use-estado-turno"
+import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { EstadoTurno } from "@/lib/type/estado-turno"
 import type { TableColumn } from "@/components/ui/data-table"
 
@@ -111,6 +112,8 @@ export default function EstadoTurnoPage() {
     }
   }
 
+  const canSave = !!form.descripcion.trim()
+
   return (
     <div className="flex flex-col gap-6 p-6">
       <div className="flex flex-col gap-1">
@@ -162,15 +165,15 @@ export default function EstadoTurnoPage() {
         }
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
+        saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear estado"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Descripción</label>
+          <label className="text-sm font-medium">Descripción *</label>
           <Input
             value={form.descripcion}
-            onChange={(e) => setForm({ descripcion: e.target.value })}
+            onChange={(e) => setForm({ descripcion: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción") })}
             placeholder="Ej: Pendiente, Confirmado, Completado, Cancelado..."
-            maxLength={100}
           />
         </div>
       </FormModal>

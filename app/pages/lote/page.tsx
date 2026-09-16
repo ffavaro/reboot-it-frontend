@@ -26,7 +26,8 @@ import {
 } from "@/hooks/use-lote"
 import { useDonaciones } from "@/hooks/use-donacion"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import { requiredSelect, positiveNumber } from "@/lib/form-validators"
+import { requiredSelect, positiveNumber, maxDigits } from "@/lib/form-validators"
+import { enforceDecimalInput, DEFAULT_WEIGHT_MAX_DIGITS } from "@/lib/utils/number-limit"
 import type { Lote } from "@/lib/type/lote"
 
 const EMPTY_FORM = { donacionId: "", pesoBrutoKg: "", observaciones: "" }
@@ -123,7 +124,7 @@ export default function LotePage() {
   async function handleSave() {
     if (!validate(form, {
       donacionId: [requiredSelect("una donación")],
-      pesoBrutoKg: [positiveNumber()],
+      pesoBrutoKg: [positiveNumber(), maxDigits(DEFAULT_WEIGHT_MAX_DIGITS)],
     })) return
     try {
       const payload = {
@@ -234,12 +235,13 @@ export default function LotePage() {
             Peso bruto (kg) <span className="text-muted-foreground font-normal">(opcional)</span>
           </label>
           <Input
-            type="number"
-            step="0.01"
-            min="0.01"
+            inputMode="decimal"
             placeholder="Ej: 120.50"
             value={form.pesoBrutoKg}
-            onChange={(e) => { setForm((f) => ({ ...f, pesoBrutoKg: e.target.value })); clearError("pesoBrutoKg") }}
+            onChange={(e) => {
+              setForm((f) => ({ ...f, pesoBrutoKg: enforceDecimalInput(e.target.value, DEFAULT_WEIGHT_MAX_DIGITS, "El peso bruto") }))
+              clearError("pesoBrutoKg")
+            }}
             className={cn(errors.pesoBrutoKg && "border-destructive focus-visible:ring-destructive")}
           />
           <FieldError>{errors.pesoBrutoKg}</FieldError>
