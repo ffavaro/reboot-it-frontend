@@ -17,7 +17,8 @@ import {
   useDeleteGestorAmbiental,
 } from "@/hooks/use-gestor-ambiental"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import { required, cuitFormat } from "@/lib/form-validators"
+import { required, cuitFormat, maxLength as maxLengthValidator } from "@/lib/form-validators"
+import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { GestorAmbiental } from "@/lib/type/gestor-ambiental"
 import type { TableColumn } from "@/components/ui/data-table"
 
@@ -123,14 +124,16 @@ export default function GestorAmbientalPage() {
 
   async function handleSave() {
     if (!validate(form, {
-      razonSocial: [required("la razón social")],
+      razonSocial: [required("la razón social"), maxLengthValidator(DEFAULT_TEXT_MAX)],
       cuit: [cuitFormat()],
+      habilitacion: [required("el N° de habilitación"), maxLengthValidator(DEFAULT_TEXT_MAX)],
+      contacto: [maxLengthValidator(DEFAULT_TEXT_MAX)],
     })) return
     try {
       const payload = {
         razonSocial: form.razonSocial.trim(),
         cuit: form.cuit.trim() || undefined,
-        habilitacion: form.habilitacion.trim() || undefined,
+        habilitacion: form.habilitacion.trim(),
         contacto: form.contacto.trim() || undefined,
       }
       if (editing) {
@@ -156,6 +159,8 @@ export default function GestorAmbientalPage() {
       toast.error("Error al eliminar el gestor ambiental")
     }
   }
+
+  const canSave = !!form.razonSocial.trim() && !!form.habilitacion.trim()
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -208,15 +213,15 @@ export default function GestorAmbientalPage() {
         }
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
+        saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear gestor"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Razón social</label>
+          <label className="text-sm font-medium">Razón social *</label>
           <Input
             value={form.razonSocial}
-            onChange={(e) => set("razonSocial", e.target.value)}
+            onChange={(e) => set("razonSocial", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La razón social"))}
             placeholder="Ej: Reciclados S.A."
-            maxLength={150}
             className={cn(errors.razonSocial && "border-destructive focus-visible:ring-destructive")}
           />
           <FieldError>{errors.razonSocial}</FieldError>
@@ -237,15 +242,13 @@ export default function GestorAmbientalPage() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
-            N° de habilitación <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
+          <label className="text-sm font-medium">N° de habilitación *</label>
           <Input
             value={form.habilitacion}
-            onChange={(e) => set("habilitacion", e.target.value)}
+            onChange={(e) => set("habilitacion", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La habilitación"))}
             placeholder="Ej: HAB-2024-001"
-            maxLength={100}
           />
+          <FieldError>{errors.habilitacion}</FieldError>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -254,10 +257,10 @@ export default function GestorAmbientalPage() {
           </label>
           <Input
             value={form.contacto}
-            onChange={(e) => set("contacto", e.target.value)}
+            onChange={(e) => set("contacto", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El contacto"))}
             placeholder="Ej: info@reciclados.com / +54 11 1234-5678"
-            maxLength={100}
           />
+          <FieldError>{errors.contacto}</FieldError>
         </div>
       </FormModal>
     </div>

@@ -15,7 +15,8 @@ import { exportToPdf, exportToExcel, type ExportColumn } from "@/lib/utils/expor
 import { formatDate } from "@/lib/utils/helpers"
 import {
   type Periodo, PERIODO_LABELS, getRangoFechas, getRangoAnterior,
-  getBucketOrder, getBucketKey, clasificarMateriales, pctChange,
+  getRangoCustom, getRangoAnteriorCustom, getBucketOrder, getBucketKey,
+  getBucketOrderCustom, getBucketKeyCustom, clasificarMateriales, pctChange,
 } from "@/lib/utils/dashboard"
 import type { ReporteDonacionQuery } from "@/lib/type/donacion"
 import type { ReporteInventarioQuery } from "@/lib/type/material"
@@ -58,15 +59,61 @@ function EstadoBadge({ estado }: { estado: string }) {
   )
 }
 
+// Ventana por defecto al entrar al dashboard: últimos 3 meses hasta hoy
+function defaultDesde(): string {
+  const d = new Date()
+  d.setMonth(d.getMonth() - 3)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+function defaultHasta(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+
 // ── Página principal ───────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const [periodo, setPeriodo] = useState<Periodo>("mes")
+  // null = rango personalizado (por defecto, últimos 3 meses); si no, el preset queda aplicado
+  // y las fechas de customDesde/customHasta solo reflejan su rango para mostrarlas en los inputs
+  const [activePreset, setActivePreset] = useState<Periodo | null>(null)
   const [donanteId, setDonanteId] = useState<number | "">("")
   const [search, setSearch] = useState("")
+  const [customDesde, setCustomDesde] = useState(defaultDesde())
+  const [customHasta, setCustomHasta] = useState(defaultHasta())
+
+  const usaRangoCustom = activePreset === null
+
+  function elegirPeriodo(p: Periodo) {
+    const r = getRangoFechas(p)
+    setActivePreset(p)
+    setCustomDesde(r.fechaDesde)
+    setCustomHasta(r.fechaHasta)
+  }
+
+  function handleCustomDesdeChange(v: string) {
+    setCustomDesde(v)
+    setActivePreset(null)
+  }
+
+  function handleCustomHastaChange(v: string) {
+    setCustomHasta(v)
+    setActivePreset(null)
+  }
+
+  function limpiarFiltro() {
+    setActivePreset(null)
+    setCustomDesde(defaultDesde())
+    setCustomHasta(defaultHasta())
+  }
 
   // Rango de fechas del período seleccionado y del período anterior (para comparar tendencias)
-  const rango = useMemo(() => getRangoFechas(periodo), [periodo])
-  const rangoAnterior = useMemo(() => getRangoAnterior(periodo), [periodo])
+  const rango = useMemo(
+    () => activePreset ? getRangoFechas(activePreset) : getRangoCustom(customDesde, customHasta),
+    [activePreset, customDesde, customHasta],
+  )
+  const rangoAnterior = useMemo(
+    () => activePreset ? getRangoAnterior(activePreset) : getRangoAnteriorCustom(customDesde, customHasta),
+    [activePreset, customDesde, customHasta],
+  )
 
   // ── Datos base ────────────────────────────────────────────────────────
   const { lotes, isLoading: loadingLotes } = useLotes()
@@ -109,11 +156,11 @@ export default function DashboardPage() {
   }, [lotes])
 
   const materialesActuales = useMemo(() => (
-    donanteId === "" ? materialesActualesRaw : materialesActualesRaw.filter(m => loteDonanteMap.get(m.loteId) === donanteId)
+    donanteId === "" ? materialesActualesRaw : materialesActualesRaw.filter(m => loteDonanteMap.get(m.loteId ?? -1) === donanteId)
   ), [materialesActualesRaw, loteDonanteMap, donanteId])
 
   const materialesAnteriores = useMemo(() => (
-    donanteId === "" ? materialesAnterioresRaw : materialesAnterioresRaw.filter(m => loteDonanteMap.get(m.loteId) === donanteId)
+    donanteId === "" ? materialesAnterioresRaw : materialesAnterioresRaw.filter(m => loteDonanteMap.get(m.loteId ?? -1) === donanteId)
   ), [materialesAnterioresRaw, loteDonanteMap, donanteId])
 
   const condicionPorId = useMemo(() => new Map(condiciones.map(c => [c.id, c.condicion])), [condiciones])
@@ -159,20 +206,23 @@ export default function DashboardPage() {
   const donutTotal = totalClasifActual
 
   // ── Gráfico de barras: ingresados vs. clasificados por sub-período ─────
+  const bucketKeyOf = (iso: string) =>
+    activePreset ? getBucketKey(iso, activePreset) : getBucketKeyCustom(iso, rango.fechaDesde, rango.fechaHasta)
+
   const barData = useMemo(() => {
-    const order = getBucketOrder(periodo, rango)
+    const order = activePreset ? getBucketOrder(activePreset, rango) : getBucketOrderCustom(rango.fechaDesde, rango.fechaHasta)
     const ingresadosPorBucket = new Map<string, number>()
     const clasificadosPorBucket = new Map<string, number>()
 
     donacionesActuales.forEach(d => {
-      const key = getBucketKey(d.createdAt, periodo)
+      const key = bucketKeyOf(d.createdAt)
       ingresadosPorBucket.set(key, (ingresadosPorBucket.get(key) ?? 0) + 1)
     })
 
     materialesActuales.forEach(m => {
-      const nombre = (condicionPorId.get(m.condicionMaterialId) ?? "").toLowerCase()
+      const nombre = (condicionPorId.get(m.condicionMaterialId ?? -1) ?? "").toLowerCase()
       if (!nombre || nombre.includes("pendiente")) return
-      const key = getBucketKey(m.createdAt, periodo)
+      const key = bucketKeyOf(m.createdAt)
       clasificadosPorBucket.set(key, (clasificadosPorBucket.get(key) ?? 0) + 1)
     })
 
@@ -181,7 +231,7 @@ export default function DashboardPage() {
       ingresados: ingresadosPorBucket.get(key) ?? 0,
       clasificados: clasificadosPorBucket.get(key) ?? 0,
     }))
-  }, [donacionesActuales, materialesActuales, periodo, rango, condicionPorId])
+  }, [donacionesActuales, materialesActuales, activePreset, rango, condicionPorId])
 
   // ── Gráfico de dona: modalidad de recepción (sucursal vs. retiro) ──────
   const recepcionData = useMemo(() => {
@@ -196,22 +246,23 @@ export default function DashboardPage() {
     const pesoPorBucket = new Map<string, number>()
     lotesFiltrados.forEach(l => {
       if (!l.createdAt) return
-      const key = getBucketKey(l.createdAt, periodo)
+      const key = bucketKeyOf(l.createdAt)
       pesoPorBucket.set(key, (pesoPorBucket.get(key) ?? 0) + Number(l.pesoBrutoKg ?? 0))
     })
     return barData.map(b => ({
       ...b,
       pesoKg: Math.round((pesoPorBucket.get(b.name) ?? 0) * 10) / 10,
     }))
-  }, [barData, lotesFiltrados, periodo])
+  }, [barData, lotesFiltrados, activePreset, rango])
 
   // ── Tabla de movimientos de lotes ───────────────────────────────────────
   const materialesPorLote = useMemo(() => {
     const map = new Map<number, typeof todosMateriales>()
     todosMateriales.forEach(m => {
-      const arr = map.get(m.loteId) ?? []
+      const loteId = m.loteId ?? -1
+      const arr = map.get(loteId) ?? []
       arr.push(m)
-      map.set(m.loteId, arr)
+      map.set(loteId, arr)
     })
     return map
   }, [todosMateriales])
@@ -223,7 +274,7 @@ export default function DashboardPage() {
       .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
       .map(l => {
         const materiales = materialesPorLote.get(l.id) ?? []
-        const nombres = materiales.map(m => (condicionPorId.get(m.condicionMaterialId) ?? "").toLowerCase())
+        const nombres = materiales.map(m => (condicionPorId.get(m.condicionMaterialId ?? -1) ?? "").toLowerCase())
         let estado = "En proceso"
         if (materiales.length > 0 && nombres.every(n => n.includes("desecho"))) estado = "Desechado"
         else if (materiales.length > 0 && nombres.every(n => n && !n.includes("pendiente"))) estado = "Clasificado"
@@ -279,9 +330,9 @@ export default function DashboardPage() {
           {(["mes", "trimestre", "semestre", "año"] as Periodo[]).map(p => (
             <button
               key={p}
-              onClick={() => setPeriodo(p)}
+              onClick={() => elegirPeriodo(p)}
               className={`text-xs px-3 py-1.5 rounded-lg border transition-all duration-150 ${
-                periodo === p
+                activePreset === p
                   ? "bg-blue-50 border-blue-400 text-blue-800 font-medium dark:bg-blue-900/30 dark:border-blue-500 dark:text-blue-300"
                   : "border-border text-muted-foreground hover:bg-muted"
               }`}
@@ -289,6 +340,33 @@ export default function DashboardPage() {
               {PERIODO_LABELS[p]}
             </button>
           ))}
+          <div className={`flex items-center gap-1 rounded-lg border px-2 py-1 ${usaRangoCustom ? "border-blue-400 bg-blue-50 dark:bg-blue-900/30" : "border-border"}`}>
+            <input
+              type="date"
+              value={customDesde}
+              onChange={e => handleCustomDesdeChange(e.target.value)}
+              className="text-xs bg-transparent focus:outline-none"
+              aria-label="Fecha desde"
+            />
+            <span className="text-xs text-muted-foreground">a</span>
+            <input
+              type="date"
+              value={customHasta}
+              min={customDesde || undefined}
+              onChange={e => handleCustomHastaChange(e.target.value)}
+              className="text-xs bg-transparent focus:outline-none"
+              aria-label="Fecha hasta"
+            />
+            {activePreset === null && (customDesde !== defaultDesde() || customHasta !== defaultHasta()) && (
+              <button
+                onClick={limpiarFiltro}
+                className="text-xs text-muted-foreground hover:text-foreground ml-1"
+                title="Volver al rango por defecto (últimos 3 meses)"
+              >
+                ✕
+              </button>
+            )}
+          </div>
           <select
             value={donanteId}
             onChange={e => setDonanteId(e.target.value === "" ? "" : Number(e.target.value))}

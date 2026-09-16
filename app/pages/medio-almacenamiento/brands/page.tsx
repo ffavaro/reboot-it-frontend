@@ -9,6 +9,7 @@ import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { useMarcas, useCreateMarca, useUpdateMarca, useDeleteMarca } from "@/hooks/use-marca"
+import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { Marca } from "@/lib/type/marca"
 import type { TableColumn } from "@/components/ui/data-table"
 
@@ -89,6 +90,8 @@ export default function MarcasPage() {
     }
   }
 
+  const canSave = !!form.nombre.trim()
+
   return (
     <div className="flex flex-col gap-6 p-6">
       <div className="flex flex-col gap-1">
@@ -140,15 +143,15 @@ export default function MarcasPage() {
         }
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
+        saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear marca"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Nombre</label>
+          <label className="text-sm font-medium">Nombre *</label>
           <Input
             value={form.nombre}
-            onChange={(e) => setForm({ nombre: e.target.value })}
+            onChange={(e) => setForm({ nombre: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre") })}
             placeholder="Ej: Seagate, WD, Kingston, Samsung..."
-            maxLength={50}
           />
         </div>
       </FormModal>

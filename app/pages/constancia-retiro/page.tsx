@@ -26,6 +26,12 @@ import type { Retiro } from "@/lib/type/retiro"
 
 const EMPTY_FORM = { retiroId: "", fechaEmision: "", observaciones: "", tecnicoId: "" }
 
+function todayISO(): string {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+}
+
 const columns: TableColumn<ConstanciaRetiro>[] = [
   {
     key: "retiroId",
@@ -101,7 +107,7 @@ export default function ConstanciaRetiroPage() {
   function openCreate() {
     setIsViewing(false)
     setEditing(null)
-    setForm(EMPTY_FORM)
+    setForm({ ...EMPTY_FORM, fechaEmision: todayISO() })
     setSheetOpen(true)
   }
 
@@ -134,12 +140,16 @@ export default function ConstanciaRetiroPage() {
       toast.error("El retiro es obligatorio")
       return
     }
+    if (!form.tecnicoId) {
+      toast.error("El técnico responsable es obligatorio")
+      return
+    }
     try {
       const payload = {
         retiroId: Number(form.retiroId),
         fechaEmision: form.fechaEmision || undefined,
         observaciones: form.observaciones.trim() || undefined,
-        tecnicoId: form.tecnicoId ? Number(form.tecnicoId) : undefined,
+        tecnicoId: Number(form.tecnicoId),
       }
       if (editing) {
         await updateConstancia({ id: editing.id, ...payload })
@@ -218,10 +228,11 @@ export default function ConstanciaRetiroPage() {
         }
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
+        saveDisabled={!form.retiroId || !form.tecnicoId}
         saveLabel={editing ? "Guardar cambios" : "Crear constancia"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Retiro</label>
+          <label className="text-sm font-medium">Retiro *</label>
           <select
             value={form.retiroId}
             onChange={(e) => {
@@ -251,26 +262,23 @@ export default function ConstanciaRetiroPage() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
-            Fecha de emisión <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
+          <label className="text-sm font-medium">Fecha de emisión</label>
           <Input
             type="date"
             value={form.fechaEmision}
             onChange={(e) => setForm((f) => ({ ...f, fechaEmision: e.target.value }))}
+            disabled={!editing}
           />
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
-            Técnico responsable <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
+          <label className="text-sm font-medium">Técnico responsable *</label>
           <select
             value={form.tecnicoId}
             onChange={(e) => setForm((f) => ({ ...f, tecnicoId: e.target.value }))}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
-            <option value="">Sin técnico asignado</option>
+            <option value="">Seleccionar técnico...</option>
             {transportistas.map((t: EmpleadoTransportista) => (
               <option key={t.empleadoId} value={t.empleadoId}>
                 {t.empleado ? `${t.empleado.nombre} ${t.empleado.apellido}` : `#${t.empleadoId}`}

@@ -11,20 +11,39 @@ import { DataTable, type TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { FieldError } from "@/components/ui/field"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   usePallets,
   useCreatePallet,
   useUpdatePallet,
   useDeletePallet,
 } from "@/hooks/use-pallet"
 import { useRacks } from "@/hooks/use-rack"
-import { useLotes } from "@/hooks/use-lote"
+import { useLotes, useCreateLote } from "@/hooks/use-lote"
+import { useDonaciones } from "@/hooks/use-donacion"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import { requiredSelect, positiveNumber } from "@/lib/form-validators"
+import { requiredSelect, positiveNumber, maxDigits } from "@/lib/form-validators"
+import { enforceDecimalInput, DEFAULT_WEIGHT_MAX_DIGITS } from "@/lib/utils/number-limit"
 import type { Pallet } from "@/lib/type/pallet"
 import type { Rack } from "@/lib/type/rack"
 import type { Lote } from "@/lib/type/lote"
 
 const EMPTY_FORM = { rackId: "", loteId: "", codigo: "", peso_kg: "" }
+const EMPTY_QUICK_LOTE = { donacionId: "", pesoBrutoKg: "", observaciones: "" }
+
+function generatePalletCodigo(pallets: Pallet[]): string {
+  const maxNumero = pallets.reduce((max, p) => {
+    const match = (p.codigo ?? "").match(/(\d+)$/)
+    const numero = match ? parseInt(match[1], 10) : 0
+    return Math.max(max, numero)
+  }, 0)
+  return `PLT-${String(maxNumero + 1).padStart(4, "0")}`
+}
 
 const COLUMNS: TableColumn<Pallet>[] = [
   {
@@ -82,17 +101,28 @@ const COLUMNS: TableColumn<Pallet>[] = [
 export default function PalletPage() {
   const { pallets, isLoading, mutate } = usePallets()
   const { racks } = useRacks()
-  const { lotes } = useLotes()
+  const { lotes, mutate: mutateLotes } = useLotes()
+  const { donaciones } = useDonaciones()
   const { createPallet, isLoading: isCreating } = useCreatePallet()
   const { updatePallet, isLoading: isUpdating } = useUpdatePallet()
   const { deletePallet, isLoading: isDeleting } = useDeletePallet()
+  const { createLote, isLoading: isCreatingLote } = useCreateLote()
   const { errors, validate, clearError, reset } = useFormErrors<typeof EMPTY_FORM>()
+  const {
+    errors: loteErrors,
+    validate: validateLote,
+    clearError: clearLoteError,
+    reset: resetLoteErrors,
+  } = useFormErrors<typeof EMPTY_QUICK_LOTE>()
 
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Pallet | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+
+  const [quickLoteOpen, setQuickLoteOpen] = useState(false)
+  const [quickLoteForm, setQuickLoteForm] = useState(EMPTY_QUICK_LOTE)
 
   const filtered = pallets.filter((p: Pallet) => {
     const q = search.toLowerCase()
@@ -108,7 +138,7 @@ export default function PalletPage() {
   function openCreate() {
     setIsViewing(false)
     setEditing(null)
-    setForm(EMPTY_FORM)
+    setForm({ ...EMPTY_FORM, codigo: generatePalletCodigo(pallets) })
     reset()
     setModalOpen(true)
   }
@@ -142,12 +172,13 @@ export default function PalletPage() {
   async function handleSave() {
     if (!validate(form, {
       rackId: [requiredSelect("un rack")],
-      peso_kg: [positiveNumber()],
+      loteId: [requiredSelect("un lote")],
+      peso_kg: [positiveNumber(), maxDigits(DEFAULT_WEIGHT_MAX_DIGITS)],
     })) return
     try {
       const payload = {
         rackId: Number(form.rackId),
-        loteId: form.loteId ? Number(form.loteId) : undefined,
+        loteId: Number(form.loteId),
         codigo: form.codigo.trim() || undefined,
         peso_kg: form.peso_kg !== "" ? Number(form.peso_kg) : undefined,
       }
@@ -174,6 +205,42 @@ export default function PalletPage() {
       toast.error("Error al eliminar el pallet")
     }
   }
+
+  function openQuickLote() {
+    setQuickLoteForm(EMPTY_QUICK_LOTE)
+    resetLoteErrors()
+    setQuickLoteOpen(true)
+  }
+
+  async function handleSaveQuickLote() {
+    if (!validateLote(quickLoteForm, {
+      donacionId: [requiredSelect("una donación")],
+      pesoBrutoKg: [positiveNumber(), maxDigits(DEFAULT_WEIGHT_MAX_DIGITS)],
+    })) return
+    try {
+      const nuevo = await createLote({
+        donacionId: Number(quickLoteForm.donacionId),
+        pesoBrutoKg: quickLoteForm.pesoBrutoKg !== "" ? Number(quickLoteForm.pesoBrutoKg) : undefined,
+        observaciones: quickLoteForm.observaciones.trim() || undefined,
+      })
+      await mutateLotes()
+      if (nuevo) {
+        setForm((f) => ({
+          ...f,
+          loteId: String(nuevo.id),
+          peso_kg: nuevo.pesoBrutoKg != null ? String(nuevo.pesoBrutoKg) : f.peso_kg,
+        }))
+        clearError("loteId")
+      }
+      toast.success("Lote creado")
+      setQuickLoteOpen(false)
+    } catch {
+      toast.error("Error al crear el lote")
+    }
+  }
+
+  const canSave = !!form.rackId && !!form.loteId
+  const canSaveQuickLote = !!quickLoteForm.donacionId
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -222,10 +289,11 @@ export default function PalletPage() {
         description={editing ? "Modificá los datos del pallet." : "Registrá un nuevo pallet en un rack."}
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
+        saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear pallet"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Rack</label>
+          <label className="text-sm font-medium">Rack *</label>
           <select
             value={form.rackId}
             onChange={(e) => { setForm((f) => ({ ...f, rackId: e.target.value })); clearError("rackId") }}
@@ -245,40 +313,52 @@ export default function PalletPage() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
-            Lote <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
-          <select
-            value={form.loteId}
-            onChange={(e) => {
-              const loteId = e.target.value
-              const lote = lotes.find((l: Lote) => String(l.id) === loteId)
-              setForm((f) => ({
-                ...f,
-                loteId,
-                peso_kg: lote?.pesoBrutoKg != null ? String(lote.pesoBrutoKg) : f.peso_kg,
-              }))
-            }}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            <option value="">Sin lote asignado</option>
-            {lotes.map((l: Lote) => (
-              <option key={l.id} value={l.id}>
-                Lote #{l.id}{l.pesoBrutoKg ? ` — ${l.pesoBrutoKg} kg` : ""}
-              </option>
-            ))}
-          </select>
+          <label className="text-sm font-medium">Lote *</label>
+          <div className="flex gap-2">
+            <select
+              value={form.loteId}
+              onChange={(e) => {
+                const loteId = e.target.value
+                const lote = lotes.find((l: Lote) => String(l.id) === loteId)
+                setForm((f) => ({
+                  ...f,
+                  loteId,
+                  peso_kg: lote?.pesoBrutoKg != null ? String(lote.pesoBrutoKg) : f.peso_kg,
+                }))
+                clearError("loteId")
+              }}
+              className={cn(
+                "flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                errors.loteId ? "border-destructive" : "border-input",
+              )}
+            >
+              <option value="">Seleccionar lote...</option>
+              {lotes.map((l: Lote) => (
+                <option key={l.id} value={l.id}>
+                  Lote #{l.id}{l.pesoBrutoKg ? ` — ${l.pesoBrutoKg} kg` : ""}
+                </option>
+              ))}
+            </select>
+            {!isViewing && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                title="No está en la lista: crear nuevo lote"
+                onClick={openQuickLote}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          <FieldError>{errors.loteId}</FieldError>
         </div>
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">
-            Código <span className="text-muted-foreground font-normal">(opcional)</span>
+            Código <span className="text-muted-foreground font-normal">(autogenerado)</span>
           </label>
-          <Input
-            placeholder="Ej: PLT-001"
-            value={form.codigo}
-            onChange={(e) => setForm((f) => ({ ...f, codigo: e.target.value }))}
-          />
+          <Input value={form.codigo} disabled />
         </div>
 
         <div className="flex flex-col gap-2">
@@ -286,19 +366,92 @@ export default function PalletPage() {
             Peso (kg) <span className="text-muted-foreground font-normal">(opcional)</span>
           </label>
           <Input
-            type="number"
-            step="0.01"
-            min="0.01"
+            inputMode="decimal"
             placeholder="Ej: 50.00"
             value={form.peso_kg}
             readOnly={!!form.loteId}
-            onChange={(e) => { setForm((f) => ({ ...f, peso_kg: e.target.value })); clearError("peso_kg") }}
+            onChange={(e) => {
+              setForm((f) => ({ ...f, peso_kg: enforceDecimalInput(e.target.value, DEFAULT_WEIGHT_MAX_DIGITS, "El peso") }))
+              clearError("peso_kg")
+            }}
             className={cn(
               form.loteId ? "bg-muted cursor-not-allowed" : "",
               errors.peso_kg && "border-destructive focus-visible:ring-destructive",
             )}
           />
           <FieldError>{errors.peso_kg}</FieldError>
+        </div>
+      </FormModal>
+
+      {/* Alta rápida de lote */}
+      <FormModal
+        open={quickLoteOpen}
+        onOpenChange={setQuickLoteOpen}
+        title="Nuevo lote"
+        description="Cargá los datos del lote para asociarlo al pallet."
+        onSave={handleSaveQuickLote}
+        isLoading={isCreatingLote}
+        saveDisabled={!canSaveQuickLote}
+        saveLabel="Crear lote"
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Donación *</label>
+          <Select
+            value={quickLoteForm.donacionId}
+            onValueChange={(v) => {
+              setQuickLoteForm((f) => ({ ...f, donacionId: v ?? "" }))
+              clearLoteError("donacionId")
+            }}
+          >
+            <SelectTrigger className={cn("w-full", loteErrors.donacionId && "border-destructive ring-1 ring-destructive")}>
+              <SelectValue placeholder="Seleccioná una donación" />
+            </SelectTrigger>
+            <SelectContent>
+              {donaciones.map((d) => (
+                <SelectItem key={d.id} value={String(d.id)}>
+                  <span className="font-mono text-xs text-muted-foreground w-8 shrink-0">#{d.id}</span>
+                  <span className="font-medium truncate">{d.donante?.nombre ?? `Donante #${d.donanteId}`}</span>
+                  {d.descripcion && (
+                    <span className="text-xs text-muted-foreground truncate">· {d.descripcion}</span>
+                  )}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <FieldError>{loteErrors.donacionId}</FieldError>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Peso bruto (kg) <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            inputMode="decimal"
+            placeholder="Ej: 120.50"
+            value={quickLoteForm.pesoBrutoKg}
+            onChange={(e) => {
+              setQuickLoteForm((f) => ({
+                ...f,
+                pesoBrutoKg: enforceDecimalInput(e.target.value, DEFAULT_WEIGHT_MAX_DIGITS, "El peso bruto"),
+              }))
+              clearLoteError("pesoBrutoKg")
+            }}
+            className={cn(loteErrors.pesoBrutoKg && "border-destructive focus-visible:ring-destructive")}
+          />
+          <FieldError>{loteErrors.pesoBrutoKg}</FieldError>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Observaciones <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <textarea
+            rows={3}
+            placeholder="Observaciones sobre el lote..."
+            value={quickLoteForm.observaciones}
+            onChange={(e) => setQuickLoteForm((f) => ({ ...f, observaciones: e.target.value }))}
+            className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+          />
         </div>
       </FormModal>
     </div>

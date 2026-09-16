@@ -92,6 +92,13 @@ export default function RetiroPage() {
   const { updateRetiro, isLoading: isUpdating } = useUpdateRetiro()
   const { deleteRetiro, isLoading: isDeleting } = useDeleteRetiro()
 
+  // Compatibilidad de peso: null = sin datos suficientes para evaluar
+  function esCompatible(t: EmpleadoTransportista, pesoKg: number | null): boolean | null {
+    const tipo = t.vehiculo?.tipoVehiculo
+    if (pesoKg == null || !tipo || tipo.pesoMinimo == null || tipo.pesoMaximo == null) return null
+    return pesoKg >= tipo.pesoMinimo && pesoKg <= tipo.pesoMaximo
+  }
+
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Retiro | null>(null)
@@ -273,12 +280,23 @@ export default function RetiroPage() {
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="">Seleccionar transportista...</option>
-            {transportistas.map((t: EmpleadoTransportista) => (
-              <option key={t.id} value={t.id}>
-                {t.empleado ? `${t.empleado.nombre} ${t.empleado.apellido}` : `#${t.id}`}
-              </option>
-            ))}
+            {transportistas.map((t: EmpleadoTransportista) => {
+              const donacionSeleccionada = donaciones.find((d: Donacion) => String(d.id) === form.donacionId)
+              const compatible = esCompatible(t, donacionSeleccionada?.pesoEstimadoKg ?? null)
+              const nombre = t.empleado ? `${t.empleado.nombre} ${t.empleado.apellido}` : `#${t.id}`
+              const sufijo = compatible === false ? " — vehículo no soporta el peso estimado" : compatible === true ? " ✓ compatible" : ""
+              return (
+                <option key={t.id} value={t.id}>
+                  {nombre}{sufijo}
+                </option>
+              )
+            })}
           </select>
+          {form.donacionId && donaciones.find((d: Donacion) => String(d.id) === form.donacionId)?.pesoEstimadoKg == null && (
+            <p className="text-xs text-muted-foreground">
+              Esta donación no tiene un peso estimado cargado: no se puede validar la compatibilidad del vehículo.
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col gap-2">

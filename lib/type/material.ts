@@ -4,9 +4,9 @@ import type { CondicionMaterial } from "./condicion-material"
 
 export interface Material {
   id: number
-  loteId: number
+  loteId: number | null
   tipoMaterialId: number
-  condicionMaterialId: number
+  condicionMaterialId: number | null
   descripcion: string | null
   isActive: boolean
   lote?: Lote
@@ -15,10 +15,10 @@ export interface Material {
 }
 
 export interface CreateMaterialPayload {
-  loteId: number
+  loteId?: number
   tipoMaterialId: number
-  condicionMaterialId: number
-  descripcion?: string
+  condicionMaterialId?: number
+  descripcion: string
 }
 
 export interface UpdateMaterialPayload {

@@ -1,6 +1,8 @@
 export interface TipoVehiculo {
   id: number
   descripcion: string
+  pesoMinimo: number | null
+  pesoMaximo: number | null
 }
 
 export interface Vehiculo {
@@ -29,8 +31,12 @@ export interface UpdateVehiculoPayload {
 
 export interface CreateTipoVehiculoPayload {
   descripcion: string
+  pesoMinimo?: number
+  pesoMaximo?: number
 }
 
 export interface UpdateTipoVehiculoPayload {
   descripcion?: string
+  pesoMinimo?: number
+  pesoMaximo?: number
 }

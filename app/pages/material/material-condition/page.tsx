@@ -17,7 +17,8 @@ import {
   useDeleteCondicionMaterial,
 } from "@/hooks/use-condicion-material"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import { required } from "@/lib/form-validators"
+import { required, maxLength as maxLengthValidator } from "@/lib/form-validators"
+import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { CondicionMaterial } from "@/lib/type/condicion-material"
 import type { TableColumn } from "@/components/ui/data-table"
 
@@ -106,7 +107,10 @@ export default function CondicionMaterialPage() {
   }
 
   async function handleSave() {
-    if (!validate(form, { condicion: [required("la condición")] })) return
+    if (!validate(form, {
+      condicion: [required("la condición"), maxLengthValidator(DEFAULT_TEXT_MAX)],
+      descripcion: [maxLengthValidator(DEFAULT_TEXT_MAX)],
+    })) return
     try {
       const payload = {
         condicion: form.condicion.trim(),
@@ -135,6 +139,8 @@ export default function CondicionMaterialPage() {
       toast.error("Error al eliminar la condición")
     }
   }
+
+  const canSave = !!form.condicion.trim()
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -187,15 +193,15 @@ export default function CondicionMaterialPage() {
         }
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
+        saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear condición"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Condición</label>
+          <label className="text-sm font-medium">Condición *</label>
           <Input
             value={form.condicion}
-            onChange={(e) => set("condicion", e.target.value)}
+            onChange={(e) => set("condicion", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La condición"))}
             placeholder="Ej: Funcional, Reparable, Obsoleto..."
-            maxLength={100}
             className={cn(errors.condicion && "border-destructive focus-visible:ring-destructive")}
           />
           <FieldError>{errors.condicion}</FieldError>
@@ -207,10 +213,10 @@ export default function CondicionMaterialPage() {
           </label>
           <Input
             value={form.descripcion}
-            onChange={(e) => set("descripcion", e.target.value)}
+            onChange={(e) => set("descripcion", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción"))}
             placeholder="Breve descripción de la condición"
-            maxLength={255}
           />
+          <FieldError>{errors.descripcion}</FieldError>
         </div>
       </FormModal>
     </div>

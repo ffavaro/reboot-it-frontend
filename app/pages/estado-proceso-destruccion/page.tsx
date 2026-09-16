@@ -15,6 +15,7 @@ import {
   useUpdateEstadoProcesoDestruccion,
   useDeleteEstadoProcesoDestruccion,
 } from "@/hooks/use-estado-proceso-destruccion"
+import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { EstadoProcesoDestruccion } from "@/lib/type/estado-proceso-destruccion"
 
 const ESTADO_COLORS: Record<string, string> = {
@@ -120,6 +121,8 @@ export default function EstadoProcesoDestruccionPage() {
     }
   }
 
+  const canSave = !!form.nombre.trim()
+
   return (
     <div className="flex flex-col gap-6 p-6">
       <div className="flex flex-col gap-1">
@@ -177,15 +180,15 @@ export default function EstadoProcesoDestruccionPage() {
         }
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
+        saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear estado"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Nombre</label>
+          <label className="text-sm font-medium">Nombre *</label>
           <Input
             value={form.nombre}
-            onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
+            onChange={(e) => setForm((f) => ({ ...f, nombre: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre") }))}
             placeholder="Ej: Iniciado, Pendiente, Finalizado..."
-            maxLength={50}
           />
         </div>
 
@@ -195,9 +198,8 @@ export default function EstadoProcesoDestruccionPage() {
           </label>
           <Input
             value={form.descripcion}
-            onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
+            onChange={(e) => setForm((f) => ({ ...f, descripcion: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción") }))}
             placeholder="Descripción del estado..."
-            maxLength={255}
           />
         </div>
       </FormModal>
