@@ -1,4 +1,13 @@
-const BASE_URL = process.env.NEXT_PUBLIC_URL_BACKEND ?? "http://localhost:3001"
+// Si la env var viene sin esquema (ej. Railway con solo "backend.up.railway.app"),
+// el navegador la trata como ruta relativa y la concatena con el origin del frontend
+// en vez de pegarle al backend. Se le agrega https:// como red de seguridad.
+function resolveBaseUrl(): string {
+  const raw = (process.env.NEXT_PUBLIC_URL_BACKEND ?? "http://localhost:3001").trim()
+  const conEsquema = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+  return conEsquema.replace(/\/+$/, "")
+}
+
+const BASE_URL = resolveBaseUrl()
 
 export async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
