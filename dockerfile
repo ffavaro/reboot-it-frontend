@@ -1,4 +1,4 @@
-FROM node:20
+FROM node:20-alpine
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ CMD ["npm", "run", "dev"]
 
 # Se va a poder usar este dockerfile cuando el proyecto quede debuggeado al 100%
 
-#FROM node:20
+#FROM node:20-alpine
 
 #WORKDIR /app
 

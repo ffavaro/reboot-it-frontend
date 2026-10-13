@@ -4,14 +4,8 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet"
+import { DataTable } from "@/components/ui/data-table"
+import { FormModal } from "@/components/ui/form-modal"
 import {
   useEmpleadosTransportistas,
   useCreateEmpleadoTransportista,
@@ -23,8 +17,48 @@ import { useVehiculos } from "@/hooks/use-vehicles"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import type { Empleado } from "@/lib/type/user"
 import type { Vehiculo } from "@/lib/type/vehicle"
+import type { TableColumn } from "@/components/ui/data-table"
 
 const EMPTY_FORM = { empleadoId: "", vehiculoId: "", fechaAsignacion: "" }
+
+const COLUMNS: TableColumn<EmpleadoTransportista>[] = [
+  {
+    key: "empleado",
+    header: "Empleado",
+    cell: (t) =>
+      t.empleado ? (
+        <span className="font-medium">{t.empleado.nombre} {t.empleado.apellido}</span>
+      ) : (
+        <span className="italic text-muted-foreground">—</span>
+      ),
+  },
+  {
+    key: "vehiculo",
+    header: "Vehículo",
+    cell: (t) =>
+      t.vehiculo ? (
+        <span className="text-muted-foreground">
+          <span className="font-mono text-xs">{t.vehiculo.patente}</span>
+          {" · "}
+          {t.vehiculo.marca} {t.vehiculo.modelo}
+        </span>
+      ) : (
+        <span className="italic text-muted-foreground">Sin vehículo</span>
+      ),
+  },
+  {
+    key: "fechaAsignacion",
+    header: "Fecha asignación",
+    cell: (t) =>
+      t.fechaAsignacion ? (
+        <span className="text-muted-foreground">
+          {t.fechaAsignacion.slice(0, 10).split("-").reverse().join("/")}
+        </span>
+      ) : (
+        <span className="italic text-muted-foreground">Sin fecha</span>
+      ),
+  },
+]
 
 export default function EmpleadoTransportistaPage() {
   const { transportistas, isLoading, mutate } = useEmpleadosTransportistas()
@@ -35,10 +69,10 @@ export default function EmpleadoTransportistaPage() {
   const { deleteTransportista, isLoading: isDeleting } = useDeleteEmpleadoTransportista()
 
   const [search, setSearch] = useState("")
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<EmpleadoTransportista | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
-  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const filtered = transportistas.filter((t: EmpleadoTransportista) => {
     const q = search.toLowerCase()
@@ -50,19 +84,32 @@ export default function EmpleadoTransportistaPage() {
   })
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
-    setForm(EMPTY_FORM)
-    setSheetOpen(true)
+    setForm({ ...EMPTY_FORM, fechaAsignacion: new Date().toISOString().slice(0, 10) })
+    setModalOpen(true)
   }
 
   function openEdit(t: EmpleadoTransportista) {
+    setIsViewing(false)
     setEditing(t)
     setForm({
       empleadoId: String(t.empleadoId),
       vehiculoId: t.vehiculoId ? String(t.vehiculoId) : "",
-      fechaAsignacion: t.fechaAsignacion ? t.fechaAsignacion.slice(0, 16) : "",
+      fechaAsignacion: t.fechaAsignacion ? t.fechaAsignacion.slice(0, 10) : "",
     })
-    setSheetOpen(true)
+    setModalOpen(true)
+  }
+
+  function openView(t: EmpleadoTransportista) {
+    setIsViewing(true)
+    setEditing(t)
+    setForm({
+      empleadoId: String(t.empleadoId),
+      vehiculoId: t.vehiculoId ? String(t.vehiculoId) : "",
+      fechaAsignacion: t.fechaAsignacion ? t.fechaAsignacion.slice(0, 10) : "",
+    })
+    setModalOpen(true)
   }
 
   async function handleSave() {
@@ -84,21 +131,19 @@ export default function EmpleadoTransportistaPage() {
         toast.success("Empleado transportista creado")
       }
       await mutate()
-      setSheetOpen(false)
+      setModalOpen(false)
     } catch {
       toast.error("Error al guardar el empleado transportista")
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: number | string) {
     try {
-      await deleteTransportista(id)
+      await deleteTransportista(id as number)
       await mutate()
       toast.success("Empleado transportista desactivado")
     } catch {
       toast.error("Error al eliminar el empleado transportista")
-    } finally {
-      setDeletingId(null)
     }
   }
 
@@ -126,159 +171,79 @@ export default function EmpleadoTransportistaPage() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Empleado</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Vehículo</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Fecha asignación</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">
-                  Cargando transportistas...
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">
-                  {search
-                    ? "No se encontraron transportistas con ese criterio."
-                    : "No hay empleados transportistas registrados."}
-                </td>
-              </tr>
-            ) : (
-              filtered.map((t: EmpleadoTransportista) => (
-                <tr
-                  key={t.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                >
-                  <td className="px-4 py-3 font-medium">
-                    {t.empleado
-                      ? `${t.empleado.nombre} ${t.empleado.apellido}`
-                      : <span className="italic text-muted-foreground">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {t.vehiculo
-                      ? (
-                        <span>
-                          <span className="font-mono text-xs">{t.vehiculo.patente}</span>
-                          {" · "}
-                          {t.vehiculo.marca} {t.vehiculo.modelo}
-                        </span>
-                      )
-                      : <span className="italic">Sin vehículo</span>}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {t.fechaAsignacion
-                      ? new Date(t.fechaAsignacion).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
-                      : <span className="italic">Sin fecha</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      {deletingId === t.id ? (
-                        <>
-                          <span className="text-xs text-muted-foreground">¿Confirmar?</span>
-                          <Button size="xs" variant="destructive" onClick={() => handleDelete(t.id)} disabled={isDeleting}>
-                            Eliminar
-                          </Button>
-                          <Button size="xs" variant="ghost" onClick={() => setDeletingId(null)}>
-                            Cancelar
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button size="xs" variant="outline" onClick={() => openEdit(t)}>
-                            Editar
-                          </Button>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeletingId(t.id)}
-                          >
-                            Eliminar
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        data={filtered}
+        columns={COLUMNS}
+        isLoading={isLoading}
+        loadingText="Cargando transportistas..."
+        emptyText="No hay empleados transportistas registrados."
+        emptySearchText="No se encontraron transportistas con ese criterio."
+        search={search}
+        onView={openView}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        isDeleting={isDeleting}
+      />
 
-      <Sheet open={sheetOpen} onOpenChange={(open) => !open && setSheetOpen(false)}>
-        <SheetContent side="right">
-          <SheetHeader>
-            <SheetTitle>{editing ? "Editar transportista" : "Nuevo transportista"}</SheetTitle>
-            <SheetDescription>
-              {editing
-                ? "Modificá la asignación del empleado transportista."
-                : "Asigná un empleado como transportista."}
-            </SheetDescription>
-          </SheetHeader>
+      <FormModal
+        open={modalOpen}
+        onOpenChange={(open) => !open && setModalOpen(false)}
+        title={isViewing ? "Ver transportista" : editing ? "Editar transportista" : "Nuevo transportista"}
+        readOnly={isViewing}
+        description={
+          editing
+            ? "Modificá la asignación del empleado transportista."
+            : "Asigná un empleado como transportista."
+        }
+        onSave={handleSave}
+        isLoading={isCreating || isUpdating}
+        saveLabel={editing ? "Guardar cambios" : "Crear transportista"}
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Empleado</label>
+          <select
+            value={form.empleadoId}
+            onChange={(e) => setForm((f) => ({ ...f, empleadoId: e.target.value }))}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Seleccionar empleado...</option>
+            {empleados.map((e: Empleado) => (
+              <option key={e.id} value={e.id}>
+                {e.nombre} {e.apellido}{e.cargo ? ` — ${e.cargo}` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
 
-          <div className="flex flex-col gap-5 px-6 py-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Empleado</label>
-              <select
-                value={form.empleadoId}
-                onChange={(e) => setForm((f) => ({ ...f, empleadoId: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="">Seleccionar empleado...</option>
-                {empleados.map((e: Empleado) => (
-                  <option key={e.id} value={e.id}>
-                    {e.nombre} {e.apellido}{e.cargo ? ` — ${e.cargo}` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Vehículo <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <select
+            value={form.vehiculoId}
+            onChange={(e) => setForm((f) => ({ ...f, vehiculoId: e.target.value }))}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Sin vehículo asignado</option>
+            {vehiculos.map((v: Vehiculo) => (
+              <option key={v.id} value={v.id}>
+                {v.patente} — {v.marca} {v.modelo}
+              </option>
+            ))}
+          </select>
+        </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Vehículo <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <select
-                value={form.vehiculoId}
-                onChange={(e) => setForm((f) => ({ ...f, vehiculoId: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="">Sin vehículo asignado</option>
-                {vehiculos.map((v: Vehiculo) => (
-                  <option key={v.id} value={v.id}>
-                    {v.patente} — {v.marca} {v.modelo}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Fecha de asignación <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <Input
-                type="datetime-local"
-                value={form.fechaAsignacion}
-                onChange={(e) => setForm((f) => ({ ...f, fechaAsignacion: e.target.value }))}
-              />
-            </div>
-          </div>
-
-          <SheetFooter>
-            <Button onClick={handleSave} disabled={isCreating || isUpdating} className="w-full">
-              {isCreating || isUpdating ? "Guardando..." : editing ? "Guardar cambios" : "Crear transportista"}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Fecha de asignación <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            type="date"
+            value={form.fechaAsignacion}
+            onChange={(e) => setForm((f) => ({ ...f, fechaAsignacion: e.target.value }))}
+          />
+        </div>
+      </FormModal>
     </div>
   )
 }

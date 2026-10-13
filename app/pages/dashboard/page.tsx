@@ -5,8 +5,12 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from "recharts"
+import { Heart, Trash2, Package, type LucideIcon } from "lucide-react"
 import { useLotes } from "@/hooks/use-lote"
 import { useDonantes } from "@/hooks/use-donantes"
+import { useCountUp } from "@/hooks/use-count-up"
+import { ProgressRing } from "@/components/ui/progress-ring"
+import { Skeleton } from "@/components/ui/skeleton"
 
 // ── Tipos ──────────────────────────────────────────────────────────────────
 type RangoFecha = "hoy" | "semana" | "mes" | "año"
@@ -38,13 +42,45 @@ const RANGO_LABELS: Record<RangoFecha, string> = {
 }
 
 // ── Componente KPI Card ────────────────────────────────────────────────────
-function KpiCard({ label, value, sub, trend }: {
-  label: string; value: string | number; sub?: string; trend?: { text: string; up: boolean }
+// `value` numérico se anima con count-up; `valueText` se usa tal cual (ej. "124 kg", "…").
+function KpiCard({ label, value, valueText, suffix, sub, trend, icon: Icon, loading, accent = "primary" }: {
+  label: string
+  value?: number
+  valueText?: string
+  suffix?: string
+  sub?: string
+  trend?: { text: string; up: boolean }
+  icon?: LucideIcon
+  loading?: boolean
+  accent?: "primary" | "chart-2" | "chart-3" | "destructive"
 }) {
+  const animated = useCountUp(value ?? 0)
+  const accentClasses: Record<string, string> = {
+    primary: "bg-primary/10 text-primary",
+    "chart-2": "bg-[var(--chart-2)]/15 text-[var(--chart-2)]",
+    "chart-3": "bg-[var(--chart-3)]/15 text-[var(--chart-3)]",
+    destructive: "bg-destructive/10 text-destructive",
+  }
+
   return (
-    <div className="rounded-xl bg-muted/50 p-4 flex flex-col gap-1 min-w-0">
-      <p className="text-xs text-muted-foreground leading-tight">{label}</p>
-      <p className="text-2xl font-medium text-foreground leading-none">{value}</p>
+    <div className="hover-lift rounded-xl bg-muted/50 p-4 flex flex-col gap-1 min-w-0 border border-transparent hover:border-border">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs text-muted-foreground leading-tight">{label}</p>
+        {Icon && (
+          <span className={`flex items-center justify-center w-7 h-7 rounded-lg shrink-0 ${accentClasses[accent]}`}>
+            <Icon className="w-3.5 h-3.5" />
+          </span>
+        )}
+      </div>
+
+      {loading ? (
+        <Skeleton className="h-7 w-16 mt-0.5" />
+      ) : (
+        <p className="text-2xl font-medium text-foreground leading-none tabular-nums">
+          {valueText ?? `${Math.round(animated).toLocaleString("es-AR")}${suffix ?? ""}`}
+        </p>
+      )}
+
       {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
       {trend && (
         <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full w-fit mt-1 ${trend.up ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"}`}>
@@ -124,7 +160,7 @@ export default function DashboardPage() {
             <button
               key={r}
               onClick={() => setRango(r)}
-              className={`text-xs px-3 py-1.5 rounded-lg border transition-all duration-150 ${
+              className={`text-xs px-3 py-1.5 rounded-lg border transition-all duration-150 active:scale-95 ${
                 rango === r
                   ? "bg-blue-50 border-blue-400 text-blue-800 font-medium dark:bg-blue-900/30 dark:border-blue-500 dark:text-blue-300"
                   : "border-border text-muted-foreground hover:bg-muted"
@@ -149,21 +185,39 @@ export default function DashboardPage() {
         <KpiCard
           label="Total donaciones recibidas"
           value={kpi.donaciones}
+          icon={Heart}
+          accent="primary"
           trend={{ text: "+12% vs mes anterior", up: true }}
         />
         <KpiCard
           label="Hardware en laboratorio"
-          value={loadingLotes ? "…" : labCount}
+          value={labCount}
+          loading={loadingLotes}
+          icon={Package}
+          accent="chart-3"
           sub="lotes pendientes de clasificación"
         />
-        <KpiCard
-          label="Efectividad de recuperación"
-          value={kpi.recuperacion}
-          trend={{ text: "+3.2% vs mes anterior", up: true }}
-        />
+
+        {/* Efectividad de recuperación con anillo de progreso */}
+        <div className="hover-lift rounded-xl bg-muted/50 p-4 flex items-center gap-3 min-w-0 border border-transparent hover:border-border">
+          <ProgressRing value={parseFloat(kpi.recuperacion)} size={52} strokeWidth={5} color="var(--chart-2)" />
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <p className="text-xs text-muted-foreground leading-tight">Efectividad de recuperación</p>
+            <p className="text-xl font-medium text-foreground leading-none tabular-nums">{kpi.recuperacion}</p>
+            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full w-fit mt-1 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+              ↑ +3.2% vs mes anterior
+            </span>
+          </div>
+        </div>
+
         <KpiCard
           label="Basura electrónica desechada (RAEE)"
-          value={loadingLotes ? "…" : raeeKg > 0 ? `${raeeKg.toFixed(0)} kg` : kpi.raee}
+          value={raeeKg > 0 ? raeeKg : undefined}
+          valueText={raeeKg > 0 ? undefined : kpi.raee}
+          suffix=" kg"
+          loading={loadingLotes}
+          icon={Trash2}
+          accent="destructive"
           sub="derivados a disposición final certificada"
         />
       </div>
@@ -172,7 +226,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
         {/* Gráfico de barras */}
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="hover-lift rounded-xl border border-border bg-card p-4">
           <p className="text-sm font-medium text-foreground mb-1">Ingreso vs. procesamiento mensual</p>
           <p className="text-xs text-muted-foreground mb-4">Equipos ingresados por donación vs. clasificados por el laboratorio</p>
           <div className="flex gap-4 mb-3">
@@ -199,7 +253,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Gráfico de dona */}
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="hover-lift rounded-xl border border-border bg-card p-4">
           <p className="text-sm font-medium text-foreground mb-1">Distribución de destino de materiales</p>
           <p className="text-xs text-muted-foreground mb-4">Destino final de los materiales procesados</p>
           <ResponsiveContainer width="100%" height={220}>
@@ -275,8 +329,12 @@ export default function DashboardPage() {
               {filteredLotes.length === 0 ? (
                 <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">No se encontraron resultados.</td></tr>
               ) : (
-                filteredLotes.map(l => (
-                  <tr key={l.id} className="hover:bg-muted/30 transition-colors duration-100">
+                filteredLotes.map((l, i) => (
+                  <tr
+                    key={l.id}
+                    className="hover:bg-muted/30 transition-colors duration-100 animate-fade-slide-up"
+                    style={{ animationDelay: `${i * 35}ms` }}
+                  >
                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{l.id}</td>
                     <td className="px-4 py-3 text-foreground">{l.donante}</td>
                     <td className="px-4 py-3 text-muted-foreground">{l.fecha}</td>

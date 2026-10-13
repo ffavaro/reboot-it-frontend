@@ -5,7 +5,7 @@ export const authApi = {
   login: (data: LoginPayload) =>
     request<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify(data) }),
 
-  register: (data: { name: string; email: string; password: string }) =>
+  register: (data: { name: string; email: string; password: string; cuitDni: string }) =>
     request<AuthResponse>("/auth/register", { method: "POST", body: JSON.stringify(data) }),
 
   forgotPassword: (data: { email: string }) =>

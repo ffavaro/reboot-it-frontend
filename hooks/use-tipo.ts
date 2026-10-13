@@ -1,10 +1,10 @@
 import useSWR from "swr"
 import useSWRMutation from "swr/mutation"
 import { fetcher, tipoApi } from "@/lib/api"
-import type { CreateTipoPayload, UpdateTipoPayload } from "@/lib/type/tipo"
+import type { Tipo, CreateTipoPayload, UpdateTipoPayload } from "@/lib/type/tipo"
 
 export function useTipos() {
-  const { data, isLoading, error, mutate } = useSWR("/tipo", fetcher)
+  const { data, isLoading, error, mutate } = useSWR<Tipo[]>("/tipo", fetcher)
   return { tipos: data ?? [], isLoading, error, mutate }
 }
 

@@ -4,14 +4,8 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet"
+import { DataTable } from "@/components/ui/data-table"
+import { FormModal } from "@/components/ui/form-modal"
 import {
   useEstadosTurno,
   useCreateEstadoTurno,
@@ -19,6 +13,7 @@ import {
   useDeleteEstadoTurno,
 } from "@/hooks/use-estado-turno"
 import type { EstadoTurno } from "@/lib/type/estado-turno"
+import type { TableColumn } from "@/components/ui/data-table"
 
 const ESTADO_COLORS: Record<string, string> = {
   pendiente: "bg-yellow-100 text-yellow-800",
@@ -39,6 +34,14 @@ function EstadoBadge({ descripcion }: { descripcion: string }) {
 
 const EMPTY_FORM = { descripcion: "" }
 
+const COLUMNS: TableColumn<EstadoTurno>[] = [
+  {
+    key: "descripcion",
+    header: "Descripción",
+    cell: (e) => <EstadoBadge descripcion={e.descripcion} />,
+  },
+]
+
 export default function EstadoTurnoPage() {
   const { estadosTurno, isLoading, mutate } = useEstadosTurno()
   const { createEstadoTurno, isLoading: isCreating } = useCreateEstadoTurno()
@@ -46,25 +49,34 @@ export default function EstadoTurnoPage() {
   const { deleteEstadoTurno, isLoading: isDeleting } = useDeleteEstadoTurno()
 
   const [search, setSearch] = useState("")
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<EstadoTurno | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
-  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const filtered = estadosTurno.filter((e: EstadoTurno) =>
     e.descripcion.toLowerCase().includes(search.toLowerCase()),
   )
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
-    setSheetOpen(true)
+    setModalOpen(true)
   }
 
   function openEdit(e: EstadoTurno) {
+    setIsViewing(false)
     setEditing(e)
     setForm({ descripcion: e.descripcion })
-    setSheetOpen(true)
+    setModalOpen(true)
+  }
+
+  function openView(e: EstadoTurno) {
+    setIsViewing(true)
+    setEditing(e)
+    setForm({ descripcion: e.descripcion })
+    setModalOpen(true)
   }
 
   async function handleSave() {
@@ -81,21 +93,19 @@ export default function EstadoTurnoPage() {
         toast.success("Estado de turno creado")
       }
       await mutate()
-      setSheetOpen(false)
+      setModalOpen(false)
     } catch {
       toast.error("Error al guardar el estado de turno")
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: number | string) {
     try {
-      await deleteEstadoTurno(id)
+      await deleteEstadoTurno(id as number)
       await mutate()
       toast.success("Estado de turno desactivado")
     } catch {
       toast.error("Error al eliminar el estado de turno")
-    } finally {
-      setDeletingId(null)
     }
   }
 
@@ -123,102 +133,44 @@ export default function EstadoTurnoPage() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Descripción</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={2} className="px-4 py-12 text-center text-muted-foreground">
-                  Cargando estados de turno...
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={2} className="px-4 py-12 text-center text-muted-foreground">
-                  {search ? "No se encontraron estados con ese criterio." : "No hay estados de turno registrados."}
-                </td>
-              </tr>
-            ) : (
-              filtered.map((e: EstadoTurno) => (
-                <tr
-                  key={e.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                >
-                  <td className="px-4 py-3">
-                    <EstadoBadge descripcion={e.descripcion} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      {deletingId === e.id ? (
-                        <>
-                          <span className="text-xs text-muted-foreground">¿Confirmar?</span>
-                          <Button size="xs" variant="destructive" onClick={() => handleDelete(e.id)} disabled={isDeleting}>
-                            Eliminar
-                          </Button>
-                          <Button size="xs" variant="ghost" onClick={() => setDeletingId(null)}>
-                            Cancelar
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button size="xs" variant="outline" onClick={() => openEdit(e)}>
-                            Editar
-                          </Button>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeletingId(e.id)}
-                          >
-                            Eliminar
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        data={filtered}
+        columns={COLUMNS}
+        isLoading={isLoading}
+        loadingText="Cargando estados de turno..."
+        emptyText="No hay estados de turno registrados."
+        emptySearchText="No se encontraron estados con ese criterio."
+        search={search}
+        onView={openView}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        isDeleting={isDeleting}
+      />
 
-      <Sheet open={sheetOpen} onOpenChange={(open) => !open && setSheetOpen(false)}>
-        <SheetContent side="right">
-          <SheetHeader>
-            <SheetTitle>{editing ? "Editar estado de turno" : "Nuevo estado de turno"}</SheetTitle>
-            <SheetDescription>
-              {editing
-                ? `Modificá la descripción de "${editing.descripcion}".`
-                : "Completá los datos del nuevo estado de turno."}
-            </SheetDescription>
-          </SheetHeader>
-
-          <div className="flex flex-col gap-5 px-6 py-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Descripción</label>
-              <Input
-                value={form.descripcion}
-                onChange={(e) => setForm({ descripcion: e.target.value })}
-                placeholder="Ej: Pendiente, Confirmado, Completado, Cancelado..."
-                maxLength={100}
-              />
-            </div>
-          </div>
-
-          <SheetFooter>
-            <Button onClick={handleSave} disabled={isCreating || isUpdating} className="w-full">
-              {isCreating || isUpdating ? "Guardando..." : editing ? "Guardar cambios" : "Crear estado"}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+      <FormModal
+        open={modalOpen}
+        onOpenChange={(open) => !open && setModalOpen(false)}
+        title={isViewing ? "Ver estado de turno" : editing ? "Editar estado de turno" : "Nuevo estado de turno"}
+        readOnly={isViewing}
+        description={
+          editing
+            ? `Modificá la descripción de "${editing.descripcion}".`
+            : "Completá los datos del nuevo estado de turno."
+        }
+        onSave={handleSave}
+        isLoading={isCreating || isUpdating}
+        saveLabel={editing ? "Guardar cambios" : "Crear estado"}
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Descripción</label>
+          <Input
+            value={form.descripcion}
+            onChange={(e) => setForm({ descripcion: e.target.value })}
+            placeholder="Ej: Pendiente, Confirmado, Completado, Cancelado..."
+            maxLength={100}
+          />
+        </div>
+      </FormModal>
     </div>
   )
 }

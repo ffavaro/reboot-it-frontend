@@ -4,14 +4,8 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet"
+import { DataTable } from "@/components/ui/data-table"
+import { FormModal } from "@/components/ui/form-modal"
 import {
   useGestoresAmbientales,
   useCreateGestorAmbiental,
@@ -19,8 +13,47 @@ import {
   useDeleteGestorAmbiental,
 } from "@/hooks/use-gestor-ambiental"
 import type { GestorAmbiental } from "@/lib/type/gestor-ambiental"
+import type { TableColumn } from "@/components/ui/data-table"
 
 const EMPTY_FORM = { razonSocial: "", cuit: "", habilitacion: "", contacto: "" }
+
+const COLUMNS: TableColumn<GestorAmbiental>[] = [
+  {
+    key: "razonSocial",
+    header: "Razón social",
+    cell: (g) => <span className="font-medium">{g.razonSocial}</span>,
+  },
+  {
+    key: "cuit",
+    header: "CUIT",
+    cell: (g) => (
+      <span className="font-mono text-muted-foreground">
+        {g.cuit ?? <span className="italic">—</span>}
+      </span>
+    ),
+  },
+  {
+    key: "habilitacion",
+    header: "Habilitación",
+    cell: (g) =>
+      g.habilitacion ? (
+        <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+          {g.habilitacion}
+        </span>
+      ) : (
+        <span className="text-muted-foreground italic">—</span>
+      ),
+  },
+  {
+    key: "contacto",
+    header: "Contacto",
+    cell: (g) => (
+      <span className="text-muted-foreground">
+        {g.contacto ?? <span className="italic">—</span>}
+      </span>
+    ),
+  },
+]
 
 export default function GestorAmbientalPage() {
   const { gestores, isLoading, mutate } = useGestoresAmbientales()
@@ -29,10 +62,10 @@ export default function GestorAmbientalPage() {
   const { deleteGestor, isLoading: isDeleting } = useDeleteGestorAmbiental()
 
   const [search, setSearch] = useState("")
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<GestorAmbiental | null>(null)
+  const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
-  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const filtered = gestores.filter(
     (g) =>
@@ -43,12 +76,14 @@ export default function GestorAmbientalPage() {
   )
 
   function openCreate() {
+    setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
-    setSheetOpen(true)
+    setModalOpen(true)
   }
 
   function openEdit(g: GestorAmbiental) {
+    setIsViewing(false)
     setEditing(g)
     setForm({
       razonSocial: g.razonSocial,
@@ -56,7 +91,19 @@ export default function GestorAmbientalPage() {
       habilitacion: g.habilitacion ?? "",
       contacto: g.contacto ?? "",
     })
-    setSheetOpen(true)
+    setModalOpen(true)
+  }
+
+  function openView(g: GestorAmbiental) {
+    setIsViewing(true)
+    setEditing(g)
+    setForm({
+      razonSocial: g.razonSocial,
+      cuit: g.cuit ?? "",
+      habilitacion: g.habilitacion ?? "",
+      contacto: g.contacto ?? "",
+    })
+    setModalOpen(true)
   }
 
   function set(field: keyof typeof EMPTY_FORM, value: string) {
@@ -83,21 +130,19 @@ export default function GestorAmbientalPage() {
         toast.success("Gestor ambiental creado")
       }
       await mutate()
-      setSheetOpen(false)
+      setModalOpen(false)
     } catch {
       toast.error("Error al guardar el gestor ambiental")
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: number | string) {
     try {
-      await deleteGestor(id)
+      await deleteGestor(id as number)
       await mutate()
       toast.success("Gestor ambiental desactivado")
     } catch {
       toast.error("Error al eliminar el gestor ambiental")
-    } finally {
-      setDeletingId(null)
     }
   }
 
@@ -125,169 +170,80 @@ export default function GestorAmbientalPage() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Razón social</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">CUIT</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Habilitación</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Contacto</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
-                  Cargando gestores ambientales...
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
-                  {search
-                    ? "No se encontraron gestores con ese criterio."
-                    : "No hay gestores ambientales registrados."}
-                </td>
-              </tr>
-            ) : (
-              filtered.map((g) => (
-                <tr
-                  key={g.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                >
-                  <td className="px-4 py-3 font-medium">{g.razonSocial}</td>
-                  <td className="px-4 py-3 font-mono text-muted-foreground">
-                    {g.cuit ?? <span className="italic not-italic">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    {g.habilitacion ? (
-                      <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                        {g.habilitacion}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground italic">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {g.contacto ?? <span className="italic">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      {deletingId === g.id ? (
-                        <>
-                          <span className="text-xs text-muted-foreground">¿Confirmar?</span>
-                          <Button
-                            size="xs"
-                            variant="destructive"
-                            onClick={() => handleDelete(g.id)}
-                            disabled={isDeleting}
-                          >
-                            Eliminar
-                          </Button>
-                          <Button size="xs" variant="ghost" onClick={() => setDeletingId(null)}>
-                            Cancelar
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button size="xs" variant="outline" onClick={() => openEdit(g)}>
-                            Editar
-                          </Button>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeletingId(g.id)}
-                          >
-                            Eliminar
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        data={filtered}
+        columns={COLUMNS}
+        isLoading={isLoading}
+        loadingText="Cargando gestores ambientales..."
+        emptyText="No hay gestores ambientales registrados."
+        emptySearchText="No se encontraron gestores con ese criterio."
+        search={search}
+        onView={openView}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        isDeleting={isDeleting}
+      />
 
-      <Sheet open={sheetOpen} onOpenChange={(open) => !open && setSheetOpen(false)}>
-        <SheetContent side="right">
-          <SheetHeader>
-            <SheetTitle>{editing ? "Editar gestor ambiental" : "Nuevo gestor ambiental"}</SheetTitle>
-            <SheetDescription>
-              {editing
-                ? `Modificá los datos de "${editing.razonSocial}".`
-                : "Completá los datos del nuevo gestor ambiental."}
-            </SheetDescription>
-          </SheetHeader>
+      <FormModal
+        open={modalOpen}
+        onOpenChange={(open) => !open && setModalOpen(false)}
+        title={isViewing ? "Ver gestor ambiental" : editing ? "Editar gestor ambiental" : "Nuevo gestor ambiental"}
+        readOnly={isViewing}
+        description={
+          editing
+            ? `Modificá los datos de "${editing.razonSocial}".`
+            : "Completá los datos del nuevo gestor ambiental."
+        }
+        onSave={handleSave}
+        isLoading={isCreating || isUpdating}
+        saveLabel={editing ? "Guardar cambios" : "Crear gestor"}
+      >
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Razón social</label>
+          <Input
+            value={form.razonSocial}
+            onChange={(e) => set("razonSocial", e.target.value)}
+            placeholder="Ej: Reciclados S.A."
+            maxLength={150}
+          />
+        </div>
 
-          <div className="flex flex-col gap-5 px-6 py-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Razón social</label>
-              <Input
-                value={form.razonSocial}
-                onChange={(e) => set("razonSocial", e.target.value)}
-                placeholder="Ej: Reciclados S.A."
-                maxLength={150}
-              />
-            </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            CUIT <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            value={form.cuit}
+            onChange={(e) => set("cuit", e.target.value)}
+            placeholder="30-12345678-9"
+            maxLength={20}
+          />
+        </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                CUIT <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <Input
-                value={form.cuit}
-                onChange={(e) => set("cuit", e.target.value)}
-                placeholder="30-12345678-9"
-                maxLength={20}
-              />
-            </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            N° de habilitación <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            value={form.habilitacion}
+            onChange={(e) => set("habilitacion", e.target.value)}
+            placeholder="Ej: HAB-2024-001"
+            maxLength={100}
+          />
+        </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                N° de habilitación <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <Input
-                value={form.habilitacion}
-                onChange={(e) => set("habilitacion", e.target.value)}
-                placeholder="Ej: HAB-2024-001"
-                maxLength={100}
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Contacto <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
-              <Input
-                value={form.contacto}
-                onChange={(e) => set("contacto", e.target.value)}
-                placeholder="Ej: info@reciclados.com / +54 11 1234-5678"
-                maxLength={100}
-              />
-            </div>
-          </div>
-
-          <SheetFooter>
-            <Button
-              onClick={handleSave}
-              disabled={isCreating || isUpdating}
-              className="w-full"
-            >
-              {isCreating || isUpdating
-                ? "Guardando..."
-                : editing
-                  ? "Guardar cambios"
-                  : "Crear gestor"}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Contacto <span className="text-muted-foreground font-normal">(opcional)</span>
+          </label>
+          <Input
+            value={form.contacto}
+            onChange={(e) => set("contacto", e.target.value)}
+            placeholder="Ej: info@reciclados.com / +54 11 1234-5678"
+            maxLength={100}
+          />
+        </div>
+      </FormModal>
     </div>
   )
 }
