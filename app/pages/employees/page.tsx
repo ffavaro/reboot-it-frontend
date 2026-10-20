@@ -1,7 +1,7 @@
 "use client"
-import { Plus, RotateCcw } from "lucide-react"
+import { Plus, RotateCcw, UserRound } from "lucide-react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -22,6 +22,7 @@ import {
 import type { EstadoEmpleados } from "@/lib/api/empleados"
 import { usePermisosPantalla } from "@/components/permisos-pantalla"
 import { getUser } from "@/lib/auth-utils"
+import { uploadFoto } from "@/lib/api/client"
 import { useFormErrors } from "@/hooks/use-form-errors"
 import { required, requiredSelect, maxLength as maxLengthValidator, dniOCuit, notFutureDate, emailFormat, minLength } from "@/lib/form-validators"
 import { CuitDniField, DireccionField, FechaAltaField, DIRECCION_MAX } from "@/components/empleado-fields"
@@ -45,6 +46,7 @@ const EMPTY_FORM = {
   direccion: "",
   telefono: "",
   cargo: "",
+  tieneCarnet: false,
   email: "",
   password: "",
 }
@@ -151,6 +153,29 @@ export default function EmployeePage() {
   const [editing, setEditing] = useState<Empleado | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  // Foto tipo carnet (opcional): archivo elegido y su vista previa
+  const [fotoFile, setFotoFile] = useState<File | null>(null)
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null)
+  useEffect(() => {
+    if (!fotoFile) return
+    const url = URL.createObjectURL(fotoFile)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFotoPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [fotoFile])
+
+  function elegirFoto(file: File | undefined) {
+    if (!file) return
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+      toast.error("La foto debe ser una imagen JPG, PNG o WEBP")
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("La foto no puede superar los 5 MB")
+      return
+    }
+    setFotoFile(file)
+  }
 
   async function handleReactivar(e: Empleado) {
     try {
@@ -172,7 +197,7 @@ export default function EmployeePage() {
       (e.cuitDni ?? "").includes(search.trim()),
   )
 
-  function set(field: keyof typeof EMPTY_FORM, value: string | number) {
+  function set(field: keyof typeof EMPTY_FORM, value: string | number | boolean) {
     setForm((f) => ({ ...f, [field]: value }))
     clearError(field)
   }
@@ -181,6 +206,8 @@ export default function EmployeePage() {
     setIsViewing(false)
     setEditing(null)
     setForm({ ...EMPTY_FORM, fechaAlta: todayISO() })
+    setFotoFile(null)
+    setFotoPreview(null)
     reset()
     setModalOpen(true)
   }
@@ -188,6 +215,8 @@ export default function EmployeePage() {
   function openEdit(e: Empleado) {
     setIsViewing(false)
     setEditing(e)
+    setFotoFile(null)
+    setFotoPreview(null)
     setForm({
       rolId: e.rolId,
       nombre: e.nombre,
@@ -197,6 +226,7 @@ export default function EmployeePage() {
       direccion: e.direccion ?? "",
       telefono: e.telefono ?? "",
       cargo: e.cargo ?? "",
+      tieneCarnet: !!e.tieneCarnet,
       email: "",
       password: "",
     })
@@ -207,6 +237,8 @@ export default function EmployeePage() {
   function openView(e: Empleado) {
     setIsViewing(true)
     setEditing(e)
+    setFotoFile(null)
+    setFotoPreview(null)
     setForm({
       rolId: e.rolId,
       nombre: e.nombre,
@@ -216,6 +248,7 @@ export default function EmployeePage() {
       direccion: e.direccion ?? "",
       telefono: e.telefono ?? "",
       cargo: e.cargo ?? "",
+      tieneCarnet: !!e.tieneCarnet,
       email: "",
       password: "",
     })
@@ -240,7 +273,10 @@ export default function EmployeePage() {
       } : {}),
     })) return
     try {
+      const fotoUrl = fotoFile ? await uploadFoto(fotoFile) : editing?.fotoUrl ?? undefined
       const payload = {
+        tieneCarnet: form.tieneCarnet,
+        ...(fotoUrl ? { fotoUrl } : {}),
         nombre: form.nombre.trim(),
         apellido: form.apellido.trim(),
         cuitDni: form.cuitDni,
@@ -433,6 +469,41 @@ export default function EmployeePage() {
                 placeholder="Técnico IT"
               />
               <FieldError>{errors.cargo}</FieldError>
+            </div>
+
+            <label className="flex items-start gap-2 rounded-xl border border-border bg-muted/40 p-3 text-sm">
+              <input
+                type="checkbox"
+                checked={form.tieneCarnet}
+                onChange={(e) => set("tieneCarnet", e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-input"
+              />
+              <span>
+                <span className="font-medium">Tiene carnet de conducir</span>
+                <span className="block text-xs text-muted-foreground">Es necesario para poder asignarlo como transportista.</span>
+              </span>
+            </label>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">
+                Foto tipo carnet <span className="text-muted-foreground font-normal">(opcional)</span>
+              </label>
+              <div className="flex items-center gap-3">
+                <div className="flex h-24 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted/40">
+                  {fotoPreview ?? editing?.fotoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={(fotoPreview ?? editing?.fotoUrl) as string} alt="Foto del empleado" className="h-full w-full object-cover" />
+                  ) : (
+                    <UserRound className="h-8 w-8 text-muted-foreground/50" />
+                  )}
+                </div>
+                {!isViewing && (
+                  <label className="cursor-pointer rounded-md border border-input px-3 py-1.5 text-xs font-medium hover:bg-muted">
+                    {fotoPreview ?? editing?.fotoUrl ? "Cambiar foto" : "Elegir foto"}
+                    <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => elegirFoto(e.target.files?.[0])} />
+                  </label>
+                )}
+              </div>
             </div>
 
             {/* Por defecto, la fecha del día en curso; se puede cambiar */}
