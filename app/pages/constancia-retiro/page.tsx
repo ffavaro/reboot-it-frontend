@@ -1,9 +1,12 @@
 "use client"
 import { Plus } from "lucide-react"
+import { constanciaRetiroApi } from "@/lib/api/constancia-retiro"
+import { descargarConstanciaPdf } from "@/lib/utils/constancia-pdf"
 
 import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
+import { CrearButton } from "@/components/ui/crear-button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { FormModal } from "@/components/ui/form-modal"
@@ -18,7 +21,7 @@ import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
 import { useDonantes } from "@/hooks/use-donantes"
 import { useDonaciones } from "@/hooks/use-donacion"
 import { useRetiros } from "@/hooks/use-retiro"
-import { formatDate, getDonanteActual } from "@/lib/utils/helpers"
+import { formatDate, getDonanteActual, getErrorMessage } from "@/lib/utils/helpers"
 import type { ConstanciaRetiro } from "@/lib/type/constancia-retiro"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import type { Donacion } from "@/lib/type/donacion"
@@ -165,6 +168,15 @@ export default function ConstanciaRetiroPage() {
     }
   }
 
+  // El PDF se arma al descargar con los datos de la constancia (no se guarda en el servidor)
+  async function descargarPdf(id: number) {
+    try {
+      descargarConstanciaPdf(await constanciaRetiroApi.datos(id))
+    } catch (error) {
+      toast.error(getErrorMessage(error, "No se pudo descargar la constancia"))
+    }
+  }
+
   async function handleDelete(id: number | string) {
     try {
       await deleteConstancia(Number(id))
@@ -195,14 +207,15 @@ export default function ConstanciaRetiroPage() {
           {filtered.length} constancia{filtered.length !== 1 ? "s" : ""}
         </span>
         {!isDonante && (
-          <Button className="ml-auto" onClick={openCreate}>
+          <CrearButton className="ml-auto" onClick={openCreate}>
             <Plus className="h-4 w-4" />
             Nueva constancia
-          </Button>
+          </CrearButton>
         )}
       </div>
 
       <DataTable
+        onDownload={(c) => descargarPdf(c.id)}
         data={filtered}
         columns={columns}
         isLoading={isLoading}

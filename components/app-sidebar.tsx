@@ -21,28 +21,18 @@ import {
 } from "@/components/ui/sidebar"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
-import { getUser } from "@/lib/auth-utils"
 import { NavItem } from "@/lib/type/sidebar"
-import { navMain } from "@/lib/nav"
+import { navMain, navTop, puedeVerPantalla } from "@/lib/nav"
+import { useMisPermisos } from "@/hooks/use-permisos"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
-  const [user, setUser] = useState<ReturnType<typeof getUser>>(null)
-  useEffect(() => { setUser(getUser()) }, [])
-  const rolNombre = user?.rol?.nombre?.toLowerCase() ?? ""
-  const isDonante = rolNombre === "donante"
-  const isTransportista = rolNombre === "transportista"
+  const { permisos } = useMisPermisos()
 
-  const canSeeItem = (item: NavItem): boolean => {
-    if (isDonante) {
-      return item.allowedRoles?.includes("donante") ?? false
-    }
-    if (isTransportista) {
-      return item.allowedRoles?.includes("transportista") ?? false
-    }
-    return true
-  }
+  // El menú muestra solo lo que el rol puede ver según la matriz de permisos
+  const canSeeItem = (item: NavItem): boolean => puedeVerPantalla(permisos, item.clave)
 
+  const itemsTop = navTop.filter(canSeeItem)
   const visibleSections = navMain
     .map((section) => ({
       ...section,
@@ -53,6 +43,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar {...props}>
       <SidebarContent className="gap-0 bg-slate-900">
+        {itemsTop.length > 0 && (
+          <SidebarGroup className="pb-0">
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {itemsTop.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      isActive={pathname === item.url}
+                      className="border-l-2 border-transparent text-white/90 hover:border-red-500/50 hover:bg-white/5 hover:text-white data-[active=true]:border-red-500 data-[active=true]:bg-white/5 data-[active=true]:text-white data-[active=true]:font-medium"
+                      render={<a href={item.url} />}
+                    >
+                      {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
+                      {item.title}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
         {visibleSections.map((item) => (
           <Collapsible
             key={item.title}

@@ -3,12 +3,13 @@
 import { useState, useMemo } from "react"
 import { SearchInput } from "@/components/ui/search-input"
 import { DatePicker } from "@/components/ui/date-picker"
+import { MultiSelect } from "@/components/ui/multi-select"
 import { VehiculosUsoChart } from "@/components/vehiculos-uso-chart"
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, ComposedChart, Line, Area
 } from "recharts"
-import { BarChart3, Table2 } from "lucide-react"
+import { BarChart3, RotateCcw, Table2 } from "lucide-react"
 import { useLotes } from "@/hooks/use-lote"
 import { useDonantes } from "@/hooks/use-donantes"
 import { useDonacionReporte } from "@/hooks/use-donacion"
@@ -86,7 +87,9 @@ export default function DashboardPage() {
   // null = rango personalizado (por defecto, últimos 3 meses); si no, el preset queda aplicado
   // y las fechas de customDesde/customHasta solo reflejan su rango para mostrarlas en los inputs
   const [activePreset, setActivePreset] = useState<Periodo | null>(null)
-  const [donanteId, setDonanteId] = useState<number | "">("")
+  const [donanteIds, setDonanteIds] = useState<number[]>([])
+  // Cambia al restablecer: remonta los gráficos que guardan sus propios filtros
+  const [resetKey, setResetKey] = useState(0)
   const [search, setSearch] = useState("")
   const [customDesde, setCustomDesde] = useState(defaultDesde())
   const [customHasta, setCustomHasta] = useState(defaultHasta())
@@ -116,6 +119,18 @@ export default function DashboardPage() {
     setActivePreset(null)
   }
 
+  function restablecer() {
+    limpiarFiltro()
+    setDonanteIds([])
+    setLotesVista("grafico")
+    setLotesDesde("")
+    setLotesHasta("")
+    setLotesEstado("")
+    setLotesDonanteId("")
+    setSearch("")
+    setResetKey(k => k + 1)
+  }
+
   function limpiarFiltro() {
     setActivePreset(null)
     setCustomDesde(defaultDesde())
@@ -140,16 +155,22 @@ export default function DashboardPage() {
 
   const reporteParams: ReporteDonacionQuery = useMemo(() => ({
     fechaDesde: rango.fechaDesde, fechaHasta: rango.fechaHasta,
-    ...(donanteId !== "" ? { donanteId } : {}),
-  }), [rango, donanteId])
+    ...(donanteIds.length === 1 ? { donanteId: donanteIds[0] } : {}),
+  }), [rango, donanteIds])
 
   const reporteParamsAnterior: ReporteDonacionQuery = useMemo(() => ({
     fechaDesde: rangoAnterior.fechaDesde, fechaHasta: rangoAnterior.fechaHasta,
-    ...(donanteId !== "" ? { donanteId } : {}),
-  }), [rangoAnterior, donanteId])
+    ...(donanteIds.length === 1 ? { donanteId: donanteIds[0] } : {}),
+  }), [rangoAnterior, donanteIds])
 
-  const { donaciones: donacionesActuales, isLoading: loadingDonacionesActuales } = useDonacionReporte(reporteParams)
-  const { donaciones: donacionesAnteriores, isLoading: loadingDonacionesAnteriores } = useDonacionReporte(reporteParamsAnterior)
+  const { donaciones: donacionesActualesRaw, isLoading: loadingDonacionesActuales } = useDonacionReporte(reporteParams)
+  const { donaciones: donacionesAnterioresRaw, isLoading: loadingDonacionesAnteriores } = useDonacionReporte(reporteParamsAnterior)
+
+  // Con varios donantes elegidos el reporte se pide completo y se recorta acá
+  const donanteSeleccionado = useMemo(() => new Set(donanteIds), [donanteIds])
+  const incluyeDonante = (id?: number | null) => donanteIds.length === 0 || (id != null && donanteSeleccionado.has(id))
+  const donacionesActuales = useMemo(() => donacionesActualesRaw.filter(d => incluyeDonante(d.donanteId)), [donacionesActualesRaw, donanteSeleccionado]) // eslint-disable-line react-hooks/exhaustive-deps
+  const donacionesAnteriores = useMemo(() => donacionesAnterioresRaw.filter(d => incluyeDonante(d.donanteId)), [donacionesAnterioresRaw, donanteSeleccionado]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const materialParams: ReporteInventarioQuery = useMemo(() => ({
     fechaDesde: rango.fechaDesde, fechaHasta: rango.fechaHasta,
@@ -173,14 +194,15 @@ export default function DashboardPage() {
   }, [lotes])
 
   const materialesActuales = useMemo(() => (
-    donanteId === "" ? materialesActualesRaw : materialesActualesRaw.filter(m => loteDonanteMap.get(m.loteId ?? -1) === donanteId)
-  ), [materialesActualesRaw, loteDonanteMap, donanteId])
+    donanteIds.length === 0 ? materialesActualesRaw : materialesActualesRaw.filter(m => donanteSeleccionado.has(loteDonanteMap.get(m.loteId ?? -1) ?? -1))
+  ), [materialesActualesRaw, loteDonanteMap, donanteIds, donanteSeleccionado])
 
   const materialesAnteriores = useMemo(() => (
-    donanteId === "" ? materialesAnterioresRaw : materialesAnterioresRaw.filter(m => loteDonanteMap.get(m.loteId ?? -1) === donanteId)
-  ), [materialesAnterioresRaw, loteDonanteMap, donanteId])
+    donanteIds.length === 0 ? materialesAnterioresRaw : materialesAnterioresRaw.filter(m => donanteSeleccionado.has(loteDonanteMap.get(m.loteId ?? -1) ?? -1))
+  ), [materialesAnterioresRaw, loteDonanteMap, donanteIds, donanteSeleccionado])
 
   const condicionPorId = useMemo(() => new Map(condiciones.map(c => [c.id, c.condicion])), [condiciones])
+  const opcionesDonantes = useMemo(() => donantes.map(d => ({ value: d.id, label: d.nombre })), [donantes])
   const donantePorId = useMemo(() => new Map(donantes.map(d => [d.id, d.nombre])), [donantes])
 
   const clasifActual   = useMemo(() => clasificarMateriales(materialesActuales, condicionPorId), [materialesActuales, condicionPorId])
@@ -201,14 +223,14 @@ export default function DashboardPage() {
     : undefined
 
   // Lotes activos "en laboratorio" es una foto del presente, no depende del rango de fechas
-  const labCount = useMemo(() => lotes.filter(l => l.isActive && (donanteId === "" || l.donacion?.donanteId === donanteId)).length, [lotes, donanteId])
+  const labCount = useMemo(() => lotes.filter(l => l.isActive && incluyeDonante(l.donacion?.donanteId)).length, [lotes, donanteSeleccionado]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const lotesFiltrados = useMemo(() => lotes.filter(l => {
-    const matchDonante = donanteId === "" || l.donacion?.donanteId === donanteId
+    const matchDonante = incluyeDonante(l.donacion?.donanteId)
     const fecha = l.createdAt?.slice(0, 10)
     const matchFecha = !!fecha && fecha >= rango.fechaDesde && fecha <= rango.fechaHasta
     return matchDonante && matchFecha
-  }), [lotes, donanteId, rango])
+  }), [lotes, donanteSeleccionado, rango]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // pesoBrutoKg llega como string desde la columna DECIMAL de MySQL
   const pesoTotalKg = useMemo(() => lotesFiltrados.reduce((acc, l) => acc + Number(l.pesoBrutoKg ?? 0), 0), [lotesFiltrados])
@@ -290,7 +312,7 @@ export default function DashboardPage() {
   // Más recientes primero; a igual fecha, por número de lote descendente
   const filasTabla: FilaTabla[] = useMemo(() => {
     return lotes
-      .filter(l => donanteId === "" || l.donacion?.donanteId === donanteId)
+      .filter(l => incluyeDonante(l.donacion?.donanteId))
       .sort((a, b) => (b.createdAt ?? "").slice(0, 10).localeCompare((a.createdAt ?? "").slice(0, 10)) || b.id - a.id)
       .map(l => {
         const materiales = materialesPorLote.get(l.id) ?? []
@@ -310,7 +332,7 @@ export default function DashboardPage() {
           estado,
         }
       })
-  }, [lotes, donanteId, donantePorId, materialesPorLote, condicionPorId])
+  }, [lotes, donanteSeleccionado, donantePorId, materialesPorLote, condicionPorId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Filtros propios de la sección de lotes. Sin fechas elegidas, se usa el período global;
   // con alguna fecha elegida, se filtra solo por ese rango (permite consultar meses anteriores)
@@ -386,7 +408,7 @@ export default function DashboardPage() {
       {/* Toolbar global */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
         <div>
-          <h1 className="text-xl font-medium text-foreground">RebootIT Analytics</h1>
+          <h1 className="text-xl font-medium text-foreground">Reboot IT Analytics</h1>
           <p className="text-sm text-muted-foreground">Panel de control operativo — {rango.label}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -427,14 +449,23 @@ export default function DashboardPage() {
               </button>
             )}
           </div>
-          <select
-            value={donanteId}
-            onChange={e => setDonanteId(e.target.value === "" ? "" : Number(e.target.value))}
-            className="text-xs px-3 py-1.5 rounded-lg border border-border bg-background text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          <MultiSelect
+            options={opcionesDonantes}
+            value={donanteIds}
+            onChange={setDonanteIds}
+            placeholder="Todos los donantes"
+            pluralLabel="donantes"
+            searchPlaceholder="Buscar donante…"
+            aria-label="Filtrar por donantes"
+          />
+          <button
+            onClick={restablecer}
+            className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            title="Limpia el filtro general y los filtros de cada gráfico"
           >
-            <option value="">Todos los donantes</option>
-            {donantes.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
-          </select>
+            <RotateCcw className="size-3" />
+            Restablecer
+          </button>
         </div>
       </div>
 
@@ -468,7 +499,7 @@ export default function DashboardPage() {
         <p className="text-xs text-muted-foreground mb-4">Destino final de los materiales clasificados — {rango.label}</p>
         {donutTotal === 0 ? (
           <div className="h-[280px] flex items-center justify-center text-xs text-muted-foreground text-center px-6">
-            Sin materiales clasificados en este período{donanteId !== "" ? " para el donante seleccionado" : ""}.
+            Sin materiales clasificados en este período{donanteIds.length > 0 ? " para los donantes seleccionados" : ""}.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center gap-6">
@@ -558,7 +589,7 @@ export default function DashboardPage() {
           <p className="text-xs text-muted-foreground mb-4">Donaciones entregadas en sucursal vs. retiradas a domicilio — {rango.label}</p>
           {recepcionTotal === 0 ? (
             <div className="h-[220px] flex items-center justify-center text-xs text-muted-foreground text-center px-6">
-              Sin donaciones registradas en este período{donanteId !== "" ? " para el donante seleccionado" : ""}.
+              Sin donaciones registradas en este período{donanteIds.length > 0 ? " para los donantes seleccionados" : ""}.
             </div>
           ) : (
             <>
@@ -627,7 +658,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Nivel 2.7 — Uso de la flota (tiene su propio filtro de fechas) */}
-      <VehiculosUsoChart />
+      <VehiculosUsoChart key={resetKey} />
 
       {/* Nivel 3 — Últimos movimientos de lotes (gráfico / tabla) */}
       <div className="rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 overflow-hidden">

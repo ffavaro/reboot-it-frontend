@@ -15,13 +15,15 @@ export function getDonanteActual(donantes: Donante[]) {
 // El vínculo usuario↔empleado se guarda en usuario.empleadoId (no al revés en
 // empleado.usuarioId, que ningún formulario completa), así que hay que pasar
 // por el usuario logueado para encontrar su ficha de Empleado Transportista.
-export function getTransportistaActual(usuarios: Usuario[], transportistas: EmpleadoTransportista[]) {
+// Ficha de transportista del usuario logueado. El empleado sale del token; el backend ya entrega a un transportista
+// solo su propia ficha, así que no hace falta consultar la lista de usuarios (que no puede ver).
+export function getTransportistaActual(transportistas: EmpleadoTransportista[]) {
   const user = getUser()
   const isTransportista = user?.rol?.nombre?.toLowerCase() === "transportista"
-  const myUsuario = user ? usuarios.find((u) => String(u.id) === String(user.id)) : null
-  const myTransportista = isTransportista && myUsuario?.empleadoId
-    ? transportistas.find((et) => String(et.empleadoId) === String(myUsuario.empleadoId)) ?? null
-    : null
+  const porEmpleado = user?.empleadoId != null
+    ? transportistas.find((et) => String(et.empleadoId) === String(user.empleadoId))
+    : undefined
+  const myTransportista = isTransportista ? porEmpleado ?? (transportistas.length === 1 ? transportistas[0] : null) : null
   return { user, isTransportista, myTransportista }
 }
 

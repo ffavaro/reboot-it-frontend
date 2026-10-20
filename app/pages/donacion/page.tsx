@@ -1,13 +1,16 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ChevronLeft, ChevronRight, Truck, Building2, AlertTriangle, Plus } from "lucide-react"
+import { ChevronLeft, ChevronRight, Truck, Building2, AlertTriangle, Plus, CheckCircle2, ImagePlus, X } from "lucide-react"
 import type { TokenPayload } from "@/lib/auth-utils"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
+import { CrearButton } from "@/components/ui/crear-button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { FormModal } from "@/components/ui/form-modal"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
+import { uploadFoto } from "@/lib/api/client"
 import { DataTable, TableColumn } from "@/components/ui/data-table"
 import {
   useDonaciones,
@@ -27,19 +30,39 @@ import type { CondicionMaterial } from "@/lib/type/condicion-material"
 import type { Turno } from "@/lib/type/turno"
 import { getUser } from "@/lib/auth-utils"
 import { enforceDecimalInput } from "@/lib/utils/number-limit"
+import { formatPeso, getErrorMessage } from "@/lib/utils/helpers"
 import { CONDICION_MATERIAL, esCondicion } from "@/lib/constants/estados"
 
 const EMPTY_FORM = { donanteId: "", fechaHora: "", estadoDonacionId: "", descripcion: "" }
 const EMPTY_DETALLE = { tipoMaterialId: "", condicionMaterialId: "", cantidadEstimada: "" }
 type DetalleRow = typeof EMPTY_DETALLE
-const PESO_ESTIMADO_MAX_DIGITS = 3
+const PESO_ESTIMADO_MAX_DIGITS = 7
+const CANTIDAD_MAX_DIGITS = 6
 
 const MESES_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ]
 const DIAS_CAL = ["Lu", "Ma", "Mi", "Ju", "Vi"]
-const TIME_SLOTS = Array.from({ length: 10 }, (_, i) => `${String(8 + i).padStart(2, "0")}:00`)
+// Horario de atención de la empresa: turnos de lunes a viernes, de 08:00 a 17:00
+const HORA_APERTURA = 8
+const HORA_CIERRE = 17
+const TIME_SLOTS = Array.from({ length: HORA_CIERRE - HORA_APERTURA + 1 }, (_, i) => `${String(HORA_APERTURA + i).padStart(2, "0")}:00`)
+const MAX_FOTOS = 5
+const MAX_FOTO_MB = 5
+
+// ¿Ese horario del día ya pasó? (solo puede pasar en el día de hoy)
+function slotPasado(dia: Date, slot: string, ahora = new Date()): boolean {
+  const [h, m] = slot.split(":").map(Number)
+  const d = new Date(dia)
+  d.setHours(h, m, 0, 0)
+  return d.getTime() <= ahora.getTime()
+}
+
+// Hoy se puede pedir turno mientras quede algún horario dentro del horario de atención
+function quedanHorariosHoy(ahora = new Date()): boolean {
+  return TIME_SLOTS.some((slot) => !slotPasado(ahora, slot, ahora))
+}
 
 const ESTADO_COLORS: Record<string, string> = {
   pendiente: "bg-yellow-100 text-yellow-800",
@@ -74,17 +97,16 @@ function getCalendarDays(year: number, month: number): (Date | null)[] {
 }
 
 function getMinSelectableDate(): Date {
-  const now = new Date()
-  const minDate = new Date(now)
+  // Se puede elegir el día de hoy; si ya terminó el horario de atención, al seleccionarlo se avisa que elija otro día
+  const minDate = new Date()
   minDate.setHours(0, 0, 0, 0)
-  // El día actual nunca se puede elegir; si ya pasaron las 17hs, se corre
-  // un día más para dar margen de coordinación con el equipo de retiro.
-  minDate.setDate(minDate.getDate() + (now.getHours() >= 17 ? 2 : 1))
   return minDate
 }
 
+// Primer día sugerido: hoy si todavía quedan horarios, si no el próximo día hábil
 function getEarliestValidDate(): Date {
   const d = getMinSelectableDate()
+  if (!quedanHorariosHoy()) d.setDate(d.getDate() + 1)
   while (d.getDay() === 0 || d.getDay() === 6) {
     d.setDate(d.getDate() + 1)
   }
@@ -121,6 +143,22 @@ export default function DonacionPage() {
   const [direccionRetiro, setDireccionRetiro] = useState("")
   const [pesoEstimadoKg, setPesoEstimadoKg] = useState("")
 
+  // Fotos opcionales de los materiales (solo al crear): archivo y vista previa
+  const [fotos, setFotos] = useState<{ file: File; url: string }[]>([])
+  const [subiendoFotos, setSubiendoFotos] = useState(false)
+  // Tarjeta de confirmación del turno, con los datos cargados
+  const [confirmacion, setConfirmacion] = useState<{
+    donacionId: number
+    turnoId?: number
+    donante: string
+    fechaHora: string
+    modalidad: string
+    direccion: string | null
+    pesoKg: string | null
+    materiales: { nombre: string; cantidad: string }[]
+    cantFotos: number
+  } | null>(null)
+
   const [calYear, setCalYear] = useState(0)
   const [calMonth, setCalMonth] = useState(0)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
@@ -149,6 +187,7 @@ export default function DonacionPage() {
     ? []
     : donaciones
 
+  // La última donación cargada va primero
   const filtered = visibleDonaciones.filter((d: Donacion) => {
     const q = search.toLowerCase()
     return (
@@ -156,7 +195,7 @@ export default function DonacionPage() {
       (d.estadoDonacion?.descripcion ?? "").toLowerCase().includes(q) ||
       (d.descripcion ?? "").toLowerCase().includes(q)
     )
-  })
+  }).sort((a: Donacion, b: Donacion) => b.id - a.id)
 
   function slotsOcupados(dia: Date): Set<string> {
     const ocupados = new Set<string>()
@@ -183,7 +222,43 @@ export default function DonacionPage() {
     else setCalMonth((m) => m + 1)
   }
 
+  function limpiarFotos() {
+    fotos.forEach((f) => URL.revokeObjectURL(f.url))
+    setFotos([])
+  }
+
+  function agregarFotos(lista: FileList | null) {
+    if (!lista) return
+    const nuevas: { file: File; url: string }[] = []
+    for (const file of Array.from(lista)) {
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+        toast.error("Las fotos deben ser imágenes JPG, PNG o WEBP")
+        continue
+      }
+      if (file.size > MAX_FOTO_MB * 1024 * 1024) {
+        toast.error(`Cada foto puede pesar hasta ${MAX_FOTO_MB} MB`)
+        continue
+      }
+      if (fotos.length + nuevas.length >= MAX_FOTOS) {
+        toast.error(`Podés cargar hasta ${MAX_FOTOS} fotos`)
+        break
+      }
+      nuevas.push({ file, url: URL.createObjectURL(file) })
+    }
+    if (nuevas.length) setFotos((prev) => [...prev, ...nuevas])
+  }
+
+  function quitarFoto(url: string) {
+    URL.revokeObjectURL(url)
+    setFotos((prev) => prev.filter((f) => f.url !== url))
+  }
+
   function handleSelectDate(dia: Date) {
+    // Hoy fuera del horario de atención: no se puede pedir turno
+    if (mismoDia(dia, new Date()) && !quedanHorariosHoy()) {
+      toast.warning(`El horario de atención de hoy ya terminó (${String(HORA_APERTURA).padStart(2, "0")}:00 a ${HORA_CIERRE}:00 hs). Seleccioná otro día.`, { toastId: "fuera-de-horario" })
+      return
+    }
     setSelectedDate(dia)
     setSelectedTime(null)
     setForm((f) => ({ ...f, fechaHora: "" }))
@@ -224,6 +299,7 @@ export default function DonacionPage() {
       estadoDonacionId: estadoPendiente ? String(estadoPendiente.id) : "",
     })
     setDetalles([])
+    limpiarFotos()
     setSheetOpen(true)
   }
 
@@ -235,7 +311,7 @@ export default function DonacionPage() {
     setNecesitaRetiro(d.necesitaRetiro ?? false)
     setUsarOtraDireccion(!!d.direccionRetiro)
     setDireccionRetiro(d.direccionRetiro ?? "")
-    setPesoEstimadoKg(d.pesoEstimadoKg != null ? String(d.pesoEstimadoKg) : "")
+    setPesoEstimadoKg(formatPeso(d.pesoEstimadoKg))
     setForm({
       donanteId: String(d.donanteId),
       fechaHora: "",
@@ -260,7 +336,7 @@ export default function DonacionPage() {
     setNecesitaRetiro(d.necesitaRetiro ?? false)
     setUsarOtraDireccion(!!d.direccionRetiro)
     setDireccionRetiro(d.direccionRetiro ?? "")
-    setPesoEstimadoKg(d.pesoEstimadoKg != null ? String(d.pesoEstimadoKg) : "")
+    setPesoEstimadoKg(formatPeso(d.pesoEstimadoKg))
     setForm({
       donanteId: String(d.donanteId),
       fechaHora: "",
@@ -292,6 +368,15 @@ export default function DonacionPage() {
     setDetalles((prev) => prev.map((d, i) => (i === idx ? { ...d, [field]: value } : d)))
   }
 
+  // La cantidad son unidades: solo dígitos, sin coma, punto ni signo
+  function updateCantidad(idx: number, value: string) {
+    const soloDigitos = value.replace(/[^0-9]/g, "").slice(0, CANTIDAD_MAX_DIGITS)
+    if (soloDigitos !== value) {
+      toast.error("La cantidad debe ser un número entero, sin coma ni punto", { toastId: "cantidad-entera" })
+    }
+    updateDetalleField(idx, "cantidadEstimada", soloDigitos)
+  }
+
   async function handleSave() {
     if (!form.donanteId) {
       toast.error("El donante es obligatorio")
@@ -309,6 +394,14 @@ export default function DonacionPage() {
       toast.error("Seleccioná el tipo de material para cada ítem")
       return
     }
+    if (detalles.some((d) => d.cantidadEstimada !== "" && !/^[1-9][0-9]*$/.test(d.cantidadEstimada))) {
+      toast.error("La cantidad de cada material debe ser un número entero mayor a 0")
+      return
+    }
+    if (detalles.some((d) => !d.condicionMaterialId) && !condicionADefinir) {
+      toast.error("No se pudo determinar la condición del material. Recargá la página e intentá de nuevo")
+      return
+    }
     if (necesitaRetiro && usarOtraDireccion && !direccionRetiro.trim()) {
       toast.error("Ingresá la dirección donde se realizará el retiro")
       return
@@ -320,7 +413,7 @@ export default function DonacionPage() {
 
     const detallesPayload = detalles.map((d) => ({
       tipoMaterialId: Number(d.tipoMaterialId),
-      condicionMaterialId: Number(d.condicionMaterialId),
+      condicionMaterialId: Number(d.condicionMaterialId || condicionADefinir?.id),
       cantidadEstimada: d.cantidadEstimada ? Number(d.cantidadEstimada) : undefined,
     }))
 
@@ -343,7 +436,20 @@ export default function DonacionPage() {
         })
         toast.success("Donación actualizada")
       } else {
-        await createDonacion({
+        let fotosUrls: string[] = []
+        if (fotos.length) {
+          setSubiendoFotos(true)
+          try {
+            fotosUrls = await Promise.all(fotos.map((f) => uploadFoto(f.file)))
+          } catch (err) {
+            toast.error(getErrorMessage(err, "No se pudieron subir las fotos. Probá de nuevo o quitalas para continuar."))
+            return
+          } finally {
+            setSubiendoFotos(false)
+          }
+        }
+        const donanteElegido = donantes.find((d: Donante) => String(d.id) === form.donanteId)
+        const creada = await createDonacion({
           donanteId: Number(form.donanteId),
           fechaHora: form.fechaHora,
           estadoDonacionId: form.estadoDonacionId ? Number(form.estadoDonacionId) : undefined,
@@ -351,15 +457,30 @@ export default function DonacionPage() {
           direccionRetiro: direccionRetiroPayload,
           pesoEstimadoKg: pesoEstimadoPayload,
           descripcion: form.descripcion.trim() || undefined,
+          fotosUrls: fotosUrls.length ? fotosUrls : undefined,
           detalles: detallesPayload,
         })
         toast.success("Donación creada y turno generado")
+        setConfirmacion({
+          donacionId: creada.id,
+          turnoId: creada.turno?.id,
+          donante: donanteElegido?.nombre ?? "—",
+          fechaHora: creada.turno?.fechaHora ?? form.fechaHora,
+          modalidad: necesitaRetiro ? "Retiro a domicilio" : "Lo lleva a la sucursal",
+          direccion: necesitaRetiro ? (direccionRetiroPayload ?? donanteElegido?.direccion ?? null) : null,
+          pesoKg: necesitaRetiro && pesoEstimadoPayload !== undefined ? String(pesoEstimadoPayload) : null,
+          materiales: detalles.map((d) => ({
+            nombre: tipoMateriales.find((t: TipoMaterial) => String(t.id) === d.tipoMaterialId)?.nombre ?? "Material",
+            cantidad: d.cantidadEstimada || "—",
+          })),
+          cantFotos: fotosUrls.length,
+        })
+        limpiarFotos()
       }
       await mutate()
       setSheetOpen(false)
     } catch (err: unknown) {
-      const msg = (err as { message?: string })?.message
-      toast.error(msg ?? "Error al guardar la donación")
+      toast.error(getErrorMessage(err, "Error al guardar la donación"))
     }
   }
 
@@ -464,10 +585,10 @@ export default function DonacionPage() {
         <span className="text-sm text-muted-foreground">
           {filtered.length} donación{filtered.length !== 1 ? "es" : ""}
         </span>
-        <Button className="ml-auto" onClick={openCreate}>
+        <CrearButton className="ml-auto" onClick={openCreate}>
           <Plus className="h-4 w-4" />
           Nueva donación
-        </Button>
+        </CrearButton>
       </div>
 
       <DataTable
@@ -490,7 +611,7 @@ export default function DonacionPage() {
         title={isViewing ? "Ver donación" : "Gestionar donación"}
         readOnly={isViewing}
         onSave={handleSave}
-        isLoading={isCreating || isUpdating}
+        isLoading={isCreating || isUpdating || subiendoFotos}
         saveLabel={editing ? "Guardar cambios" : "Crear donación"}
       >
         <div className="flex flex-col gap-5">
@@ -584,7 +705,7 @@ export default function DonacionPage() {
                 </div>
 
                 <p className="mt-2 text-xs text-muted-foreground">
-                  El punto indica días con turnos ya registrados.
+                  El punto indica días con turnos ya registrados. Podés pedir turno para hoy, dentro del horario de atención ({String(HORA_APERTURA).padStart(2, "0")}:00 a {HORA_CIERRE}:00 hs).
                 </p>
               </div>
 
@@ -599,7 +720,7 @@ export default function DonacionPage() {
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {TIME_SLOTS.map((slot) => {
-                      const ocupado = slotsOcupados(selectedDate).has(slot)
+                      const ocupado = slotsOcupados(selectedDate).has(slot) || slotPasado(selectedDate, slot)
                       const activo = selectedTime === slot
                       return (
                         <button
@@ -736,20 +857,6 @@ export default function DonacionPage() {
                     onChange={(e) => setDireccionRetiro(e.target.value)}
                   />
                 )}
-                <div className="flex flex-col gap-1.5 pt-1">
-                  <label className="text-xs font-medium">
-                    Peso estimado de la donación (kg) *
-                  </label>
-                  <Input
-                    inputMode="decimal"
-                    placeholder="Ej: 25.50"
-                    value={pesoEstimadoKg}
-                    onChange={(e) => setPesoEstimadoKg(enforceDecimalInput(e.target.value, PESO_ESTIMADO_MAX_DIGITS, "El peso estimado"))}
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Se usa para asignar un transportista cuyo vehículo soporte esta carga.
-                  </p>
-                </div>
               </div>
             )}
           </div>
@@ -799,11 +906,10 @@ export default function DonacionPage() {
                         </td>
                         <td className="px-2 py-1.5">
                           <Input
-                            type="number"
-                            min={1}
+                            inputMode="numeric"
                             placeholder="—"
                             value={det.cantidadEstimada}
-                            onChange={(e) => updateDetalleField(idx, "cantidadEstimada", e.target.value)}
+                            onChange={(e) => updateCantidad(idx, e.target.value)}
                             className="h-8 text-xs"
                           />
                         </td>
@@ -835,8 +941,128 @@ export default function DonacionPage() {
             )}
           </div>
 
+          {/* Fotos de los materiales (opcional, solo al crear) */}
+          {!editing && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">
+                  Fotos de los materiales <span className="text-muted-foreground font-normal">(opcional, hasta {MAX_FOTOS})</span>
+                </span>
+                {fotos.length < MAX_FOTOS && (
+                  <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-xs font-medium hover:bg-muted">
+                    <ImagePlus className="h-3.5 w-3.5" />
+                    Agregar fotos
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => { agregarFotos(e.target.files); e.target.value = "" }}
+                    />
+                  </label>
+                )}
+              </div>
+              {fotos.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {fotos.map((f) => (
+                    <div key={f.url} className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={f.url} alt="Foto de los materiales" className="h-20 w-20 rounded-md border border-border object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => quitarFoto(f.url)}
+                        aria-label="Quitar foto"
+                        className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-[11px] text-muted-foreground">Quedan asociadas al retiro de esta donación para que el equipo vea el estado de los materiales.</p>
+            </div>
+          )}
+
+          {/* Peso estimado: se pide al final, con todos los materiales ya cargados */}
+          {necesitaRetiro && (
+            <div className="flex flex-col gap-1.5 rounded-md border px-3 py-2.5">
+              <label className="text-sm font-medium">
+                Peso estimado de la donación (kg) *
+              </label>
+              <Input
+                inputMode="decimal"
+                placeholder="Ej: 25.50"
+                value={pesoEstimadoKg}
+                onChange={(e) => setPesoEstimadoKg(enforceDecimalInput(e.target.value, PESO_ESTIMADO_MAX_DIGITS, "El peso estimado"))}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Se usa para asignar un transportista cuyo vehículo soporte esta carga.
+              </p>
+            </div>
+          )}
+
         </div>
       </FormModal>
+
+      {/* Confirmación del turno con los datos cargados */}
+      <Dialog open={!!confirmacion} onOpenChange={(abierto) => { if (!abierto) setConfirmacion(null) }}>
+        <DialogContent className="max-w-md gap-0 p-0">
+          {confirmacion && (
+            <>
+              <div className="flex flex-col items-center gap-2 rounded-t-2xl bg-green-50 px-6 py-5 text-center dark:bg-green-900/20">
+                <CheckCircle2 className="h-10 w-10 text-green-600" />
+                <DialogTitle className="text-lg font-semibold">¡Turno confirmado!</DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  Donación N° {confirmacion.donacionId}{confirmacion.turnoId ? ` · Turno N° ${confirmacion.turnoId}` : ""}
+                </DialogDescription>
+              </div>
+              <dl className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-2.5 px-6 py-5 text-sm">
+                <dt className="text-muted-foreground">Donante</dt>
+                <dd className="font-medium">{confirmacion.donante}</dd>
+                <dt className="text-muted-foreground">Fecha y hora</dt>
+                <dd className="font-medium capitalize">
+                  {new Date(confirmacion.fechaHora).toLocaleString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })} hs
+                </dd>
+                <dt className="text-muted-foreground">Modalidad</dt>
+                <dd className="font-medium">{confirmacion.modalidad}</dd>
+                {confirmacion.direccion && (
+                  <>
+                    <dt className="text-muted-foreground">Dirección</dt>
+                    <dd className="font-medium">{confirmacion.direccion}</dd>
+                  </>
+                )}
+                {confirmacion.pesoKg && (
+                  <>
+                    <dt className="text-muted-foreground">Peso estimado</dt>
+                    <dd className="font-medium">{confirmacion.pesoKg} kg</dd>
+                  </>
+                )}
+                <dt className="text-muted-foreground">Materiales</dt>
+                <dd>
+                  <ul className="space-y-0.5">
+                    {confirmacion.materiales.map((m, i) => (
+                      <li key={i} className="flex justify-between gap-3">
+                        <span className="font-medium">{m.nombre}</span>
+                        <span className="tabular-nums text-muted-foreground">{m.cantidad} u.</span>
+                      </li>
+                    ))}
+                  </ul>
+                </dd>
+                {confirmacion.cantFotos > 0 && (
+                  <>
+                    <dt className="text-muted-foreground">Fotos</dt>
+                    <dd className="font-medium">{confirmacion.cantFotos} adjunta{confirmacion.cantFotos !== 1 ? "s" : ""}</dd>
+                  </>
+                )}
+              </dl>
+              <div className="flex justify-end rounded-b-2xl px-6 pb-5">
+                <Button onClick={() => setConfirmacion(null)}>Entendido</Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

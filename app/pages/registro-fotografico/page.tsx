@@ -4,6 +4,7 @@ import { Plus } from "lucide-react"
 import { useState, useEffect } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
+import { CrearButton } from "@/components/ui/crear-button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
@@ -203,10 +204,10 @@ export default function RegistroFotograficoPage() {
         <span className="text-sm text-muted-foreground">
           {filtered.length} registro{filtered.length !== 1 ? "s" : ""}
         </span>
-        <Button className="ml-auto" onClick={openCreate}>
+        <CrearButton className="ml-auto" onClick={openCreate}>
           <Plus className="h-4 w-4" />
           Nuevo registro
-        </Button>
+        </CrearButton>
       </div>
 
       <DataTable

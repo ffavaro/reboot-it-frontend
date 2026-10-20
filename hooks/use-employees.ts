@@ -1,10 +1,11 @@
 import useSWR from "swr"
 import useSWRMutation from "swr/mutation"
 import { fetcher, empleadosApi, rolesApi } from "@/lib/api"
+import type { EstadoEmpleados } from "@/lib/api/empleados"
 import type { Empleado, Rol, CreateEmpleadoPayload, UpdateEmpleadoPayload } from "@/lib/type/user"
 
-export function useEmpleadosFull() {
-  const { data, isLoading, error, mutate } = useSWR<Empleado[]>("/empleados", fetcher)
+export function useEmpleadosFull(estado: EstadoEmpleados = "activos") {
+  const { data, isLoading, error, mutate } = useSWR<Empleado[]>(["/empleados", estado], () => empleadosApi.getAll(estado))
   return { empleados: data ?? [], isLoading, error, mutate }
 }
 
@@ -38,4 +39,12 @@ export function useDeleteEmpleado() {
     (_key: string, { arg }: { arg: number }) => empleadosApi.remove(arg),
   )
   return { deleteEmpleado: trigger, isLoading: isMutating, error }
+}
+
+export function useReactivarEmpleado() {
+  const { trigger, isMutating } = useSWRMutation(
+    "/empleados",
+    (_key: string, { arg }: { arg: number }) => empleadosApi.reactivar(arg),
+  )
+  return { reactivarEmpleado: trigger, isLoading: isMutating }
 }

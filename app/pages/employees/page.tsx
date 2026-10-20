@@ -1,10 +1,13 @@
 "use client"
-import { Plus } from "lucide-react"
+import { Plus, RotateCcw, UserRound } from "lucide-react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { DatePicker } from "@/components/ui/date-picker"
+import { useVehiculos } from "@/hooks/use-vehicles"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { CrearButton } from "@/components/ui/crear-button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
@@ -16,7 +19,12 @@ import {
   useCreateEmpleado,
   useUpdateEmpleado,
   useDeleteEmpleado,
+  useReactivarEmpleado,
 } from "@/hooks/use-employees"
+import type { EstadoEmpleados } from "@/lib/api/empleados"
+import { usePermisosPantalla } from "@/components/permisos-pantalla"
+import { getUser } from "@/lib/auth-utils"
+import { uploadFoto } from "@/lib/api/client"
 import { useFormErrors } from "@/hooks/use-form-errors"
 import { required, requiredSelect, maxLength as maxLengthValidator, dniOCuit, notFutureDate, emailFormat, minLength } from "@/lib/form-validators"
 import { CuitDniField, DireccionField, FechaAltaField, DIRECCION_MAX } from "@/components/empleado-fields"
@@ -40,6 +48,7 @@ const EMPTY_FORM = {
   direccion: "",
   telefono: "",
   cargo: "",
+  tieneCarnet: false,
   email: "",
   password: "",
 }
@@ -53,7 +62,8 @@ function AvatarInitials({ nombre, apellido }: { nombre: string; apellido: string
   )
 }
 
-const COLUMNS: TableColumn<Empleado>[] = [
+function buildColumns(onReactivar?: (e: Empleado) => void): TableColumn<Empleado>[] {
+  return [
   {
     key: "nombre",
     header: "Empleado",
@@ -61,6 +71,9 @@ const COLUMNS: TableColumn<Empleado>[] = [
       <div className="flex flex-wrap items-center gap-3">
         <AvatarInitials nombre={emp.nombre} apellido={emp.apellido} />
         <span className="font-medium">{emp.nombre} {emp.apellido}</span>
+        {!emp.isActive && (
+          <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[11px] font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300">Desactivado</span>
+        )}
       </div>
     ),
   },
@@ -109,10 +122,27 @@ const COLUMNS: TableColumn<Empleado>[] = [
       </span>
     ),
   },
-]
+  ...(onReactivar ? [{
+    key: "reactivar",
+    header: "",
+    cell: (emp: Empleado) => emp.isActive ? null : (
+      <Button variant="outline" size="sm" onClick={() => onReactivar(emp)}>
+        <RotateCcw className="h-3.5 w-3.5" />
+        Reactivar
+      </Button>
+    ),
+  }] : []),
+  ]
+}
 
 export default function EmployeePage() {
-  const { empleados, isLoading, mutate } = useEmpleadosFull()
+  const [estado, setEstado] = useState<EstadoEmpleados>("activos")
+  const { empleados, isLoading, mutate } = useEmpleadosFull(estado)
+  const { reactivarEmpleado } = useReactivarEmpleado()
+  const permisosPantalla = usePermisosPantalla()
+  // Desactivar, reactivar, ver desactivados y cambiar el rol son exclusivos del SysAdmin
+  const puedeDesactivar = permisosPantalla.puede("baja")
+  const esAdmin = (getUser()?.rol?.nombre ?? "").trim().toLowerCase() === "admin"
   const { usuarios } = useUsuarios()
   const { roles } = useRoles()
   const { createEmpleado, isLoading: isCreating } = useCreateEmpleado()
@@ -125,6 +155,68 @@ export default function EmployeePage() {
   const [editing, setEditing] = useState<Empleado | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  // Datos de transportista (solo si el rol elegido es Transportista): vehículo y carnet de conducir
+  const { vehiculos } = useVehiculos()
+  const [transp, setTransp] = useState({ vehiculoId: "", carnetVencimiento: "" })
+  const [carnetFile, setCarnetFile] = useState<File | null>(null)
+  const [transpErrors, setTranspErrors] = useState<{ vehiculoId?: string; carnetVencimiento?: string; carnet?: string }>({})
+
+  // Foto tipo carnet (opcional): archivo elegido y su vista previa
+  const [fotoFile, setFotoFile] = useState<File | null>(null)
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null)
+  useEffect(() => {
+    if (!fotoFile) return
+    const url = URL.createObjectURL(fotoFile)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFotoPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [fotoFile])
+
+  const rolElegido = roles.find((r) => String(r.id) === String(form.rolId))
+  const esRolTransportista = (rolElegido?.nombre ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === "transportista"
+  // Se piden vehículo y carnet al dar de alta a un transportista o al pasar un empleado a ese rol
+  const pideTransportista = esRolTransportista && (!editing || form.rolId !== editing.rolId)
+  // Un transportista necesita carnet: se marca solo y no se puede quitar
+  const tieneCarnetEfectivo = form.tieneCarnet || pideTransportista
+
+  function elegirCarnet(file: File | undefined) {
+    if (!file) return
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+      setTranspErrors((e) => ({ ...e, carnet: "El carnet debe ser una imagen JPG, PNG o WEBP" }))
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setTranspErrors((e) => ({ ...e, carnet: "El carnet no puede superar los 5 MB" }))
+      return
+    }
+    setCarnetFile(file)
+    setTranspErrors((e) => ({ ...e, carnet: undefined }))
+  }
+
+  function elegirFoto(file: File | undefined) {
+    if (!file) return
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+      toast.error("La foto debe ser una imagen JPG, PNG o WEBP")
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("La foto no puede superar los 5 MB")
+      return
+    }
+    setFotoFile(file)
+  }
+
+  async function handleReactivar(e: Empleado) {
+    try {
+      await reactivarEmpleado(e.id)
+      await mutate()
+      toast.success("Empleado reactivado")
+    } catch (error) {
+      toast.error(getErrorMessage(error, "No se pudo reactivar el empleado"))
+    }
+  }
+
+  const columns = buildColumns(puedeDesactivar ? handleReactivar : undefined)
 
   const filtered = empleados.filter(
     (e) =>
@@ -134,7 +226,7 @@ export default function EmployeePage() {
       (e.cuitDni ?? "").includes(search.trim()),
   )
 
-  function set(field: keyof typeof EMPTY_FORM, value: string | number) {
+  function set(field: keyof typeof EMPTY_FORM, value: string | number | boolean) {
     setForm((f) => ({ ...f, [field]: value }))
     clearError(field)
   }
@@ -143,6 +235,11 @@ export default function EmployeePage() {
     setIsViewing(false)
     setEditing(null)
     setForm({ ...EMPTY_FORM, fechaAlta: todayISO() })
+    setFotoFile(null)
+    setFotoPreview(null)
+    setTransp({ vehiculoId: "", carnetVencimiento: "" })
+    setCarnetFile(null)
+    setTranspErrors({})
     reset()
     setModalOpen(true)
   }
@@ -150,6 +247,11 @@ export default function EmployeePage() {
   function openEdit(e: Empleado) {
     setIsViewing(false)
     setEditing(e)
+    setFotoFile(null)
+    setFotoPreview(null)
+    setTransp({ vehiculoId: "", carnetVencimiento: "" })
+    setCarnetFile(null)
+    setTranspErrors({})
     setForm({
       rolId: e.rolId,
       nombre: e.nombre,
@@ -159,6 +261,7 @@ export default function EmployeePage() {
       direccion: e.direccion ?? "",
       telefono: e.telefono ?? "",
       cargo: e.cargo ?? "",
+      tieneCarnet: !!e.tieneCarnet,
       email: "",
       password: "",
     })
@@ -169,6 +272,11 @@ export default function EmployeePage() {
   function openView(e: Empleado) {
     setIsViewing(true)
     setEditing(e)
+    setFotoFile(null)
+    setFotoPreview(null)
+    setTransp({ vehiculoId: "", carnetVencimiento: "" })
+    setCarnetFile(null)
+    setTranspErrors({})
     setForm({
       rolId: e.rolId,
       nombre: e.nombre,
@@ -178,6 +286,7 @@ export default function EmployeePage() {
       direccion: e.direccion ?? "",
       telefono: e.telefono ?? "",
       cargo: e.cargo ?? "",
+      tieneCarnet: !!e.tieneCarnet,
       email: "",
       password: "",
     })
@@ -194,28 +303,50 @@ export default function EmployeePage() {
       cuitDni: [required("el CUIT/DNI"), dniOCuit()],
       fechaAlta: [required("la fecha de alta"), notFutureDate("La fecha de alta")],
       direccion: [required("la dirección"), maxLengthValidator(DIRECCION_MAX)],
+      telefono: [required("el teléfono"), minLength(6)],
       // el usuario se crea junto con el empleado, así que email y contraseña solo se piden al crear
       ...(!editing ? {
         email: [required("el email"), emailFormat(), maxLengthValidator(EMAIL_MAX)],
         password: [required("la contraseña"), minLength(PASSWORD_MIN), maxLengthValidator(PASSWORD_MAX)],
       } : {}),
-    })) return
+    })) {
+      toast.error("Completá los campos obligatorios marcados en rojo", { toastId: "empleado-incompleto" })
+      return
+    }
+    if (pideTransportista) {
+      const errores = {
+        vehiculoId: transp.vehiculoId ? undefined : "Seleccioná el vehículo que va a utilizar",
+        carnetVencimiento: transp.carnetVencimiento ? undefined : "Indicá el vencimiento del carnet de conducir",
+        carnet: carnetFile ? undefined : "Subí la foto del carnet de conducir",
+      }
+      setTranspErrors(errores)
+      if (errores.vehiculoId || errores.carnetVencimiento || errores.carnet) {
+        toast.error("Completá los datos del transportista: vehículo y carnet de conducir", { toastId: "transportista-incompleto" })
+        return
+      }
+    }
     try {
+      const fotoUrl = fotoFile ? await uploadFoto(fotoFile) : editing?.fotoUrl ?? undefined
+      const datosTransportista = pideTransportista
+        ? { vehiculoId: Number(transp.vehiculoId), carnetUrl: await uploadFoto(carnetFile as File), carnetVencimiento: transp.carnetVencimiento }
+        : undefined
       const payload = {
-        rolId: form.rolId,
+        tieneCarnet: tieneCarnetEfectivo,
+        ...(fotoUrl ? { fotoUrl } : {}),
         nombre: form.nombre.trim(),
         apellido: form.apellido.trim(),
         cuitDni: form.cuitDni,
         fechaAlta: form.fechaAlta,
         direccion: form.direccion.trim(),
-        telefono: form.telefono.trim() || undefined,
+        telefono: form.telefono.trim(),
         cargo: form.cargo.trim() || undefined,
       }
       if (editing) {
-        await updateEmpleado({ id: editing.id, ...payload })
+        // al editar, solo el SysAdmin envía el rol (cambiarlo es exclusivo suyo)
+        await updateEmpleado({ id: editing.id, ...payload, ...(esAdmin ? { rolId: form.rolId } : {}), ...(datosTransportista ? { transportista: datosTransportista } : {}) })
         toast.success("Empleado actualizado")
       } else {
-        await createEmpleado({ ...payload, email: form.email.trim(), password: form.password })
+        await createEmpleado({ ...payload, rolId: form.rolId, ...(datosTransportista ? { transportista: datosTransportista } : {}), email: form.email.trim(), password: form.password })
         toast.success("Empleado creado")
       }
       await mutate()
@@ -230,18 +361,14 @@ export default function EmployeePage() {
       await deleteEmpleado(id as number)
       await mutate()
       toast.success("Empleado desactivado")
-    } catch {
-      toast.error("Error al eliminar el empleado")
+    } catch (error) {
+      toast.error(getErrorMessage(error, "No se pudo desactivar el empleado"))
     }
   }
 
   // Usuario que quedó vinculado al empleado al crearlo (se muestra al ver o editar)
   const usuarioAsociado = editing ? usuarios.find((u) => String(u.empleadoId) === String(editing.id)) : undefined
 
-  const canSave =
-    !!form.nombre.trim() && !!form.apellido.trim() && form.rolId !== 0 &&
-    !!form.cuitDni && !!form.fechaAlta && !!form.direccion.trim() &&
-    (!!editing || (!!form.email.trim() && form.password.length >= PASSWORD_MIN))
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -262,24 +389,39 @@ export default function EmployeePage() {
         <span className="text-sm text-muted-foreground">
           {filtered.length} empleado{filtered.length !== 1 ? "s" : ""}
         </span>
-        <Button className="ml-auto" onClick={openCreate}>
+        {puedeDesactivar && (
+          <select
+            value={estado}
+            onChange={(e) => setEstado(e.target.value as EstadoEmpleados)}
+            className="h-9 rounded-4xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            aria-label="Filtrar por estado"
+          >
+            <option value="activos">Activos</option>
+            <option value="inactivos">Desactivados</option>
+            <option value="todos">Todos</option>
+          </select>
+        )}
+        <CrearButton className="ml-auto" onClick={openCreate}>
           <Plus className="h-4 w-4" />
           Nuevo empleado
-        </Button>
+        </CrearButton>
       </div>
 
       <DataTable
         data={filtered}
-        columns={COLUMNS}
+        columns={columns}
         isLoading={isLoading}
         loadingText="Cargando empleados..."
-        emptyText="No hay empleados registrados."
+        emptyText={estado === "inactivos" ? "No hay empleados desactivados." : "No hay empleados registrados."}
         emptySearchText="No se encontraron empleados."
         search={search}
         onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
+        showEdit={(e) => e.isActive}
+        showDelete={(e) => e.isActive}
+        deleteTexts={{ accion: "Desactivar", pregunta: "¿Desactivar este empleado?", detalle: "No podrá iniciar sesión. Sus datos se conservan y podés reactivarlo cuando quieras.", enCurso: "Desactivando..." }}
       />
 
       <FormModal
@@ -294,24 +436,12 @@ export default function EmployeePage() {
         }
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
-        saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear empleado"}
       >
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {/* Columna izquierda — Datos personales */}
           <div className="flex flex-col gap-4">
             <h3 className="border-b border-border pb-1 text-sm font-semibold text-primary">Datos personales</h3>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Nombre *</label>
-              <Input
-                value={form.nombre}
-                onChange={(e) => set("nombre", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"))}
-                placeholder="Juan"
-                className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
-              />
-              <FieldError>{errors.nombre}</FieldError>
-            </div>
 
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium">Apellido *</label>
@@ -324,19 +454,30 @@ export default function EmployeePage() {
               <FieldError>{errors.apellido}</FieldError>
             </div>
 
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Nombre *</label>
+              <Input
+                value={form.nombre}
+                onChange={(e) => set("nombre", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"))}
+                placeholder="Juan"
+                className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
+              />
+              <FieldError>{errors.nombre}</FieldError>
+            </div>
+
             <CuitDniField value={form.cuitDni} error={errors.cuitDni} onChange={set} />
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Teléfono <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
+              <label className="text-sm font-medium">Teléfono *</label>
               <Input
                 value={form.telefono}
                 onChange={(e) => set("telefono", e.target.value.replace(/\D/g, ""))}
                 placeholder="5491112345678"
                 inputMode="numeric"
                 maxLength={20}
+                className={cn(errors.telefono && "border-destructive focus-visible:ring-destructive")}
               />
+              <FieldError>{errors.telefono}</FieldError>
             </div>
 
             <DireccionField value={form.direccion} error={errors.direccion} onChange={set} />
@@ -346,6 +487,7 @@ export default function EmployeePage() {
           <div className="flex flex-col gap-4">
             <h3 className="border-b border-border pb-1 text-sm font-semibold text-primary">Datos corporativos</h3>
 
+            {(!editing || isViewing || esAdmin) && (
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium">Rol *</label>
               <select
@@ -358,7 +500,7 @@ export default function EmployeePage() {
                 )}
               >
                 <option value={0}>— Seleccionar rol —</option>
-                {roles.filter((r) => r.nombre.toLowerCase() !== "donante").map((r) => (
+                {roles.filter((r) => r.nombre.toLowerCase() !== "donante" && (esAdmin || r.nombre.toLowerCase() !== "admin")).map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.nombre}
                   </option>
@@ -366,6 +508,7 @@ export default function EmployeePage() {
               </select>
               <FieldError>{errors.rolId}</FieldError>
             </div>
+            )}
 
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium">
@@ -379,10 +522,99 @@ export default function EmployeePage() {
               <FieldError>{errors.cargo}</FieldError>
             </div>
 
+            <label className="flex items-start gap-2 rounded-xl border border-border bg-muted/40 p-3 text-sm">
+              <input
+                type="checkbox"
+                checked={tieneCarnetEfectivo}
+                disabled={pideTransportista}
+                onChange={(e) => set("tieneCarnet", e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-input"
+              />
+              <span>
+                <span className="font-medium">Tiene carnet de conducir</span>
+                <span className="block text-xs text-muted-foreground">
+                  {pideTransportista ? "Un transportista necesita carnet de conducir." : "Es necesario para poder asignarlo como transportista."}
+                </span>
+              </span>
+            </label>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">
+                Foto tipo carnet <span className="text-muted-foreground font-normal">(opcional)</span>
+              </label>
+              <div className="flex items-center gap-3">
+                <div className="flex h-24 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted/40">
+                  {fotoPreview ?? editing?.fotoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={(fotoPreview ?? editing?.fotoUrl) as string} alt="Foto del empleado" className="h-full w-full object-cover" />
+                  ) : (
+                    <UserRound className="h-8 w-8 text-muted-foreground/50" />
+                  )}
+                </div>
+                {!isViewing && (
+                  <label className="cursor-pointer rounded-md border border-input px-3 py-1.5 text-xs font-medium hover:bg-muted">
+                    {fotoPreview ?? editing?.fotoUrl ? "Cambiar foto" : "Elegir foto"}
+                    <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => elegirFoto(e.target.files?.[0])} />
+                  </label>
+                )}
+              </div>
+            </div>
+
             {/* Por defecto, la fecha del día en curso; se puede cambiar */}
             <FechaAltaField value={form.fechaAlta} error={errors.fechaAlta} onChange={set} />
           </div>
         </div>
+
+        {/* Ficha de transportista: vehículo que va a utilizar y carnet de conducir */}
+        {pideTransportista && !isViewing && (
+          <div className="flex flex-col gap-4">
+            <h3 className="border-b border-border pb-1 text-sm font-semibold text-primary">Datos de transportista</h3>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Vehículo que va a utilizar *</label>
+                <select
+                  value={transp.vehiculoId}
+                  onChange={(e) => { setTransp((t) => ({ ...t, vehiculoId: e.target.value })); setTranspErrors((er) => ({ ...er, vehiculoId: undefined })) }}
+                  className={cn(
+                    "w-full rounded-4xl border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0",
+                    transpErrors.vehiculoId ? "border-destructive" : "border-input",
+                  )}
+                >
+                  <option value="">— Seleccionar vehículo —</option>
+                  {vehiculos.map((v) => (
+                    <option key={v.id} value={v.id}>{v.patente} — {v.marca} {v.modelo}</option>
+                  ))}
+                </select>
+                <FieldError>{transpErrors.vehiculoId}</FieldError>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Vencimiento del carnet de conducir *</label>
+                <DatePicker
+                  variant="field"
+                  value={transp.carnetVencimiento}
+                  onChange={(v) => { setTransp((t) => ({ ...t, carnetVencimiento: v })); setTranspErrors((er) => ({ ...er, carnetVencimiento: undefined })) }}
+                  placeholder="Seleccionar fecha"
+                  aria-label="Vencimiento del carnet de conducir"
+                />
+                <FieldError>{transpErrors.carnetVencimiento}</FieldError>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">
+                Foto del carnet de conducir * <span className="text-xs font-normal text-muted-foreground">(jpg, png, webp — máx. 5 MB)</span>
+              </label>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) => elegirCarnet(e.target.files?.[0])}
+                className="text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-input file:bg-transparent file:px-3 file:py-1 file:text-sm file:font-medium cursor-pointer"
+              />
+              {carnetFile && <p className="text-xs text-muted-foreground">Seleccionada: {carnetFile.name}</p>}
+              <FieldError>{transpErrors.carnet}</FieldError>
+            </div>
+            <p className="text-xs text-muted-foreground">Al crear el empleado se registra también como transportista, con este vehículo.</p>
+          </div>
+        )}
 
         {/* Usuario con el que el empleado inicia sesión */}
         <div className="flex flex-col gap-4">

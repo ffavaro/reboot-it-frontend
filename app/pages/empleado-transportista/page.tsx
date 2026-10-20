@@ -5,6 +5,7 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { CrearButton } from "@/components/ui/crear-button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
@@ -104,6 +105,8 @@ export default function EmpleadoTransportistaPage() {
     const rol = e.rol?.nombre?.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
     return rol === "transportista"
   })
+  // Solo se puede asignar a quien tiene carnet de conducir (el backend también lo valida)
+  const sinCarnet = empleados.filter((e: Empleado) => !e.tieneCarnet).length
   const { vehiculos, mutate: mutateVehiculos } = useVehiculos()
   const { tipos } = useTipoVehiculos()
   const { createTransportista, isLoading: isCreating } = useCreateEmpleadoTransportista()
@@ -338,10 +341,10 @@ export default function EmpleadoTransportistaPage() {
         <span className="text-sm text-muted-foreground">
           {filtered.length} transportista{filtered.length !== 1 ? "s" : ""}
         </span>
-        <Button className="ml-auto" onClick={openCreate}>
+        <CrearButton className="ml-auto" onClick={openCreate}>
           <Plus className="h-4 w-4" />
           Nuevo transportista
-        </Button>
+        </CrearButton>
       </div>
 
       <DataTable
@@ -384,13 +387,18 @@ export default function EmpleadoTransportistaPage() {
             )}
           >
             <option value="">Seleccionar empleado...</option>
-            {empleados.map((e: Empleado) => (
+            {empleados.filter((e: Empleado) => !!e.tieneCarnet || String(e.id) === form.empleadoId).map((e: Empleado) => (
               <option key={e.id} value={e.id}>
                 {empleadoLabel(e)}
               </option>
             ))}
           </select>
           <FieldError>{errors.empleadoId}</FieldError>
+          {sinCarnet > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {sinCarnet} empleado{sinCarnet !== 1 ? "s" : ""} con rol Transportista no figura{sinCarnet !== 1 ? "n" : ""} con carnet: marcá «Tiene carnet de conducir» en Empleados para poder asignarlo.
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col gap-2">

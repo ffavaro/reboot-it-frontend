@@ -9,8 +9,18 @@ export interface Empleado {
   direccion?: string | null
   telefono?: string | null
   cargo?: string | null
+  // Carnet de conducir (condición para ser transportista) y foto tipo carnet del empleado
+  tieneCarnet?: boolean | number
+  fotoUrl?: string | null
   isActive: boolean
   rol: Rol
+}
+
+// Ficha de transportista que se crea junto con el empleado cuando su rol es Transportista
+export interface DatosTransportistaPayload {
+  vehiculoId: number
+  carnetUrl: string
+  carnetVencimiento: string
 }
 
 export interface CreateEmpleadoPayload {
@@ -20,8 +30,11 @@ export interface CreateEmpleadoPayload {
   cuitDni: string
   fechaAlta: string
   direccion: string
-  telefono?: string
+  telefono: string
   cargo?: string
+  tieneCarnet?: boolean
+  fotoUrl?: string
+  transportista?: DatosTransportistaPayload
   // El alta crea también el usuario del empleado con este email y contraseña
   email: string
   password: string
@@ -36,6 +49,10 @@ export interface UpdateEmpleadoPayload {
   direccion?: string
   telefono?: string | null
   cargo?: string | null
+  tieneCarnet?: boolean
+  fotoUrl?: string
+  // Solo al pasar el empleado al rol Transportista
+  transportista?: DatosTransportistaPayload
 }
 
 export interface Usuario  {

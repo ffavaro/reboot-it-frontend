@@ -85,7 +85,14 @@ export function DatePicker({
     ...Array.from({ length: diasMes }, (_, i) => i + 1),
   ]
 
+  // Siempre 6 filas de días: el calendario no cambia de alto al pasar de mes
+  while (celdas.length < 42) celdas.push(null)
+
   const hoy = todayISO()
+  const anioActual = new Date().getFullYear()
+  const anioDesde = Math.min(min ? Number(min.slice(0, 4)) : anioActual - 30, view.year)
+  const anioHasta = Math.max(max ? Number(max.slice(0, 4)) : anioActual + 15, view.year)
+  const anios = Array.from({ length: anioHasta - anioDesde + 1 }, (_, i) => anioDesde + i)
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -117,7 +124,24 @@ export function DatePicker({
           >
             <ChevronLeft className="size-4" />
           </button>
-          <p className="text-sm font-medium">{MESES[view.month]} {view.year}</p>
+          <div className="flex items-center gap-1">
+            <select
+              aria-label="Mes"
+              value={view.month}
+              onChange={(e) => setView((v) => ({ ...v, month: Number(e.target.value) }))}
+              className="h-7 rounded-md bg-transparent px-1 text-sm font-medium hover:bg-muted focus:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+            >
+              {MESES.map((m, i) => <option key={m} value={i}>{m}</option>)}
+            </select>
+            <select
+              aria-label="Año"
+              value={view.year}
+              onChange={(e) => setView((v) => ({ ...v, year: Number(e.target.value) }))}
+              className="h-7 rounded-md bg-transparent px-1 text-sm font-medium tabular-nums hover:bg-muted focus:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+            >
+              {anios.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </div>
           <button
             type="button"
             onClick={() => moverMes(1)}
@@ -133,7 +157,7 @@ export function DatePicker({
             <span key={d} className="text-[11px] font-medium text-muted-foreground py-1">{d}</span>
           ))}
           {celdas.map((dia, i) => {
-            if (dia === null) return <span key={`v${i}`} />
+            if (dia === null) return <span key={`v${i}`} className="h-8" />
             const iso = toISO(view.year, view.month, dia)
             const selected = iso === value
             const disabled = isDisabled(iso)

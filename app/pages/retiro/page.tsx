@@ -4,6 +4,7 @@ import { Plus } from "lucide-react"
 import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
+import { CrearButton } from "@/components/ui/crear-button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
@@ -24,7 +25,8 @@ import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import type { Vehiculo } from "@/lib/type/vehicle"
 import type { Donacion } from "@/lib/type/donacion"
 import type { Turno } from "@/lib/type/turno"
-import { formatDate } from "@/lib/utils/helpers"
+import { formatDate, getErrorMessage } from "@/lib/utils/helpers"
+import type { TipoVehiculo } from "@/lib/type/vehicle"
 import { ESTADO_DONACION } from "@/lib/constants/estados"
 
 const EMPTY_FORM = {
@@ -94,10 +96,14 @@ export default function RetiroPage() {
   const { deleteRetiro, isLoading: isDeleting } = useDeleteRetiro()
 
   // Compatibilidad de peso: null = sin datos suficientes para evaluar
-  function esCompatible(t: EmpleadoTransportista, pesoKg: number | null): boolean | null {
-    const tipo = t.vehiculo?.tipoVehiculo
+  // (los pesos llegan como texto desde las columnas DECIMAL de MySQL: se convierten a número)
+  function compatibleConTipo(tipo: TipoVehiculo | undefined, pesoKg: number | string | null): boolean | null {
     if (pesoKg == null || !tipo || tipo.pesoMinimo == null || tipo.pesoMaximo == null) return null
-    return pesoKg >= tipo.pesoMinimo && pesoKg <= tipo.pesoMaximo
+    const peso = Number(pesoKg)
+    return peso >= Number(tipo.pesoMinimo) && peso <= Number(tipo.pesoMaximo)
+  }
+  function esCompatible(t: EmpleadoTransportista, pesoKg: number | string | null): boolean | null {
+    return compatibleConTipo(t.vehiculo?.tipoVehiculo, pesoKg)
   }
 
   const [search, setSearch] = useState("")
@@ -158,6 +164,18 @@ export default function RetiroPage() {
       toast.error("La donación y el empleado transportista son obligatorios")
       return
     }
+    // El vehículo (el elegido o, si no hay, el del transportista) tiene que soportar el peso estimado de la donación
+    const donacion = donaciones.find((d: Donacion) => String(d.id) === form.donacionId)
+    const transportista = transportistas.find((t: EmpleadoTransportista) => String(t.id) === form.empleadoTransportistaId)
+    const vehiculoElegido = form.vehiculoId ? vehiculos.find((v) => String(v.id) === form.vehiculoId) : transportista?.vehiculo
+    if (compatibleConTipo(vehiculoElegido?.tipoVehiculo, donacion?.pesoEstimadoKg ?? null) === false) {
+      const tipo = vehiculoElegido!.tipoVehiculo
+      toast.error(
+        `El vehículo ${vehiculoElegido!.patente} soporta entre ${Number(tipo.pesoMinimo)} y ${Number(tipo.pesoMaximo)} kg, ` +
+        `y la donación tiene un peso estimado de ${Number(donacion?.pesoEstimadoKg)} kg. Elegí otro transportista o vehículo.`,
+      )
+      return
+    }
     try {
       const payload = {
         donacionId: Number(form.donacionId),
@@ -175,8 +193,8 @@ export default function RetiroPage() {
       }
       await mutate()
       setModalOpen(false)
-    } catch {
-      toast.error("Error al guardar el retiro")
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Error al guardar el retiro"))
     }
   }
 
@@ -209,10 +227,10 @@ export default function RetiroPage() {
         <span className="text-sm text-muted-foreground">
           {filtered.length} retiro{filtered.length !== 1 ? "s" : ""}
         </span>
-        <Button className="ml-auto" onClick={openCreate}>
+        <CrearButton className="ml-auto" onClick={openCreate}>
           <Plus className="h-4 w-4" />
           Nuevo retiro
-        </Button>
+        </CrearButton>
       </div>
 
       <DataTable
@@ -287,7 +305,7 @@ export default function RetiroPage() {
               const nombre = t.empleado ? `${t.empleado.nombre} ${t.empleado.apellido}` : `#${t.id}`
               const sufijo = compatible === false ? " — vehículo no soporta el peso estimado" : compatible === true ? " ✓ compatible" : ""
               return (
-                <option key={t.id} value={t.id}>
+                <option key={t.id} value={t.id} disabled={compatible === false}>
                   {nombre}{sufijo}
                 </option>
               )

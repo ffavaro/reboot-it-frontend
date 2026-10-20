@@ -5,6 +5,7 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { CrearButton } from "@/components/ui/crear-button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { DataTable, TableColumn } from "@/components/ui/data-table"
@@ -325,10 +326,10 @@ export default function UserManagementPage() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
         />
-        <Button onClick={openCreate} className="ml-auto">
+        <CrearButton onClick={openCreate} className="ml-auto">
           <Plus className="h-4 w-4" />
           Nuevo usuario
-        </Button>
+        </CrearButton>
       </div>
 
       <DataTable

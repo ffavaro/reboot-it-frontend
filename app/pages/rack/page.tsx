@@ -5,17 +5,20 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { CrearButton } from "@/components/ui/crear-button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { FieldError } from "@/components/ui/field"
+import { usePallets } from "@/hooks/use-pallet"
 import { useRacks, useCreateRack, useUpdateRack, useDeleteRack } from "@/hooks/use-rack"
 import { useFormErrors } from "@/hooks/use-form-errors"
 import { required, maxLength as maxLengthValidator } from "@/lib/form-validators"
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { Rack } from "@/lib/type/rack"
+import type { Pallet } from "@/lib/type/pallet"
 
 const EMPTY_FORM = { codigo: "", ubicacion: "" }
 
@@ -28,7 +31,50 @@ function generateRackCodigo(racks: Rack[]): string {
   return `RACK-${String(maxNumero + 1).padStart(3, "0")}`
 }
 
-const columns: TableColumn<Rack>[] = [
+// Pallets activos del rack, con el lote que contiene cada uno
+function PalletsDelRack({ pallets }: { pallets: Pallet[] }) {
+  if (pallets.length === 0) return <span className="italic text-muted-foreground">Vacío</span>
+  return (
+    <ul className="flex flex-col gap-1">
+      {pallets.map((p) => (
+        <li key={p.id} className="flex items-center gap-2 rounded-md bg-muted/50 px-2.5 py-1.5 text-xs">
+          <span className="font-mono font-medium">{p.codigo || `Pallet #${p.id}`}</span>
+          <span className="text-muted-foreground">
+            {p.loteId ? `Lote #${p.loteId}${p.lote?.donacionId ? ` · Donación #${p.lote.donacionId}` : ""}` : "Sin lote"}
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function buildColumns(palletsPorRack: Map<number, Pallet[]>): TableColumn<Rack>[] {
+  return [
+    ...baseColumns,
+    {
+      key: "pallets",
+      header: "Pallets",
+      cell: (r) => {
+        const n = palletsPorRack.get(r.id)?.length ?? 0
+        return n === 0
+          ? <span className="italic text-muted-foreground">Vacío</span>
+          : <span>{n} pallet{n !== 1 ? "s" : ""}</span>
+      },
+    },
+    {
+      key: "lotes",
+      header: "Lotes",
+      cell: (r) => {
+        const ids = (palletsPorRack.get(r.id) ?? []).map((p) => p.loteId).filter((id): id is number => !!id)
+        return ids.length === 0
+          ? <span className="italic text-muted-foreground">—</span>
+          : <span className="font-mono text-xs">{ids.map((id) => `#${id}`).join(", ")}</span>
+      },
+    },
+  ]
+}
+
+const baseColumns: TableColumn<Rack>[] = [
   {
     key: "codigo",
     header: "Código",
@@ -47,6 +93,7 @@ const columns: TableColumn<Rack>[] = [
 
 export default function RackPage() {
   const { racks, isLoading, mutate } = useRacks()
+  const { pallets } = usePallets()
   const { createRack, isLoading: isCreating } = useCreateRack()
   const { updateRack, isLoading: isUpdating } = useUpdateRack()
   const { deleteRack, isLoading: isDeleting } = useDeleteRack()
@@ -57,6 +104,13 @@ export default function RackPage() {
   const [editing, setEditing] = useState<Rack | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+
+  const palletsPorRack = new Map<number, Pallet[]>()
+  for (const p of pallets) {
+    if (!p.isActive) continue
+    palletsPorRack.set(p.rackId, [...(palletsPorRack.get(p.rackId) ?? []), p])
+  }
+  const columns = buildColumns(palletsPorRack)
 
   const filtered = racks.filter((r: Rack) => {
     const q = search.toLowerCase()
@@ -150,10 +204,10 @@ export default function RackPage() {
         <span className="text-sm text-muted-foreground">
           {filtered.length} rack{filtered.length !== 1 ? "s" : ""}
         </span>
-        <Button className="ml-auto" onClick={openCreate}>
+        <CrearButton className="ml-auto" onClick={openCreate}>
           <Plus className="h-4 w-4" />
           Nuevo rack
-        </Button>
+        </CrearButton>
       </div>
 
       <DataTable
@@ -208,6 +262,13 @@ export default function RackPage() {
           />
           <FieldError>{errors.ubicacion}</FieldError>
         </div>
+
+        {editing && (
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Pallets y lotes almacenados</label>
+            <PalletsDelRack pallets={palletsPorRack.get(editing.id) ?? []} />
+          </div>
+        )}
       </FormModal>
     </div>
   )

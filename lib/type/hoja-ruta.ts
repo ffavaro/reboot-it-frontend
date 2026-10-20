@@ -10,6 +10,10 @@ export interface ParadaHojaRuta {
   sinDireccion: boolean
   fechaHora: string
   estadoTurno: string
+  // El transportista ya confirmó el retiro de este turno
+  retirado: boolean
+  // Constancia de retiro generada al confirmar el retiro (null mientras esté pendiente)
+  constanciaId: number | null
 }
 
 // Un punto del recorrido tal como se envía a Google Maps: origen, paradas intermedias y destino
@@ -28,6 +32,7 @@ export interface HojaRutaInfo {
   kmInicial: number | null
   kmFinal: number | null
   kmReales: number | null
+  kmEstimado: number | null
 }
 
 export interface HojaRutaDia {
@@ -79,4 +84,42 @@ export interface HojaRutaHistoricoQuery {
   fechaHasta?: string
   empleadoTransportistaId?: number
   vehiculoId?: number
+}
+
+export interface GenerarHojaRutaPayload {
+  empleadoTransportistaId: number
+  // Fecha de los turnos pendientes que incluye la hoja (yyyy-MM-dd); por defecto, hoy
+  fecha?: string
+  // Genera la hoja aunque haya otra iniciada con turnos pendientes de retiro
+  confirmar?: boolean
+}
+
+// Respuesta 409 de generar cuando el transportista ya tiene otra hoja iniciada con turnos sin retirar
+export interface HojaIniciadaPendiente {
+  id: number
+  fecha: string
+  pendientes: number
+}
+
+export interface ConfirmarRetiroResultado {
+  turnoId: number
+  constanciaId: number | null
+  // true cuando era el último turno pendiente y la hoja se finalizó sola
+  hojaFinalizada: boolean
+}
+
+// Datos de la constancia de retiro de un turno, para mostrarla y descargarla en PDF
+export interface ConstanciaRetiroDatos {
+  constanciaId: number
+  turnoId: number | null
+  donacionId: number | null
+  fechaEmision: string | null
+  fechaRetiro: string | null
+  observaciones: string | null
+  donante: { nombre: string; telefono: string | null }
+  direccion: string | null
+  transportista: { nombre: string; apellido: string; cuitDni: string | null } | null
+  vehiculo: { patente: string; marca: string; modelo: string } | null
+  pesoEstimadoKg: number | string | null
+  materiales: { tipo: string; cantidad: number | null }[]
 }

@@ -16,7 +16,9 @@ import { useEffect, useState } from "react";
 import { getUser, clearSession } from "@/lib/auth-utils"
 import { useRouter, usePathname } from "next/navigation"
 import { toast } from "react-toastify"
-import { grupoDeRol, homeDeRol, puedeAccederARuta } from "@/lib/nav"
+import { homeDePermisos, puedeAccederARuta } from "@/lib/nav"
+import { useMisPermisos } from "@/hooks/use-permisos"
+import { PermisosPantallaProvider } from "@/components/permisos-pantalla"
 
 export default function RootLayout({
   children,
@@ -29,21 +31,23 @@ export default function RootLayout({
   const pathname = usePathname()
   useEffect(() => { setUser(getUser()); setSesionLeida(true) }, [])
 
-  // Protección de pantallas por rol (la misma regla que el menú; el backend valida de nuevo).
-  // null = todavía no se leyó la sesión · false = el rol no puede ver esta ruta
-  const acceso = !sesionLeida ? null : user ? puedeAccederARuta(pathname, user.rol?.nombre) : false
+  const { permisos, error: errorPermisos } = useMisPermisos()
+
+  // Protección de pantallas según la matriz de permisos del rol (la misma regla que el menú; el backend valida de nuevo).
+  // null = todavía no se leyó la sesión o los permisos · false = el rol no puede ver esta ruta
+  const acceso = !sesionLeida ? null : !user ? false : permisos ? puedeAccederARuta(pathname, permisos) : null
 
   useEffect(() => {
-    if (acceso !== false) return
-    // sin sesión, o con un token sin rol reconocible: se vuelve a iniciar sesión
-    if (!user || !grupoDeRol(user.rol?.nombre)) {
+    // sin sesión, o sin poder leer los permisos del usuario: se vuelve a iniciar sesión
+    if (sesionLeida && (!user || errorPermisos)) {
       clearSession()
       router.replace("/login")
       return
     }
+    if (acceso !== false) return
     toast.error("No tenés permisos para ver esa pantalla.", { toastId: "sin-permiso" })
-    router.replace(homeDeRol(user.rol?.nombre))
-  }, [acceso, user, router])
+    router.replace(homeDePermisos(permisos))
+  }, [acceso, sesionLeida, user, errorPermisos, permisos, router])
 
   const handleLogout = () => {
     clearSession()
@@ -61,7 +65,7 @@ export default function RootLayout({
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem>
-                    <BreadcrumbPage className="text-sm font-medium tracking-tight text-white">RebootIT</BreadcrumbPage>
+                    <BreadcrumbPage className="text-sm font-medium tracking-tight text-white">Reboot IT</BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
@@ -100,7 +104,7 @@ export default function RootLayout({
           </header>
           <main className="p-4 md:p-6">
             {/* No se monta la pantalla hasta confirmar el acceso, así no dispara llamadas que el backend rechazaría */}
-            {acceso ? children : null}
+            {acceso ? <PermisosPantallaProvider permisos={permisos} pathname={pathname}>{children}</PermisosPantallaProvider> : null}
           </main>{/*
           <ChatWidget /> ver de poner en el otro layout */}
         </SidebarInset>

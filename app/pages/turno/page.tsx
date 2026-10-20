@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
+import { CrearButton } from "@/components/ui/crear-button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
@@ -19,7 +20,6 @@ import {
 } from "@/hooks/use-turno"
 import { useDonantes } from "@/hooks/use-donantes"
 import { useDonaciones } from "@/hooks/use-donacion"
-import { useUsuarios } from "@/hooks/use-users"
 import { useEstadosTurno } from "@/hooks/use-estado-turno"
 import { useEmpleadosFull } from "@/hooks/use-employees"
 import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
@@ -104,7 +104,6 @@ export default function TurnoPage() {
   const { turnos, isLoading, mutate } = useTurnos()
   const { donantes } = useDonantes()
   const { donaciones } = useDonaciones()
-  const { usuarios } = useUsuarios()
   const { estadosTurno } = useEstadosTurno()
   const { empleados } = useEmpleadosFull()
   const { transportistas } = useEmpleadosTransportistas()
@@ -145,7 +144,7 @@ export default function TurnoPage() {
   }, [fotoPreviewUrl])
 
   const isDonante = user?.rol?.nombre?.toLowerCase() === "donante"
-  const { isTransportista, myTransportista } = getTransportistaActual(usuarios, transportistas)
+  const { isTransportista, myTransportista } = getTransportistaActual(transportistas)
   const isReadOnly = isDonante || isTransportista
 
   const myDonante = isDonante
@@ -220,26 +219,6 @@ export default function TurnoPage() {
         </span>
       ),
     },
-    ...(isTransportista
-      ? [{
-          key: "confirmar-retiro",
-          header: "",
-          cell: (t: Turno) => {
-            const estado = t.estadoTurno?.descripcion?.toLowerCase() ?? ""
-            if (estado !== "asignado") return null
-            return (
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-blue-700 border-blue-300 hover:bg-blue-50"
-                onClick={(e) => { e.stopPropagation(); handleConfirmarRetiro(t) }}
-              >
-                Confirmar retiro
-              </Button>
-            )
-          },
-        }]
-      : []),
     ...(!isReadOnly
       ? [{
           key: "acciones-extra",
@@ -529,23 +508,6 @@ export default function TurnoPage() {
     }
   }
 
-  async function handleConfirmarRetiro(t: Turno) {
-    const estadoObj = estadosTurno.find(
-      (e: EstadoTurno) => e.descripcion.toLowerCase() === ESTADO_RETIRO_CONFIRMADO
-    )
-    if (!estadoObj) {
-      toast.error('No se encontró el estado "Retiro Confirmado"')
-      return
-    }
-    try {
-      await updateTurno({ id: t.id, estadoTurnoId: Number(estadoObj.id) })
-      toast.success("Retiro confirmado")
-      await mutate()
-    } catch {
-      toast.error("Error al confirmar el retiro")
-    }
-  }
-
   async function handleDelete(id: number | string) {
     try {
       await deleteTurno(Number(id))
@@ -576,10 +538,10 @@ export default function TurnoPage() {
           {filtered.length} turno{filtered.length !== 1 ? "s" : ""}
         </span>
         {!isReadOnly && (
-          <Button className="ml-auto" onClick={openCreate}>
+          <CrearButton className="ml-auto" onClick={openCreate}>
             <Plus className="h-4 w-4" />
             Nuevo turno
-          </Button>
+          </CrearButton>
         )}
       </div>
 

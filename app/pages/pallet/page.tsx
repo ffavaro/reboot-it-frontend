@@ -1,10 +1,11 @@
 "use client"
 import { Plus } from "lucide-react"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { CrearButton } from "@/components/ui/crear-button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { DataTable, type TableColumn } from "@/components/ui/data-table"
@@ -30,6 +31,7 @@ import { useFormErrors } from "@/hooks/use-form-errors"
 import { requiredSelect, positiveNumber, maxDigits } from "@/lib/form-validators"
 import { enforceDecimalInput, DEFAULT_WEIGHT_MAX_DIGITS } from "@/lib/utils/number-limit"
 import type { Pallet } from "@/lib/type/pallet"
+import { getErrorMessage } from "@/lib/utils/helpers"
 import type { Rack } from "@/lib/type/rack"
 import type { Lote } from "@/lib/type/lote"
 
@@ -116,6 +118,19 @@ export default function PalletPage() {
   } = useFormErrors<typeof EMPTY_QUICK_LOTE>()
 
   const [search, setSearch] = useState("")
+
+  // Si se llega desde Lotes con ?loteId=, se abre el alta de pallet con ese lote ya elegido
+  const abrioDesdeLote = useRef(false)
+  useEffect(() => {
+    if (abrioDesdeLote.current || isLoading || lotes.length === 0) return
+    abrioDesdeLote.current = true
+    const loteId = Number(new URLSearchParams(window.location.search).get("loteId"))
+    if (!loteId) return
+    window.history.replaceState(null, "", window.location.pathname)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    openCreate(loteId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, lotes.length])
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Pallet | null>(null)
   const [isViewing, setIsViewing] = useState(false)
@@ -135,10 +150,16 @@ export default function PalletPage() {
     )
   })
 
-  function openCreate() {
+  function openCreate(loteId?: number) {
     setIsViewing(false)
     setEditing(null)
-    setForm({ ...EMPTY_FORM, codigo: generatePalletCodigo(pallets) })
+    const lote = loteId ? lotes.find((l: Lote) => l.id === loteId) : undefined
+    setForm({
+      ...EMPTY_FORM,
+      codigo: generatePalletCodigo(pallets),
+      loteId: lote ? String(lote.id) : "",
+      peso_kg: lote?.pesoBrutoKg != null ? String(lote.pesoBrutoKg) : "",
+    })
     reset()
     setModalOpen(true)
   }
@@ -191,8 +212,8 @@ export default function PalletPage() {
       }
       await mutate()
       setModalOpen(false)
-    } catch {
-      toast.error("Error al guardar el pallet")
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Error al guardar el pallet"))
     }
   }
 
@@ -239,6 +260,10 @@ export default function PalletPage() {
     }
   }
 
+  // Un lote solo puede estar en un pallet: se ofrecen los libres (más el que ya tiene el pallet que se edita)
+  const lotesOcupados = new Set(pallets.filter((p) => p.loteId && p.id !== editing?.id).map((p) => p.loteId))
+  const lotesDisponibles = lotes.filter((l: Lote) => !lotesOcupados.has(l.id))
+
   const canSave = !!form.rackId && !!form.loteId
   const canSaveQuickLote = !!quickLoteForm.donacionId
 
@@ -261,10 +286,10 @@ export default function PalletPage() {
         <span className="text-sm text-muted-foreground">
           {filtered.length} pallet{filtered.length !== 1 ? "s" : ""}
         </span>
-        <Button className="ml-auto" onClick={openCreate}>
+        <CrearButton className="ml-auto" onClick={() => openCreate()}>
           <Plus className="h-4 w-4" />
           Nuevo pallet
-        </Button>
+        </CrearButton>
       </div>
 
       <DataTable
@@ -333,7 +358,7 @@ export default function PalletPage() {
               )}
             >
               <option value="">Seleccionar lote...</option>
-              {lotes.map((l: Lote) => (
+              {lotesDisponibles.map((l: Lote) => (
                 <option key={l.id} value={l.id}>
                   Lote #{l.id}{l.pesoBrutoKg ? ` — ${l.pesoBrutoKg} kg` : ""}
                 </option>

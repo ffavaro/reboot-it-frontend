@@ -1,10 +1,15 @@
 "use client"
-import { Plus } from "lucide-react"
+import { Plus, Boxes } from "lucide-react"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { usePallets } from "@/hooks/use-pallet"
+import { useMisPermisos } from "@/hooks/use-permisos"
+import { puede } from "@/lib/nav"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { CrearButton } from "@/components/ui/crear-button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
@@ -25,14 +30,37 @@ import {
   useDeleteLote,
 } from "@/hooks/use-lote"
 import { useDonaciones } from "@/hooks/use-donacion"
+import { useRegistrosFotograficos } from "@/hooks/use-registro-fotografico"
 import { useFormErrors } from "@/hooks/use-form-errors"
 import { requiredSelect, positiveNumber, maxDigits } from "@/lib/form-validators"
 import { enforceDecimalInput, DEFAULT_WEIGHT_MAX_DIGITS } from "@/lib/utils/number-limit"
 import type { Lote } from "@/lib/type/lote"
+import type { RegistroFotografico } from "@/lib/type/registro-fotografico"
 
 const EMPTY_FORM = { donacionId: "", pesoBrutoKg: "", observaciones: "" }
 
-const columns: TableColumn<Lote>[] = [
+// Miniaturas de las fotos del lote; cada una abre la imagen completa
+function FotosDelLote({ fotos, max }: { fotos: RegistroFotografico[]; max?: number }) {
+  if (fotos.length === 0) return <span className="italic text-muted-foreground text-xs">Sin fotos</span>
+  const visibles = max ? fotos.slice(0, max) : fotos
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {visibles.map((r) => (
+        <a key={r.id} href={r.urlImagen} target="_blank" rel="noopener noreferrer" title="Ver foto completa">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={r.urlImagen}
+            alt={`Foto #${r.id}`}
+            className={cn("rounded-md object-cover bg-muted border border-border hover:opacity-80 transition-opacity", max ? "h-9 w-9" : "h-20 w-20")}
+          />
+        </a>
+      ))}
+      {max && fotos.length > max && <span className="text-xs text-muted-foreground">+{fotos.length - max}</span>}
+    </div>
+  )
+}
+
+const baseColumns: TableColumn<Lote>[] = [
   {
     key: "id",
     header: "N°",
@@ -67,6 +95,15 @@ const columns: TableColumn<Lote>[] = [
 ]
 
 export default function LotePage() {
+  const router = useRouter()
+  const { permisos } = useMisPermisos()
+  const { pallets } = usePallets()
+  // Crear un pallet es un permiso de la pantalla Pallets
+  const puedeCrearPallet = puede(permisos, "pallets", "crear")
+  // Un lote solo puede estar en un pallet
+  const palletPorLote = new Map<number, string>()
+  for (const p of pallets) if (p.isActive && p.loteId) palletPorLote.set(p.loteId, p.codigo ?? `#${p.id}`)
+  const { registros } = useRegistrosFotograficos()
   const { donaciones } = useDonaciones()
   const { lotes, isLoading, mutate } = useLotes()
   const { createLote, isLoading: isCreating } = useCreateLote()
@@ -79,6 +116,37 @@ export default function LotePage() {
   const [editing, setEditing] = useState<Lote | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+
+  const fotosPorLote = new Map<number, RegistroFotografico[]>()
+  for (const r of registros) {
+    if (!r.isActive || !r.loteId) continue
+    fotosPorLote.set(r.loteId, [...(fotosPorLote.get(r.loteId) ?? []), r])
+  }
+  const columns: TableColumn<Lote>[] = [
+    ...baseColumns,
+    {
+      key: "fotos",
+      header: "Fotos",
+      cell: (l) => <FotosDelLote fotos={fotosPorLote.get(l.id) ?? []} max={3} />,
+    },
+    ...(puedeCrearPallet
+      ? [{
+          key: "pallet",
+          header: "Pallet",
+          cell: (l: Lote) => {
+            const existente = palletPorLote.get(l.id)
+            return existente ? (
+              <span className="text-xs text-muted-foreground">En pallet <span className="font-mono">{existente}</span></span>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => router.push(`/pages/pallet?loteId=${l.id}`)}>
+                <Boxes className="h-3.5 w-3.5" />
+                Crear pallet
+              </Button>
+            )
+          },
+        }]
+      : []),
+  ]
 
   const filtered = lotes.filter((l: Lote) => {
     const q = search.toLowerCase()
@@ -175,10 +243,10 @@ export default function LotePage() {
         <span className="text-sm text-muted-foreground">
           {filtered.length} lote{filtered.length !== 1 ? "s" : ""}
         </span>
-        <Button className="ml-auto" onClick={openCreate}>
+        <CrearButton className="ml-auto" onClick={openCreate}>
           <Plus className="h-4 w-4" />
           Nuevo lote
-        </Button>
+        </CrearButton>
       </div>
 
       <DataTable
@@ -259,6 +327,13 @@ export default function LotePage() {
             className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
           />
         </div>
+
+        {editing && (
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Fotos del lote</label>
+            <FotosDelLote fotos={fotosPorLote.get(editing.id) ?? []} />
+          </div>
+        )}
       </FormModal>
     </div>
   )

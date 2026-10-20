@@ -1,10 +1,11 @@
 "use client"
-import { Plus } from "lucide-react"
+import { Plus, FileText, ExternalLink } from "lucide-react"
 
 import { useState, useEffect } from "react"
 import type { TokenPayload } from "@/lib/auth-utils"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
+import { CrearButton } from "@/components/ui/crear-button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { FormModal } from "@/components/ui/form-modal"
@@ -23,9 +24,12 @@ import type { CertificadoDisposicion } from "@/lib/type/certificado-disposicion"
 import type { Lote } from "@/lib/type/lote"
 import type { GestorAmbiental } from "@/lib/type/gestor-ambiental"
 import type { Donante } from "@/lib/type/donante"
-import { formatDate } from "@/lib/utils/helpers"
+import { formatDate, getErrorMessage } from "@/lib/utils/helpers"
 import { DataTable, type TableColumn } from "@/components/ui/data-table"
 import { getUser } from "@/lib/auth-utils"
+import { uploadFoto } from "@/lib/api/client"
+import { certificadoDisposicionApi } from "@/lib/api/certificado-disposicion"
+import { descargarCertificadoPdf } from "@/lib/utils/certificado-pdf"
 
 const EMPTY_FORM = {
   loteId: "",
@@ -73,6 +77,25 @@ const columns: TableColumn<CertificadoDisposicion>[] = [
     className: "text-muted-foreground",
   },
   {
+    key: "archivoFinal",
+    header: "Certificado final",
+    cell: (c) =>
+      c.archivoFinalUrl ? (
+        <a
+          href={c.archivoFinalUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <FileText className="h-3.5 w-3.5" />
+          Ver archivo
+        </a>
+      ) : (
+        <span className="italic text-muted-foreground">—</span>
+      ),
+  },
+  {
     key: "terminos",
     header: "Términos",
     cell: (c) => c.terminosCondiciones ?? <span className="italic">—</span>,
@@ -96,6 +119,24 @@ export default function CertificadoDisposicionPage() {
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [user, setUser] = useState<TokenPayload | null>(null)
+  // Certificado de disposición final (foto o PDF): obligatorio al crear
+  const [archivo, setArchivo] = useState<File | null>(null)
+  const [archivoError, setArchivoError] = useState("")
+  const [subiendo, setSubiendo] = useState(false)
+
+  function elegirArchivo(file: File | undefined) {
+    if (!file) return
+    if (!/^(image\/(jpeg|png|webp)|application\/pdf)$/.test(file.type)) {
+      setArchivoError("El archivo debe ser una imagen JPG, PNG o WEBP, o un PDF")
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setArchivoError("El archivo no puede superar los 5 MB")
+      return
+    }
+    setArchivoError("")
+    setArchivo(file)
+  }
 
   useEffect(() => { setUser(getUser()) }, [])
 
@@ -132,6 +173,8 @@ export default function CertificadoDisposicionPage() {
   function openCreate() {
     setIsViewing(false)
     setEditing(null)
+    setArchivo(null)
+    setArchivoError("")
     setForm({
       ...EMPTY_FORM,
       fechaEmision: todayISO(),
@@ -143,6 +186,8 @@ export default function CertificadoDisposicionPage() {
   function openEdit(c: CertificadoDisposicion) {
     setIsViewing(false)
     setEditing(c)
+    setArchivo(null)
+    setArchivoError("")
     setForm({
       loteId: String(c.loteId),
       gestorAmbientalId: String(c.gestorAmbientalId),
@@ -156,6 +201,8 @@ export default function CertificadoDisposicionPage() {
   function openView(c: CertificadoDisposicion) {
     setIsViewing(true)
     setEditing(c)
+    setArchivo(null)
+    setArchivoError("")
     setForm({
       loteId: String(c.loteId),
       gestorAmbientalId: String(c.gestorAmbientalId),
@@ -171,6 +218,11 @@ export default function CertificadoDisposicionPage() {
       toast.error("El lote y el gestor ambiental son obligatorios")
       return
     }
+    if (!editing && !archivo) {
+      setArchivoError("Subí el certificado de disposición final (foto o PDF)")
+      toast.error("El certificado de disposición final es obligatorio")
+      return
+    }
     try {
       const payload = {
         loteId: Number(form.loteId),
@@ -181,13 +233,26 @@ export default function CertificadoDisposicionPage() {
         await updateCertificado({ id: editing.id, ...payload })
         toast.success("Certificado actualizado")
       } else {
-        await createCertificado(payload)
+        setSubiendo(true)
+        const archivoFinalUrl = await uploadFoto(archivo as File)
+        await createCertificado({ ...payload, archivoFinalUrl })
         toast.success("Certificado creado")
       }
       await mutate()
       setSheetOpen(false)
-    } catch {
-      toast.error("Error al guardar el certificado")
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Error al guardar el certificado"))
+    } finally {
+      setSubiendo(false)
+    }
+  }
+
+  // El PDF se arma al descargar con los datos del certificado (no se guarda en el servidor)
+  async function descargarPdf(id: number) {
+    try {
+      descargarCertificadoPdf(await certificadoDisposicionApi.datos(id))
+    } catch (error) {
+      toast.error(getErrorMessage(error, "No se pudo descargar el certificado"))
     }
   }
 
@@ -201,7 +266,7 @@ export default function CertificadoDisposicionPage() {
     }
   }
 
-  const canSave = !!form.loteId && !!form.gestorAmbientalId
+  const canSave = !!form.loteId && !!form.gestorAmbientalId && (!!editing || !!archivo)
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -223,16 +288,17 @@ export default function CertificadoDisposicionPage() {
           {filtered.length} certificado{filtered.length !== 1 ? "s" : ""}
         </span>
         {!isDonante && (
-          <Button  className="ml-auto" onClick={openCreate}>
+          <CrearButton  className="ml-auto" onClick={openCreate}>
             <Plus className="h-4 w-4" />
             Nuevo certificado
-          </Button>
+          </CrearButton>
         )}
       </div>
 
       <DataTable
         data={filtered}
         columns={columns}
+        onDownload={(c) => descargarPdf(c.id)}
         isLoading={isLoading}
         loadingText="Cargando certificados..."
         emptyText="No hay certificados de disposición registrados."
@@ -255,7 +321,7 @@ export default function CertificadoDisposicionPage() {
             : "Registrá un nuevo certificado de disposición final."
         }
         onSave={handleSave}
-        isLoading={isCreating || isUpdating}
+        isLoading={isCreating || isUpdating || subiendo}
         saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear certificado"}
       >
@@ -310,6 +376,40 @@ export default function CertificadoDisposicionPage() {
             readOnly
             className="bg-muted cursor-not-allowed"
           />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
+            Certificado de disposición final {!editing && "*"}{" "}
+            {!editing && <span className="text-muted-foreground font-normal">(foto o PDF, hasta 5 MB)</span>}
+          </label>
+          {editing ? (
+            // El archivo queda fijo desde que se emite el certificado
+            editing.archivoFinalUrl ? (
+              <a
+                href={editing.archivoFinalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="pointer-events-auto inline-flex w-fit items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm font-medium text-primary hover:bg-muted"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Abrir el certificado final
+              </a>
+            ) : (
+              <p className="text-sm italic text-muted-foreground">Este certificado se emitió sin archivo adjunto.</p>
+            )
+          ) : (
+            <>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                onChange={(e) => elegirArchivo(e.target.files?.[0])}
+                className="text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-input file:bg-transparent file:px-3 file:py-1 file:text-sm file:font-medium cursor-pointer"
+              />
+              {archivo && <p className="text-xs text-muted-foreground">Seleccionado: {archivo.name}</p>}
+              {archivoError && <p className="text-xs text-destructive">{archivoError}</p>}
+            </>
+          )}
         </div>
 
         <div className="flex flex-col gap-2">

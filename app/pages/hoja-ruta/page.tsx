@@ -1,28 +1,28 @@
 "use client"
 
 import { useState } from "react"
-import { MapPin, MessageCircle, Flag } from "lucide-react"
+import { MapPin, MessageCircle, Send, CheckCircle2, FileText, FileDown } from "lucide-react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { FieldError } from "@/components/ui/field"
 import { DatePicker } from "@/components/ui/date-picker"
-import { FormModal } from "@/components/ui/form-modal"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
-import { useHojasRutaDia, useIniciarHojaRuta, useFinalizarHojaRuta } from "@/hooks/use-hoja-ruta"
-import { useUsuarios } from "@/hooks/use-users"
+import { useHojasRutaDia, useGenerarHojaRuta } from "@/hooks/use-hoja-ruta"
 import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
 import { getUser } from "@/lib/auth-utils"
-import { getErrorMessage, getTransportistaActual, formatKm, todayISO } from "@/lib/utils/helpers"
+import { getErrorMessage, getTransportistaActual, formatFechaISO, todayISO } from "@/lib/utils/helpers"
+import { hojaRutaApi } from "@/lib/api/hoja-ruta"
+import { descargarConstanciaPdf } from "@/lib/utils/constancia-pdf"
 import { ESTADOS_HOJA_RUTA } from "@/lib/type/hoja-ruta"
-import type { EstadoHojaRuta, HojaRutaDia } from "@/lib/type/hoja-ruta"
+import type { EstadoHojaRuta, HojaIniciadaPendiente, HojaRutaDia, ParadaHojaRuta } from "@/lib/type/hoja-ruta"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
-import { HojaRutaCard, buildWhatsAppUrl, nombreTransportista } from "./hoja-ruta-card"
+import { HojaRutaCard, buildWhatsAppUrl } from "./hoja-ruta-card"
+import { ConfirmarRetiroDialog } from "./confirmar-retiro-dialog"
+import { ConstanciaDialog } from "./constancia-dialog"
 import { HistoricoTab } from "./historico-tab"
 
 // Estos roles no tienen vehículo propio: ven las hojas de ruta de todos los transportistas
 const ROLES_VEN_TODAS_LAS_HOJAS = ["admin", "administrativo"]
-const KM_MAX_DIGITS = 7
 
 type Tab = "hojas" | "historico"
 
@@ -119,7 +119,7 @@ function AdminView() {
             <p className="py-4 text-sm text-muted-foreground">Cargando hojas de ruta…</p>
           ) : hojas.length === 0 ? (
             <p className="py-4 text-sm italic text-muted-foreground">
-              No hay hojas de ruta para esos filtros: ningún transportista tiene pedidos con retiro confirmado en ese período.
+              No hay hojas de ruta para esos filtros: ningún transportista tiene turnos pendientes de retiro en ese período.
             </p>
           ) : (
             <div className="flex flex-col gap-4">
@@ -150,78 +150,134 @@ function AdminView() {
 }
 
 // ---------------------------------------------------------------------------
-// Vista Transportista: solo la hoja de ruta del día, con dos acciones
+// Vista Transportista: sus turnos pendientes de retiro agrupados por fecha, con el mapa de cada día
 // ---------------------------------------------------------------------------
 
+function sumarDias(n: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + n)
+  const pad = (x: number) => String(x).padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+// Rango consultado: la última semana (por si quedó algún retiro atrasado) y los próximos días (máximo de 31 días del backend)
+const DIAS_ATRAS = 7
+const DIAS_ADELANTE = 23
+
 function TransportistaView() {
-  const { usuarios, isLoading: loadingUsuarios } = useUsuarios()
   const { transportistas, isLoading: loadingTransportistas } = useEmpleadosTransportistas()
-  const { myTransportista } = getTransportistaActual(usuarios, transportistas)
+  const { myTransportista } = getTransportistaActual(transportistas)
 
   const { hojas, isLoading, mutate } = useHojasRutaDia(
-    { empleadoTransportistaId: myTransportista?.id },
+    { empleadoTransportistaId: myTransportista?.id, fechaDesde: sumarDias(-DIAS_ATRAS), fechaHasta: sumarDias(DIAS_ADELANTE) },
     !!myTransportista,
   )
-  const { iniciarHojaRuta, isLoading: iniciando } = useIniciarHojaRuta()
-  const { finalizarHojaRuta, isLoading: finalizando } = useFinalizarHojaRuta()
+  const { generarHojaRuta } = useGenerarHojaRuta()
+  const [generando, setGenerando] = useState<string | null>(null)
+  // Aviso cuando ya hay otra hoja iniciada con turnos pendientes de retiro
+  const [alerta, setAlerta] = useState<{ hoja: HojaRutaDia; otras: HojaIniciadaPendiente[] } | null>(null)
+  const [paradaAConfirmar, setParadaAConfirmar] = useState<ParadaHojaRuta | null>(null)
+  const [constanciaDeTurno, setConstanciaDeTurno] = useState<number | null>(null)
 
-  const hoja: HojaRutaDia | undefined = hojas[0]
-  const [modalOpen, setModalOpen] = useState(false)
-  const [kmFinal, setKmFinal] = useState("")
-  const [kmError, setKmError] = useState("")
+  const pendientes = hojas.filter((h) => h.estado !== "Finalizada" && h.paradas.length > 0).sort((a, b) => a.fecha.localeCompare(b.fecha))
+  const finalizadas = hojas.filter((h) => h.estado === "Finalizada").sort((a, b) => b.fecha.localeCompare(a.fecha))
 
-  // Pendiente -> En proceso la primera vez que se abre la ruta; después solo se vuelve a abrir el mapa
-  async function abrirEnGoogleMaps() {
-    if (!hoja?.mapsUrl) return
-    // La pestaña se abre en el gesto del usuario (si no, el navegador bloquea el popup) y se redirige luego
+  // Genera la hoja de esa fecha y abre WhatsApp con el detalle. La pestaña se abre en el gesto del usuario
+  // (si no, el navegador bloquea el popup) y se redirige cuando la hoja ya está generada.
+  async function generarYCompartir(hoja: HojaRutaDia, confirmar = false) {
     const win = window.open("about:blank", "_blank")
+    setGenerando(hoja.fecha)
     try {
-      if (hoja.estado === "Pendiente") {
-        await iniciarHojaRuta(hoja.empleadoTransportistaId)
-        await mutate()
-      }
+      const generada = await generarHojaRuta({ empleadoTransportistaId: hoja.empleadoTransportistaId, fecha: hoja.fecha, confirmar })
+      await mutate()
+      setAlerta(null)
+      const url = buildWhatsAppUrl(generada)
       if (win) {
         win.opener = null
-        win.location.href = hoja.mapsUrl
+        win.location.href = url
       } else {
-        window.open(hoja.mapsUrl, "_blank", "noopener,noreferrer")
+        window.open(url, "_blank", "noopener,noreferrer")
       }
+      toast.success("Hoja de ruta generada")
     } catch (error) {
       win?.close()
-      toast.error(getErrorMessage(error, "No se pudo iniciar la hoja de ruta"))
+      const e = error as { code?: string; hojas?: HojaIniciadaPendiente[] }
+      if (e?.code === "HOJA_INICIADA_PENDIENTE") setAlerta({ hoja, otras: e.hojas ?? [] })
+      else toast.error(getErrorMessage(error, "No se pudo generar la hoja de ruta"))
+    } finally {
+      setGenerando(null)
     }
   }
 
-  function abrirModalFinalizar() {
-    setKmFinal("")
-    setKmError("")
-    setModalOpen(true)
-  }
-
-  async function handleFinalizar() {
-    if (!hoja?.hojaRuta) return
-    const kmInicial = hoja.hojaRuta.kmInicial ?? 0
-    if (!kmFinal.trim()) return setKmError("Ingresá el kilometraje final")
-    const km = Number(kmFinal)
-    if (!Number.isInteger(km) || km < 0) return setKmError("Debe ser un número entero positivo")
-    if (km < kmInicial) return setKmError(`No puede ser menor al kilometraje inicial (${formatKm(kmInicial)})`)
+  async function descargarPdf(turnoId: number) {
     try {
-      await finalizarHojaRuta({ id: hoja.hojaRuta.id, kmFinal: km })
-      await mutate()
-      toast.success("Hoja de ruta finalizada")
-      setModalOpen(false)
+      descargarConstanciaPdf(await hojaRutaApi.constancia(turnoId))
     } catch (error) {
-      setKmError(getErrorMessage(error, "No se pudo finalizar la hoja de ruta"))
+      toast.error(getErrorMessage(error, "No se pudo descargar la constancia"))
     }
   }
 
-  const cargando = loadingUsuarios || loadingTransportistas || (!!myTransportista && isLoading)
+  function tarjeta(h: HojaRutaDia) {
+    const generada = h.estado === "En proceso"
+    const finalizada = h.estado === "Finalizada"
+    return (
+      <HojaRutaCard
+        key={`${h.empleadoTransportistaId}-${h.fecha}`}
+        hoja={h}
+        mostrarTransportista={false}
+        actions={
+          finalizada ? null : generada ? (
+            <>
+              <Button variant="outline" disabled={!h.mapsUrl} onClick={() => window.open(h.mapsUrl!, "_blank", "noopener,noreferrer")}>
+                <MapPin className="h-4 w-4" />
+                Abrir en Google Maps
+              </Button>
+              <Button onClick={() => window.open(buildWhatsAppUrl(h), "_blank", "noopener,noreferrer")}>
+                <MessageCircle className="h-4 w-4" />
+                Compartir por WhatsApp
+              </Button>
+            </>
+          ) : (
+            <Button disabled={generando !== null || h.paradas.length === 0 || !h.vehiculo} onClick={() => generarYCompartir(h)}>
+              <Send className="h-4 w-4" />
+              {generando === h.fecha ? "Generando..." : "Generar y compartir hoja de ruta"}
+            </Button>
+          )
+        }
+        accionesParada={(p) =>
+          p.retirado ? (
+            p.constanciaId ? (
+              <>
+                <Button variant="outline" size="sm" onClick={() => setConstanciaDeTurno(p.turnoId)}>
+                  <FileText className="h-3.5 w-3.5" />
+                  Ver constancia
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => descargarPdf(p.turnoId)}>
+                  <FileDown className="h-3.5 w-3.5" />
+                  PDF
+                </Button>
+              </>
+            ) : null
+          ) : generada ? (
+            <Button size="sm" onClick={() => setParadaAConfirmar(p)}>
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Confirmar retiro
+            </Button>
+          ) : null
+        }
+      />
+    )
+  }
+
+  const cargando = loadingTransportistas || (!!myTransportista && isLoading)
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold tracking-tight">Hoja de Ruta</h1>
-        <p className="text-sm text-muted-foreground">Tu recorrido de hoy, con todas las paradas en el orden más conveniente.</p>
+        <p className="text-sm text-muted-foreground">
+          Tus turnos pendientes de retiro, agrupados por fecha. Generá la hoja de ruta de cada día, compartila y confirmá cada retiro al hacerlo.
+        </p>
       </div>
 
       {cargando ? (
@@ -230,68 +286,64 @@ function TransportistaView() {
         <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           Todavía no tenés un vehículo asignado. Pedile a un administrador que te asigne uno en &quot;Empleado Transportista&quot;.
         </div>
-      ) : !hoja ? (
-        <p className="py-4 text-sm italic text-muted-foreground">No tenés pedidos asignados para hoy.</p>
+      ) : pendientes.length === 0 && finalizadas.length === 0 ? (
+        <p className="py-4 text-sm italic text-muted-foreground">No tenés turnos pendientes de retiro.</p>
       ) : (
-        <HojaRutaCard
-          hoja={hoja}
-          mostrarTransportista={false}
-          actions={
-            <>
-              <Button
-                variant="outline"
-                disabled={!hoja.mapsUrl || hoja.estado === "Finalizada" || iniciando}
-                onClick={abrirEnGoogleMaps}
-              >
-                <MapPin className="h-4 w-4" />
-                {iniciando ? "Iniciando..." : "Abrir en Google Maps"}
-              </Button>
-              <Button
-                disabled={hoja.estado !== "En proceso"}
-                onClick={abrirModalFinalizar}
-                title={hoja.estado === "Pendiente" ? "Primero abrí la ruta en Google Maps" : undefined}
-              >
-                <Flag className="h-4 w-4" />
-                Finalizar hoja de ruta
-              </Button>
-            </>
-          }
-        />
+        <>
+          <div className="flex flex-col gap-4">
+            {pendientes.length === 0 && <p className="text-sm italic text-muted-foreground">No tenés turnos pendientes de retiro.</p>}
+            {pendientes.map(tarjeta)}
+          </div>
+          {finalizadas.length > 0 && (
+            <div className="flex flex-col gap-4">
+              <h2 className="text-sm font-semibold text-muted-foreground">Hojas de ruta finalizadas recientemente</h2>
+              {finalizadas.map(tarjeta)}
+            </div>
+          )}
+        </>
       )}
 
-      <FormModal
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        title="Finalizar hoja de ruta"
-        description="Cargá el kilometraje que marca el vehículo al terminar el recorrido."
-        onSave={handleFinalizar}
-        isLoading={finalizando}
-        saveDisabled={!kmFinal.trim()}
-        saveLabel="Finalizar"
-      >
-        {hoja && (
-          <div className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-            {nombreTransportista(hoja)}
-            {hoja.vehiculo && <> · <span className="font-mono text-xs">{hoja.vehiculo.patente}</span></>}
-            <br />
-            Kilometraje inicial:{" "}
-            <span className="font-medium text-foreground">
-              {hoja.hojaRuta?.kmInicial != null ? formatKm(hoja.hojaRuta.kmInicial) : "—"}
-            </span>
+      <ConfirmarRetiroDialog
+        parada={paradaAConfirmar}
+        onClose={() => setParadaAConfirmar(null)}
+        onConfirmado={async (resultado) => {
+          const turnoId = paradaAConfirmar?.turnoId
+          setParadaAConfirmar(null)
+          await mutate()
+          if (turnoId && resultado.constanciaId) setConstanciaDeTurno(turnoId)
+        }}
+      />
+
+      <ConstanciaDialog turnoId={constanciaDeTurno} onClose={() => setConstanciaDeTurno(null)} />
+
+      {/* Aviso: ya hay otra hoja iniciada con turnos pendientes de retiro */}
+      <Dialog open={!!alerta} onOpenChange={(v) => { if (!v) setAlerta(null) }}>
+        <DialogContent className="max-w-md gap-0 p-0">
+          <div className="rounded-t-2xl bg-amber-50 px-6 py-4 pr-12 dark:bg-amber-900/20">
+            <DialogTitle className="text-lg font-semibold">Tenés otra hoja de ruta iniciada</DialogTitle>
+            <DialogDescription className="mt-1 text-sm text-muted-foreground">
+              Todavía tiene turnos pendientes de retiro.
+            </DialogDescription>
           </div>
-        )}
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Kilometraje final (km) *</label>
-          <Input
-            value={kmFinal}
-            onChange={(e) => { setKmFinal(e.target.value.replace(/\D/g, "").slice(0, KM_MAX_DIGITS)); setKmError("") }}
-            placeholder="Ej: 85120"
-            inputMode="numeric"
-            className={cn(kmError && "border-destructive focus-visible:ring-destructive")}
-          />
-          <FieldError>{kmError}</FieldError>
-        </div>
-      </FormModal>
+          <div className="flex flex-col gap-3 px-6 py-5 text-sm">
+            <ul className="flex flex-col gap-1">
+              {alerta?.otras.map((o) => (
+                <li key={o.id} className="flex justify-between rounded-md bg-muted/50 px-3 py-2">
+                  <span className="font-medium">Hoja del {formatFechaISO(o.fecha)}</span>
+                  <span className="text-muted-foreground">{o.pendientes} turno{o.pendientes !== 1 ? "s" : ""} pendiente{o.pendientes !== 1 ? "s" : ""}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-muted-foreground">
+              ¿Querés generar igual la hoja de ruta del {alerta ? formatFechaISO(alerta.hoja.fecha) : ""}?
+            </p>
+          </div>
+          <div className="flex items-center justify-end gap-2 rounded-b-2xl px-6 py-4">
+            <Button variant="outline" onClick={() => setAlerta(null)}>Cancelar</Button>
+            <Button onClick={() => alerta && generarYCompartir(alerta.hoja, true)}>Generar igual</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
