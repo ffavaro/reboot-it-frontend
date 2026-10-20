@@ -3,6 +3,7 @@
 import type { ReactNode } from "react"
 import { CheckCircle2 } from "lucide-react"
 import { EstadoHojaBadge } from "@/components/ui/estado-hoja-badge"
+import { MapaRuta } from "@/components/mapa-ruta"
 import { formatFechaISO, formatKm } from "@/lib/utils/helpers"
 import { cn } from "@/lib/utils"
 import type { HojaRutaDia, ParadaHojaRuta } from "@/lib/type/hoja-ruta"
@@ -107,7 +108,14 @@ export function HojaRutaCard({
       ) : (
         <>
           {/* Mapa con los turnos (marcadores) y el recorrido */}
-          {hoja.embedUrl ? (
+          {hoja.mapa ? (
+            <div className="flex flex-col gap-2">
+              <MapaRuta mapa={hoja.mapa} recorrido={hoja.recorrido} />
+              <p className="text-xs text-muted-foreground">
+                Orden de visita: {hoja.paradas.map((p) => `${p.orden}. ${p.donante}`).join(" → ")}
+              </p>
+            </div>
+          ) : hoja.embedUrl ? (
             <div className="flex flex-col gap-2">
               <iframe
                 src={hoja.embedUrl}

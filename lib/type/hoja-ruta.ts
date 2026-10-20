@@ -47,6 +47,8 @@ export interface HojaRutaDia {
   mapsUrl: string | null
   // URL del mapa embebido (iframe) con la ruta
   embedUrl: string | null
+  // Línea y coordenadas del recorrido para dibujarlo en el mapa propio (null si Google no calculó la ruta)
+  mapa: { polyline: string; puntos: { lat: number; lng: number }[] } | null
   recorrido: PuntoRecorrido[]
   // Base configurada en el backend (HOJA_RUTA_ORIGEN): desde donde sale y a donde vuelve la ruta
   origen: string | null
