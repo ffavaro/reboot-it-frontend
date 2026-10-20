@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { FormModal } from "@/components/ui/form-modal"
 import { useTurnos } from "@/hooks/use-turno"
+import { useDonaciones } from "@/hooks/use-donacion"
 import type { Turno } from "@/lib/type/turno"
 
 const DIAS_SEMANA = ["Lun", "Mar", "Mié", "Jue", "Vie"]
@@ -65,9 +66,14 @@ function formatHora(iso: string): string {
 
 export default function AgendaPage() {
   const { turnos, isLoading } = useTurnos()
+  const { donaciones } = useDonaciones()
   const [inicioSemana, setInicioSemana] = useState(() => getLunes(new Date()))
   const [seleccionado, setSeleccionado] = useState<Turno | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+
+  const donacionSeleccionada = seleccionado?.donacionId != null
+    ? donaciones.find((d) => d.id === seleccionado.donacionId)
+    : undefined
 
   const hoy = new Date()
   const diasSemana = Array.from({ length: 5 }, (_, i) => sumarDias(inicioSemana, i))
@@ -302,6 +308,59 @@ export default function AgendaPage() {
               </p>
               <p className="font-mono text-muted-foreground">#{seleccionado.id}</p>
             </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                Teléfono
+              </p>
+              <p className="font-medium">{seleccionado.donante?.telefono || <span className="italic text-muted-foreground">—</span>}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                Tipo de donante
+              </p>
+              <p className="font-medium">{seleccionado.donante?.tipoDonante?.descripcion ?? <span className="italic text-muted-foreground">—</span>}</p>
+            </div>
+            <div className="col-span-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                {seleccionado.necesitaRetiro ? "Dirección de retiro" : "Dirección del donante"}
+              </p>
+              <p className="font-medium">
+                {(seleccionado.necesitaRetiro ? donacionSeleccionada?.direccionRetiro : null) || seleccionado.donante?.direccion || <span className="italic text-muted-foreground">Sin dirección cargada</span>}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                Modalidad
+              </p>
+              <p className="font-medium">{seleccionado.necesitaRetiro ? "Retiro a domicilio" : "Lo lleva a la sucursal"}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                Peso estimado
+              </p>
+              <p className="font-medium">
+                {donacionSeleccionada?.pesoEstimadoKg != null ? `${Number(donacionSeleccionada.pesoEstimadoKg)} kg` : <span className="italic text-muted-foreground">—</span>}
+              </p>
+            </div>
+            {seleccionado.donacionId != null && (
+              <div className="col-span-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                  Materiales de la donación #{seleccionado.donacionId}
+                </p>
+                {donacionSeleccionada?.detalles && donacionSeleccionada.detalles.length > 0 ? (
+                  <ul className="space-y-1">
+                    {donacionSeleccionada.detalles.map((d) => (
+                      <li key={d.id} className="flex items-center justify-between rounded-md bg-muted/50 px-2.5 py-1.5">
+                        <span>{d.tipoMaterial?.descripcion ?? `Material #${d.tipoMaterialId}`}{d.condicionMaterial ? ` · ${d.condicionMaterial.condicion}` : ""}</span>
+                        <span className="tabular-nums text-muted-foreground">{d.cantidadEstimada ?? "—"} u.</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="italic text-muted-foreground">Sin materiales cargados.</p>
+                )}
+              </div>
+            )}
             {seleccionado.descripcion && (
               <div className="col-span-2">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
