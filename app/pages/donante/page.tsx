@@ -23,13 +23,20 @@ import {
 } from "@/hooks/use-donantes"
 import { useUsuarios } from "@/hooks/use-users"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import { required, requiredSelect, maxLength as maxLengthValidator } from "@/lib/form-validators"
+import { required, requiredSelect, maxLength as maxLengthValidator, emailFormat, minLength, dniOCuit } from "@/lib/form-validators"
+import { CuitDniField } from "@/components/empleado-fields"
+import { getErrorMessage } from "@/lib/utils/helpers"
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { Donante, TipoDonante } from "@/lib/type/donante"
 
 type Tab = "donantes" | "tipos"
 
-const EMPTY_DONANTE = { usuarioId: 0, tipoDonanteId: 0, nombre: "", razonSocial: "", telefono: "", direccion: "" }
+// email, password y cuitDni son los datos del usuario que se crea junto con el donante (solo al crear)
+const EMPTY_DONANTE = { tipoDonanteId: 0, nombre: "", razonSocial: "", telefono: "", direccion: "", email: "", password: "", cuitDni: "" }
+
+const EMAIL_MAX = 100
+const PASSWORD_MIN = 6
+const PASSWORD_MAX = 12
 const EMPTY_TIPO = { descripcion: "" }
 
 // ---------------------------------------------------------------------------
@@ -120,12 +127,14 @@ function DonantesTab() {
     setIsViewing(false)
     setEditing(d)
     setForm({
-      usuarioId: d.usuarioId ?? 0,
       tipoDonanteId: d.tipoDonanteId,
       nombre: d.nombre,
       razonSocial: d.razonSocial ?? "",
       telefono: d.telefono ?? "",
       direccion: d.direccion ?? "",
+      email: "",
+      password: "",
+      cuitDni: "",
     })
     reset()
     setModalOpen(true)
@@ -135,12 +144,14 @@ function DonantesTab() {
     setIsViewing(true)
     setEditing(d)
     setForm({
-      usuarioId: d.usuarioId ?? 0,
       tipoDonanteId: d.tipoDonanteId,
       nombre: d.nombre,
       razonSocial: d.razonSocial ?? "",
       telefono: d.telefono ?? "",
       direccion: d.direccion ?? "",
+      email: "",
+      password: "",
+      cuitDni: "",
     })
     reset()
     setModalOpen(true)
@@ -150,13 +161,17 @@ function DonantesTab() {
     if (!validate(form, {
       nombre: [required("el nombre"), maxLengthValidator(DEFAULT_TEXT_MAX)],
       tipoDonanteId: [requiredSelect("un tipo de donante")],
-      usuarioId: [requiredSelect("un usuario")],
       razonSocial: [maxLengthValidator(DEFAULT_TEXT_MAX)],
       direccion: [maxLengthValidator(DEFAULT_TEXT_MAX)],
+      // el usuario se crea junto con el donante, así que sus datos solo se piden al crear
+      ...(!editing ? {
+        email: [required("el email"), emailFormat(), maxLengthValidator(EMAIL_MAX)],
+        password: [required("la contraseña"), minLength(PASSWORD_MIN), maxLengthValidator(PASSWORD_MAX)],
+        cuitDni: [required("el CUIT/DNI"), dniOCuit()],
+      } : {}),
     })) return
     try {
       const payload = {
-        usuarioId: form.usuarioId || undefined,
         tipoDonanteId: form.tipoDonanteId,
         nombre: form.nombre.trim(),
         razonSocial: form.razonSocial.trim() || undefined,
@@ -167,13 +182,16 @@ function DonantesTab() {
         await updateDonante({ id: editing.id, ...payload })
         toast.success("Donante actualizado")
       } else {
-        await createDonante(payload)
+        await createDonante({
+          ...payload,
+          usuario: { email: form.email.trim(), password: form.password, cuitDni: form.cuitDni },
+        })
         toast.success("Donante creado")
       }
       await mutate()
       setModalOpen(false)
-    } catch {
-      toast.error("Error al guardar el donante")
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Error al guardar el donante"))
     }
   }
 
@@ -193,7 +211,12 @@ function DonantesTab() {
     hasError ? "border-destructive" : "border-input",
   )
 
-  const canSave = !!form.nombre.trim() && form.tipoDonanteId !== 0 && form.usuarioId !== 0
+  // Usuario vinculado al donante (se muestra al ver o editar un donante ya creado)
+  const usuarioDonante = editing?.usuarioId ? usuarios.find((u) => String(u.id) === String(editing.usuarioId)) : undefined
+
+  const canSave =
+    !!form.nombre.trim() && form.tipoDonanteId !== 0 &&
+    (!!editing || (!!form.email.trim() && form.password.length >= PASSWORD_MIN && !!form.cuitDni))
 
   return (
     <>
@@ -265,22 +288,22 @@ function DonantesTab() {
           <FieldError>{errors.razonSocial}</FieldError>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Usuario asociado *</label>
-          <select
-            value={form.usuarioId}
-            onChange={(e) => set("usuarioId", Number(e.target.value))}
-            className={selectCls(errors.usuarioId)}
-          >
-            <option value={0}>— Seleccionar usuario —</option>
-            {usuarios.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.nombre} ({u.email})
-              </option>
-            ))}
-          </select>
-          <FieldError>{errors.usuarioId}</FieldError>
-        </div>
+        {/* Usuario asociado: solo existe después de crear el donante */}
+        {editing && (
+          <div className="flex flex-col gap-1 rounded-xl border border-border bg-muted/40 p-4">
+            <p className="text-xs text-muted-foreground">Usuario asociado</p>
+            <p className="text-sm font-medium">
+              {usuarioDonante ? (
+                <>
+                  {usuarioDonante.nombre}{usuarioDonante.apellido ? ` ${usuarioDonante.apellido}` : ""}{" "}
+                  <span className="font-normal text-muted-foreground">({usuarioDonante.email})</span>
+                </>
+              ) : (
+                <span className="italic font-normal text-muted-foreground">Sin usuario asociado</span>
+              )}
+            </p>
+          </div>
+        )}
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Tipo de donante *</label>
@@ -323,6 +346,43 @@ function DonantesTab() {
           />
           <FieldError>{errors.direccion}</FieldError>
         </div>
+
+        {/* Datos del usuario que se crea junto con el donante */}
+        {!editing && (
+          <div className="flex flex-col gap-4">
+            <h3 className="border-b border-border pb-1 text-sm font-semibold text-primary">Usuario de acceso</h3>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Email *</label>
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => set("email", enforceMaxLength(e.target.value, EMAIL_MAX, "El email"))}
+                  placeholder="donante@ejemplo.com"
+                  className={cn(errors.email && "border-destructive focus-visible:ring-destructive")}
+                />
+                <FieldError>{errors.email}</FieldError>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">
+                  Contraseña * <span className="text-muted-foreground font-normal">({PASSWORD_MIN} a {PASSWORD_MAX} caracteres)</span>
+                </label>
+                <Input
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => set("password", enforceMaxLength(e.target.value, PASSWORD_MAX, "La contraseña"))}
+                  placeholder="••••••••"
+                  className={cn(errors.password && "border-destructive focus-visible:ring-destructive")}
+                />
+                <FieldError>{errors.password}</FieldError>
+              </div>
+            </div>
+            <CuitDniField value={form.cuitDni} error={errors.cuitDni} onChange={(_, value) => set("cuitDni", value)} />
+            <p className="text-xs text-muted-foreground">
+              Al crear el donante se crea automáticamente su usuario, con rol Donante, para que pueda iniciar sesión.
+            </p>
+          </div>
+        )}
       </FormModal>
     </>
   )
