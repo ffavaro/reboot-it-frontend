@@ -21,11 +21,13 @@ type FieldProps<K extends keyof EmpleadoDatosValues> = {
   onChange: (field: K, value: string) => void
 }
 
+type CuitDniFieldProps = FieldProps<"cuitDni"> & { requerido?: boolean }
+
 // CUIT/DNI: solo números positivos (se descarta cualquier otro carácter)
-export function CuitDniField({ value, error, onChange }: FieldProps<"cuitDni">) {
+export function CuitDniField({ value, error, onChange, requerido = true }: CuitDniFieldProps) {
   return (
     <div className="flex flex-col gap-2">
-      <label className="text-sm font-medium">CUIT / DNI *</label>
+      <label className="text-sm font-medium">CUIT / DNI{requerido ? " *" : ""}</label>
       <Input
         value={value}
         onChange={(e) => onChange("cuitDni", e.target.value.replace(/\D/g, "").slice(0, 11))}
@@ -66,25 +68,5 @@ export function DireccionField({ value, error, onChange }: FieldProps<"direccion
       />
       <FieldError>{error}</FieldError>
     </div>
-  )
-}
-
-type Props = {
-  values: EmpleadoDatosValues
-  errors: Partial<Record<keyof EmpleadoDatosValues, string>>
-  onChange: (field: keyof EmpleadoDatosValues, value: string) => void
-}
-
-// Los tres campos juntos: se usan en el alta rápida de empleado desde Usuarios.
-// El ABM de Empleados los reparte en dos columnas con los componentes individuales.
-export function EmpleadoDatosFields({ values, errors, onChange }: Props) {
-  return (
-    <>
-      <div className="grid grid-cols-2 gap-4">
-        <CuitDniField value={values.cuitDni} error={errors.cuitDni} onChange={onChange} />
-        <FechaAltaField value={values.fechaAlta} error={errors.fechaAlta} onChange={onChange} />
-      </div>
-      <DireccionField value={values.direccion} error={errors.direccion} onChange={onChange} />
-    </>
   )
 }

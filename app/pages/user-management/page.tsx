@@ -1,7 +1,7 @@
 "use client"
 import { Plus } from "lucide-react"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -11,13 +11,13 @@ import { DataTable, TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { FieldError } from "@/components/ui/field"
 import { useUsuarios, useUpdateUsuario, useDeleteUsuario, useCreateUsuario } from "@/hooks/use-users"
-import { useEmpleadosFull, useCreateEmpleado } from "@/hooks/use-employees"
+import { useEmpleadosFull } from "@/hooks/use-employees"
 import { useRoles } from "@/hooks/use-roles"
-import { useDonantes, useUpdateDonante, useCreateDonante, useTipoDonantes } from "@/hooks/use-donantes"
+import { useDonantes } from "@/hooks/use-donantes"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import { required, requiredSelect, minLength, onlyLetters, emailFormat, maxLength as maxLengthValidator, dniOCuit, notFutureDate } from "@/lib/form-validators"
-import { EmpleadoDatosFields, DIRECCION_MAX } from "@/components/empleado-fields"
-import { getErrorMessage, todayISO } from "@/lib/utils/helpers"
+import { required, requiredSelect, minLength, onlyLetters, emailFormat, maxLength as maxLengthValidator, dniOCuit } from "@/lib/form-validators"
+import { CuitDniField } from "@/components/empleado-fields"
+import { getErrorMessage } from "@/lib/utils/helpers"
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { Rol, Usuario } from "@/lib/type/user"
 import type { Donante } from "@/lib/type/donante"
@@ -45,6 +45,7 @@ function RolBadge({ rol }: { rol: Rol }) {
 function AvatarInitials({ nombre }: { nombre: string }) {
   const initials = nombre
     .split(" ")
+    .filter(Boolean)
     .slice(0, 2)
     .map((n) => n[0])
     .join("")
@@ -64,19 +65,34 @@ const SELECT_CLASS = (hasError?: boolean) =>
 
 const EMPTY_FORM = {
   nombre: "",
+  apellido: "",
+  cuitDni: "",
   email: "",
   password: "",
   rolId: "",
   empleadoId: "",
-  donanteId: "",
 }
 
 const NOMBRE_MAX = DEFAULT_TEXT_MAX
-const EMAIL_MAX = DEFAULT_TEXT_MAX
+const EMAIL_MAX = 100
+const PASSWORD_MIN = 6
 const PASSWORD_MAX = 12
 
-const EMPTY_QUICK_EMPLEADO = { rolId: "", nombre: "", apellido: "", cuitDni: "", fechaAlta: "", direccion: "", telefono: "", cargo: "" }
-const EMPTY_QUICK_DONANTE = { tipoDonanteId: "", nombre: "", razonSocial: "", telefono: "", direccion: "" }
+const esRolDonante = (rol?: Rol | null) => rol?.nombre.toLowerCase() === "donante"
+
+const nombreCompleto = (u: Pick<Usuario, "nombre" | "apellido">) => [u.nombre, u.apellido].filter(Boolean).join(" ")
+
+function formDesdeUsuario(u: Usuario) {
+  return {
+    nombre: u.nombre,
+    apellido: u.apellido ?? "",
+    cuitDni: u.cuitDni ?? "",
+    email: u.email,
+    password: "",
+    rolId: String(u.rol.id),
+    empleadoId: u.empleadoId ? String(u.empleadoId) : "",
+  }
+}
 
 const COLUMNS: TableColumn<Usuario>[] = [
   {
@@ -84,9 +100,18 @@ const COLUMNS: TableColumn<Usuario>[] = [
     header: "Usuario",
     cell: (row) => (
       <div className="flex flex-wrap items-center gap-3">
-        <AvatarInitials nombre={row.nombre} />
-        <span className="font-medium">{row.nombre}</span>
+        <AvatarInitials nombre={nombreCompleto(row)} />
+        <span className="font-medium">{nombreCompleto(row)}</span>
       </div>
+    ),
+  },
+  {
+    key: "cuitDni",
+    header: "CUIT / DNI",
+    cell: (row) => (
+      <span className="font-mono text-xs text-muted-foreground">
+        {row.cuitDni ?? <span className="italic">—</span>}
+      </span>
     ),
   },
   {
@@ -105,6 +130,8 @@ const COLUMNS: TableColumn<Usuario>[] = [
     cell: (row) =>
       row.empleado ? (
         <span>{row.empleado.nombre} {row.empleado.apellido}</span>
+      ) : esRolDonante(row.rol) ? (
+        <span className="text-muted-foreground italic">No aplica (donante)</span>
       ) : (
         <span className="text-muted-foreground italic">Sin asociar</span>
       ),
@@ -115,27 +142,11 @@ export default function UserManagementPage() {
   const { usuarios, isLoading, mutate } = useUsuarios()
   const { empleados, mutate: mutateEmpleados } = useEmpleadosFull()
   const { roles } = useRoles()
-  const { donantes, mutate: mutateDonantes } = useDonantes()
-  const { tipos: tiposDonante } = useTipoDonantes()
+  const { donantes } = useDonantes()
   const { updateUsuario, isLoading: isUpdating } = useUpdateUsuario()
   const { createUsuario, isLoading: isCreating } = useCreateUsuario()
   const { deleteUsuario, isLoading: isDeleting } = useDeleteUsuario()
-  const { updateDonante } = useUpdateDonante()
-  const { createEmpleado, isLoading: isCreatingEmpleado } = useCreateEmpleado()
-  const { createDonante, isLoading: isCreatingDonante } = useCreateDonante()
   const { errors, validate, clearError, reset } = useFormErrors<typeof EMPTY_FORM>()
-  const {
-    errors: empleadoErrors,
-    validate: validateEmpleado,
-    clearError: clearEmpleadoError,
-    reset: resetEmpleadoErrors,
-  } = useFormErrors<typeof EMPTY_QUICK_EMPLEADO>()
-  const {
-    errors: donanteErrors,
-    validate: validateDonante,
-    clearError: clearDonanteError,
-    reset: resetDonanteErrors,
-  } = useFormErrors<typeof EMPTY_QUICK_DONANTE>()
 
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
@@ -143,137 +154,53 @@ export default function UserManagementPage() {
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
-  const [quickEmpleadoOpen, setQuickEmpleadoOpen] = useState(false)
-  const [quickDonanteOpen, setQuickDonanteOpen] = useState(false)
-  const [quickEmpleadoForm, setQuickEmpleadoForm] = useState(EMPTY_QUICK_EMPLEADO)
-  const [quickDonanteForm, setQuickDonanteForm] = useState(EMPTY_QUICK_DONANTE)
-
   const isEdit = !!editingUser
   const isSaving = isUpdating || isCreating
+  // Los usuarios donantes se crean junto con su donante (pantalla Donantes): acá no cambian de rol ni de vínculo
+  const esUsuarioDonante = esRolDonante(editingUser?.rol)
 
-  const selectedRol = roles.find((r) => String(r.id) === String(form.rolId))
-  const esDonante = selectedRol?.nombre.toLowerCase() === "donante"
+  // El rol Donante no se asigna desde esta pantalla
+  const rolesAsignables = roles.filter((r) => r.nombre.toLowerCase() !== "donante")
 
-  useEffect(() => {
-    if (editingUser) {
-      const donanteVinculado = donantes.find(
-        (d: Donante) => d.usuarioId != null && String(d.usuarioId) === String(editingUser.id)
-      )
-      setForm({
-        nombre: editingUser.nombre,
-        email: editingUser.email,
-        password: "",
-        rolId: String(editingUser.rol.id),
-        empleadoId: editingUser.empleadoId ? String(editingUser.empleadoId) : "",
-        donanteId: donanteVinculado ? String(donanteVinculado.id) : "",
-      })
-    }
-  }, [editingUser, donantes])
+  // Un empleado solo puede tener un usuario: se ofrecen los que todavía no tienen (más el actual, al editar)
+  const empleadosConUsuario = new Set(usuarios.map((u) => String(u.empleadoId ?? "")).filter(Boolean))
+  const empleadosDisponibles = empleados.filter(
+    (emp) => !empleadosConUsuario.has(String(emp.id)) || String(emp.id) === String(editingUser?.empleadoId ?? ""),
+  )
+
+  const donanteVinculado: Donante | undefined = esUsuarioDonante
+    ? donantes.find((d: Donante) => d.usuarioId != null && String(d.usuarioId) === String(editingUser?.id))
+    : undefined
 
   function setField<K extends keyof typeof EMPTY_FORM>(key: K, value: string) {
     setForm((f) => ({ ...f, [key]: value }))
     clearError(key)
   }
 
-  function handleNombreChange(value: string) {
+  function handleNombreChange(campo: "nombre" | "apellido", value: string) {
     const filtered = value.replace(/[^a-zA-ZÀ-ÿ\s]/g, "")
     if (filtered !== value) {
-      toast.error("Solamente se permiten letras", { toastId: "nombre-solo-letras" })
+      toast.error("Solamente se permiten letras", { toastId: `${campo}-solo-letras` })
     }
-    setField("nombre", enforceMaxLength(filtered, NOMBRE_MAX, "El nombre"))
+    setField(campo, enforceMaxLength(filtered, NOMBRE_MAX, campo === "nombre" ? "El nombre" : "El apellido"))
   }
 
-  function handleEmailChange(value: string) {
-    setField("email", enforceMaxLength(value, EMAIL_MAX, "El email"))
-  }
-
-  function handlePasswordChange(value: string) {
-    setField("password", enforceMaxLength(value, PASSWORD_MAX, "La contraseña"))
-  }
-
-  function handleRolChange(rolId: string) {
-    setForm((f) => ({ ...f, rolId, empleadoId: "", donanteId: "" }))
-    clearError("rolId")
-    clearError("empleadoId")
-    clearError("donanteId")
-  }
-
-  function setEmpleadoField<K extends keyof typeof EMPTY_QUICK_EMPLEADO>(key: K, value: string) {
-    setQuickEmpleadoForm((f) => ({ ...f, [key]: value }))
-    clearEmpleadoError(key)
-  }
-
-  function setDonanteField<K extends keyof typeof EMPTY_QUICK_DONANTE>(key: K, value: string) {
-    setQuickDonanteForm((f) => ({ ...f, [key]: value }))
-    clearDonanteError(key)
-  }
-
-  function openQuickEmpleado() {
-    setQuickEmpleadoForm({ ...EMPTY_QUICK_EMPLEADO, rolId: form.rolId, fechaAlta: todayISO() })
-    resetEmpleadoErrors()
-    setQuickEmpleadoOpen(true)
-  }
-
-  function openQuickDonante() {
-    setQuickDonanteForm(EMPTY_QUICK_DONANTE)
-    resetDonanteErrors()
-    setQuickDonanteOpen(true)
-  }
-
-  async function handleSaveQuickEmpleado() {
-    if (!validateEmpleado(quickEmpleadoForm, {
-      nombre: [required("el nombre"), onlyLetters(), maxLengthValidator(DEFAULT_TEXT_MAX)],
-      apellido: [required("el apellido"), onlyLetters(), maxLengthValidator(DEFAULT_TEXT_MAX)],
-      cargo: [maxLengthValidator(DEFAULT_TEXT_MAX)],
-      rolId: [requiredSelect("un rol")],
-      cuitDni: [required("el CUIT/DNI"), dniOCuit()],
-      fechaAlta: [required("la fecha de alta"), notFutureDate("La fecha de alta")],
-      direccion: [required("la dirección"), maxLengthValidator(DIRECCION_MAX)],
-    })) return
-
-    try {
-      const nuevo = await createEmpleado({
-        rolId: Number(quickEmpleadoForm.rolId),
-        nombre: quickEmpleadoForm.nombre.trim(),
-        apellido: quickEmpleadoForm.apellido.trim(),
-        cuitDni: quickEmpleadoForm.cuitDni,
-        fechaAlta: quickEmpleadoForm.fechaAlta,
-        direccion: quickEmpleadoForm.direccion.trim(),
-        telefono: quickEmpleadoForm.telefono.trim() || undefined,
-        cargo: quickEmpleadoForm.cargo.trim() || undefined,
-      })
-      await mutateEmpleados()
-      if (nuevo) setField("empleadoId", String(nuevo.id))
-      toast.success("Empleado creado")
-      setQuickEmpleadoOpen(false)
-    } catch (error) {
-      toast.error(getErrorMessage(error, "Error al crear el empleado"))
+  // Al alta de un usuario para un empleado existente se completan sus datos (se pueden corregir)
+  function handleEmpleadoChange(empleadoId: string) {
+    const emp = empleados.find((e) => String(e.id) === empleadoId)
+    if (!isEdit && emp) {
+      setForm((f) => ({
+        ...f,
+        empleadoId,
+        nombre: emp.nombre,
+        apellido: emp.apellido,
+        cuitDni: emp.cuitDni ?? f.cuitDni,
+        rolId: String(emp.rolId),
+      }))
+      ;(["empleadoId", "nombre", "apellido", "cuitDni", "rolId"] as const).forEach(clearError)
+      return
     }
-  }
-
-  async function handleSaveQuickDonante() {
-    if (!validateDonante(quickDonanteForm, {
-      nombre: [required("el nombre"), maxLengthValidator(DEFAULT_TEXT_MAX)],
-      tipoDonanteId: [requiredSelect("un tipo de donante")],
-      razonSocial: [maxLengthValidator(DEFAULT_TEXT_MAX)],
-      direccion: [maxLengthValidator(DEFAULT_TEXT_MAX)],
-    })) return
-
-    try {
-      const nuevo = await createDonante({
-        tipoDonanteId: Number(quickDonanteForm.tipoDonanteId),
-        nombre: quickDonanteForm.nombre.trim(),
-        razonSocial: quickDonanteForm.razonSocial.trim() || undefined,
-        telefono: quickDonanteForm.telefono.trim() || undefined,
-        direccion: quickDonanteForm.direccion.trim() || undefined,
-      })
-      await mutateDonantes()
-      if (nuevo) setField("donanteId", String(nuevo.id))
-      toast.success("Donante creado")
-      setQuickDonanteOpen(false)
-    } catch {
-      toast.error("Error al crear el donante")
-    }
+    setField("empleadoId", empleadoId)
   }
 
   function openCreate() {
@@ -287,6 +214,7 @@ export default function UserManagementPage() {
   function openEdit(user: Usuario) {
     setIsViewing(false)
     reset()
+    setForm(formDesdeUsuario(user))
     setEditingUser(user)
     setModalOpen(true)
   }
@@ -294,6 +222,7 @@ export default function UserManagementPage() {
   function openView(user: Usuario) {
     setIsViewing(true)
     reset()
+    setForm(formDesdeUsuario(user))
     setEditingUser(user)
     setModalOpen(true)
   }
@@ -306,69 +235,66 @@ export default function UserManagementPage() {
     }
   }
 
-  const filtered = usuarios.filter(
-    (u) =>
-      u.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = usuarios.filter((u) => {
+    const q = search.toLowerCase()
+    return (
+      nombreCompleto(u).toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      (u.cuitDni ?? "").includes(search.trim())
+    )
+  })
 
-  const hasAsociado = esDonante ? !!form.donanteId : !!form.empleadoId
   const canSave = isEdit
-    ? !!form.rolId && hasAsociado
-    : !!form.nombre.trim() && !!form.email.trim() && form.password.length >= 6 && !!form.rolId && hasAsociado
-
-  const canSaveQuickEmpleado =
-    !!quickEmpleadoForm.nombre.trim() && !!quickEmpleadoForm.apellido.trim() && !!quickEmpleadoForm.rolId &&
-    !!quickEmpleadoForm.cuitDni && !!quickEmpleadoForm.fechaAlta && !!quickEmpleadoForm.direccion.trim()
-
-  const canSaveQuickDonante = !!quickDonanteForm.nombre.trim() && !!quickDonanteForm.tipoDonanteId
+    ? !!form.nombre.trim() && (esUsuarioDonante || (!!form.rolId && !!form.empleadoId))
+    : !!form.nombre.trim() && !!form.apellido.trim() && !!form.cuitDni && !!form.email.trim() &&
+      form.password.length >= PASSWORD_MIN && !!form.rolId && !!form.empleadoId
 
   async function handleSave() {
     const ok = validate(form, {
+      nombre: [required("el nombre"), onlyLetters(), maxLengthValidator(NOMBRE_MAX)],
+      // al editar, los usuarios anteriores a este cambio pueden no tener apellido ni CUIT/DNI: se validan solo si se cargan
+      apellido: [...(isEdit ? [] : [required("el apellido")]), onlyLetters(), maxLengthValidator(NOMBRE_MAX)],
+      cuitDni: [...(isEdit ? [] : [required("el CUIT/DNI")]), dniOCuit()],
       ...(!isEdit ? {
-        nombre: [required("el nombre"), onlyLetters(), maxLengthValidator(NOMBRE_MAX)],
         email: [required("el email"), emailFormat(), maxLengthValidator(EMAIL_MAX)],
-        password: [required("la contraseña"), minLength(6), maxLengthValidator(PASSWORD_MAX)],
+        password: [required("la contraseña"), minLength(PASSWORD_MIN), maxLengthValidator(PASSWORD_MAX)],
       } : {}),
-      rolId: [requiredSelect("un rol")],
-      ...(form.rolId && esDonante ? { donanteId: [requiredSelect("un donante")] } : {}),
-      ...(form.rolId && !esDonante ? { empleadoId: [requiredSelect("un empleado")] } : {}),
+      ...(!esUsuarioDonante ? {
+        rolId: [requiredSelect("un rol")],
+        empleadoId: [requiredSelect("un empleado")],
+      } : {}),
     })
     if (!ok) return
+
+    const datosPersonales = {
+      nombre: form.nombre.trim(),
+      apellido: form.apellido.trim() || undefined,
+      cuitDni: form.cuitDni || undefined,
+    }
 
     try {
       if (isEdit && editingUser) {
         await updateUsuario({
           id: editingUser.id,
-          rolId: Number(form.rolId),
-          empleadoId: esDonante ? null : (form.empleadoId ? Number(form.empleadoId) : null),
+          ...datosPersonales,
+          ...(esUsuarioDonante ? {} : { rolId: Number(form.rolId), empleadoId: form.empleadoId ? Number(form.empleadoId) : null }),
         })
-        if (esDonante && form.donanteId) {
-          await updateDonante({ id: Number(form.donanteId), usuarioId: Number(editingUser.id) })
-        }
         toast.success("Usuario actualizado correctamente")
       } else {
-        const newUser = await createUsuario({
-          nombre: form.nombre.trim(),
+        await createUsuario({
+          ...datosPersonales,
           email: form.email.trim(),
           password: form.password,
           rolId: Number(form.rolId),
-          empleadoId: esDonante ? null : (form.empleadoId ? Number(form.empleadoId) : null),
+          empleadoId: form.empleadoId ? Number(form.empleadoId) : null,
         })
-        if (esDonante && form.donanteId && newUser) {
-          await updateDonante({ id: Number(form.donanteId), usuarioId: Number(newUser.id) })
-        }
         toast.success("Usuario creado correctamente")
       }
-      await mutate()
+      await Promise.all([mutate(), mutateEmpleados()])
       setModalOpen(false)
       setEditingUser(null)
-    } catch (error: any) {
-      if (error.statusCode === 409) {
-        toast.error("El email ya está registrado en otro usuario")
-      } else {
-        toast.error(isEdit ? "Error al actualizar el usuario" : "Error al crear el usuario")
-      }
+    } catch (error) {
+      toast.error(getErrorMessage(error, isEdit ? "Error al actualizar el usuario" : "Error al crear el usuario"))
     }
   }
 
@@ -387,13 +313,14 @@ export default function UserManagementPage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold tracking-tight">Gestión de Usuarios</h1>
         <p className="text-sm text-muted-foreground">
-          Administrá los usuarios del sistema, sus roles y su vinculación con empleados.
+          Administrá los usuarios del sistema, sus roles y su vinculación con empleados. Los usuarios de los
+          empleados y de los donantes se crean automáticamente desde las pantallas Empleados y Donantes.
         </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput
-          placeholder="Buscar por nombre o email..."
+          placeholder="Buscar por nombre, email o CUIT/DNI..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
@@ -425,34 +352,95 @@ export default function UserManagementPage() {
         readOnly={isViewing}
         description={
           isEdit
-            ? `Modificá el rol y el empleado asociado de ${editingUser?.nombre}.`
-            : "Completá los datos para crear un nuevo usuario."
+            ? `Modificá los datos${esUsuarioDonante ? "" : ", el rol y el empleado asociado"} de ${editingUser ? nombreCompleto(editingUser) : ""}.`
+            : "Completá los datos para crear un usuario para un empleado que todavía no tiene uno."
         }
         onSave={handleSave}
         isLoading={isSaving}
         saveDisabled={!canSave}
         saveLabel={isEdit ? "Guardar cambios" : "Crear usuario"}
       >
-        {/* Campos solo en creación */}
-        {!isEdit && (
-          <>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">Nombre *</label>
-              <Input
-                value={form.nombre}
-                onChange={(e) => handleNombreChange(e.target.value)}
-                placeholder="Juan García"
-                className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
-              />
-              <FieldError>{errors.nombre}</FieldError>
-            </div>
+        {/* Empleado asociado: primero, porque completa los datos personales */}
+        {!esUsuarioDonante && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium">Empleado asociado *</label>
+            <select
+              value={form.empleadoId}
+              onChange={(e) => handleEmpleadoChange(e.target.value)}
+              disabled={isViewing}
+              className={SELECT_CLASS(!!errors.empleadoId)}
+            >
+              <option value="">— Seleccionar empleado —</option>
+              {empleadosDisponibles.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.nombre} {emp.apellido}{emp.cuitDni ? ` - ${emp.cuitDni}` : ""}
+                </option>
+              ))}
+            </select>
+            <FieldError>{errors.empleadoId}</FieldError>
+            {!isViewing && empleadosDisponibles.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                Todos los empleados ya tienen usuario. Al crear un empleado desde la pantalla Empleados, su usuario se
+                crea automáticamente.
+              </p>
+            )}
+          </div>
+        )}
 
+        {/* Donante vinculado (solo usuarios donantes) */}
+        {esUsuarioDonante && (
+          <div className="flex flex-col gap-1 rounded-xl border border-border bg-muted/40 p-4">
+            <p className="text-xs text-muted-foreground">Donante asociado</p>
+            <p className="text-sm font-medium">
+              {donanteVinculado ? donanteVinculado.nombre : <span className="italic font-normal text-muted-foreground">Sin donante asociado</span>}
+            </p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium">Nombre *</label>
+            <Input
+              value={form.nombre}
+              onChange={(e) => handleNombreChange("nombre", e.target.value)}
+              placeholder="Juan"
+              className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
+            />
+            <FieldError>{errors.nombre}</FieldError>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium">Apellido{isEdit ? "" : " *"}</label>
+            <Input
+              value={form.apellido}
+              onChange={(e) => handleNombreChange("apellido", e.target.value)}
+              placeholder="García"
+              className={cn(errors.apellido && "border-destructive focus-visible:ring-destructive")}
+            />
+            <FieldError>{errors.apellido}</FieldError>
+          </div>
+        </div>
+
+        <CuitDniField
+          value={form.cuitDni}
+          error={errors.cuitDni}
+          requerido={!isEdit}
+          onChange={(_, value) => setField("cuitDni", value)}
+        />
+
+        {/* Email y contraseña: solo al crear (el email es fijo y no hay cambio de contraseña desde acá) */}
+        {isEdit ? (
+          <div className="rounded-xl border border-border bg-muted/40 p-4 flex flex-col gap-1">
+            <p className="text-xs text-muted-foreground">Email</p>
+            <p className="text-sm font-medium">{editingUser?.email}</p>
+          </div>
+        ) : (
+          <>
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Email *</label>
               <Input
                 type="email"
                 value={form.email}
-                onChange={(e) => handleEmailChange(e.target.value)}
+                onChange={(e) => setField("email", enforceMaxLength(e.target.value, EMAIL_MAX, "El email"))}
                 placeholder="juan@ejemplo.com"
                 className={cn(errors.email && "border-destructive focus-visible:ring-destructive")}
               />
@@ -462,12 +450,12 @@ export default function UserManagementPage() {
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">
                 Contraseña *{" "}
-                <span className="text-muted-foreground font-normal">(6 a {PASSWORD_MAX} caracteres)</span>
+                <span className="text-muted-foreground font-normal">({PASSWORD_MIN} a {PASSWORD_MAX} caracteres)</span>
               </label>
               <Input
                 type="password"
                 value={form.password}
-                onChange={(e) => handlePasswordChange(e.target.value)}
+                onChange={(e) => setField("password", enforceMaxLength(e.target.value, PASSWORD_MAX, "La contraseña"))}
                 placeholder="••••••••"
                 className={cn(errors.password && "border-destructive focus-visible:ring-destructive")}
               />
@@ -476,268 +464,31 @@ export default function UserManagementPage() {
           </>
         )}
 
-        {/* Email de solo lectura en edición */}
-        {isEdit && (
+        {/* Rol: los usuarios donantes lo conservan; el rol Donante no se puede asignar desde acá */}
+        {esUsuarioDonante ? (
           <div className="rounded-xl border border-border bg-muted/40 p-4 flex flex-col gap-1">
-            <p className="text-xs text-muted-foreground">Email</p>
-            <p className="text-sm font-medium">{editingUser?.email}</p>
+            <p className="text-xs text-muted-foreground">Rol</p>
+            <p className="text-sm font-medium">Donante</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium">Rol *</label>
+            <select
+              value={form.rolId}
+              onChange={(e) => setField("rolId", e.target.value)}
+              disabled={isViewing}
+              className={SELECT_CLASS(!!errors.rolId)}
+            >
+              <option value="">— Seleccionar rol —</option>
+              {rolesAsignables.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.nombre.charAt(0).toUpperCase() + r.nombre.slice(1)}
+                </option>
+              ))}
+            </select>
+            <FieldError>{errors.rolId}</FieldError>
           </div>
         )}
-
-        {/* Rol */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">Rol *</label>
-          <select
-            value={form.rolId}
-            onChange={(e) => handleRolChange(e.target.value)}
-            disabled={isViewing}
-            className={SELECT_CLASS(!!errors.rolId)}
-          >
-            <option value="">— Seleccionar rol —</option>
-            {roles.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.nombre.charAt(0).toUpperCase() + r.nombre.slice(1)}
-              </option>
-            ))}
-          </select>
-          <FieldError>{errors.rolId}</FieldError>
-        </div>
-
-        {/* Select de donante — solo cuando el rol es donante */}
-        {form.rolId && esDonante && (
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Donante *</label>
-            <div className="flex gap-2">
-              <select
-                value={form.donanteId}
-                onChange={(e) => setField("donanteId", e.target.value)}
-                disabled={isViewing}
-                className={SELECT_CLASS(!!errors.donanteId)}
-              >
-                <option value="">— Seleccionar donante —</option>
-                {donantes.map((d: Donante) => (
-                  <option key={d.id} value={d.id}>
-                    {d.nombre}{d.razonSocial ? ` — ${d.razonSocial}` : ""}
-                  </option>
-                ))}
-              </select>
-              {!isViewing && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  title="No está en la lista: crear nuevo donante"
-                  onClick={openQuickDonante}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-            <FieldError>{errors.donanteId}</FieldError>
-          </div>
-        )}
-
-        {/* Select de empleado — cualquier otro rol */}
-        {form.rolId && !esDonante && (
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Empleado asociado *</label>
-            <div className="flex gap-2">
-              <select
-                value={form.empleadoId}
-                onChange={(e) => setField("empleadoId", e.target.value)}
-                disabled={isViewing}
-                className={SELECT_CLASS(!!errors.empleadoId)}
-              >
-                <option value="">— Seleccionar empleado —</option>
-                {empleados.map((emp) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.nombre} {emp.apellido}
-                  </option>
-                ))}
-              </select>
-              {!isViewing && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  title="No está en la lista: crear nuevo empleado"
-                  onClick={openQuickEmpleado}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-            <FieldError>{errors.empleadoId}</FieldError>
-          </div>
-        )}
-      </FormModal>
-
-      {/* Alta rápida de empleado */}
-      <FormModal
-        open={quickEmpleadoOpen}
-        onOpenChange={setQuickEmpleadoOpen}
-        title="Gestionar empleado"
-        description="Cargá los datos del empleado para asociarlo al usuario."
-        onSave={handleSaveQuickEmpleado}
-        isLoading={isCreatingEmpleado}
-        saveDisabled={!canSaveQuickEmpleado}
-        saveLabel="Crear empleado"
-      >
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Nombre *</label>
-            <Input
-              value={quickEmpleadoForm.nombre}
-              onChange={(e) =>
-                setEmpleadoField(
-                  "nombre",
-                  enforceMaxLength(e.target.value.replace(/[^a-zA-ZÀ-ÿ\s]/g, ""), DEFAULT_TEXT_MAX, "El nombre"),
-                )
-              }
-              placeholder="Juan"
-              className={cn(empleadoErrors.nombre && "border-destructive focus-visible:ring-destructive")}
-            />
-            <FieldError>{empleadoErrors.nombre}</FieldError>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Apellido *</label>
-            <Input
-              value={quickEmpleadoForm.apellido}
-              onChange={(e) =>
-                setEmpleadoField(
-                  "apellido",
-                  enforceMaxLength(e.target.value.replace(/[^a-zA-ZÀ-ÿ\s]/g, ""), DEFAULT_TEXT_MAX, "El apellido"),
-                )
-              }
-              placeholder="Pérez"
-              className={cn(empleadoErrors.apellido && "border-destructive focus-visible:ring-destructive")}
-            />
-            <FieldError>{empleadoErrors.apellido}</FieldError>
-          </div>
-        </div>
-
-        <EmpleadoDatosFields
-          values={quickEmpleadoForm}
-          errors={empleadoErrors}
-          onChange={(field, value) => setEmpleadoField(field, value)}
-        />
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">Rol *</label>
-          <select
-            value={quickEmpleadoForm.rolId}
-            onChange={(e) => setEmpleadoField("rolId", e.target.value)}
-            className={SELECT_CLASS(!!empleadoErrors.rolId)}
-          >
-            <option value="">— Seleccionar rol —</option>
-            {roles.filter((r) => r.nombre.toLowerCase() !== "donante").map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.nombre.charAt(0).toUpperCase() + r.nombre.slice(1)}
-              </option>
-            ))}
-          </select>
-          <FieldError>{empleadoErrors.rolId}</FieldError>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">
-            Cargo <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
-          <Input
-            value={quickEmpleadoForm.cargo}
-            onChange={(e) => setEmpleadoField("cargo", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El cargo"))}
-            placeholder="Técnico IT"
-          />
-          <FieldError>{empleadoErrors.cargo}</FieldError>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">
-            Teléfono <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
-          <Input
-            value={quickEmpleadoForm.telefono}
-            onChange={(e) => setEmpleadoField("telefono", e.target.value.replace(/\D/g, ""))}
-            placeholder="5491112345678"
-            inputMode="numeric"
-            maxLength={20}
-          />
-        </div>
-      </FormModal>
-
-      {/* Alta rápida de donante */}
-      <FormModal
-        open={quickDonanteOpen}
-        onOpenChange={setQuickDonanteOpen}
-        title="Gestionar donante"
-        description="Cargá los datos del donante para asociarlo al usuario."
-        onSave={handleSaveQuickDonante}
-        isLoading={isCreatingDonante}
-        saveDisabled={!canSaveQuickDonante}
-        saveLabel="Crear donante"
-      >
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">Nombre *</label>
-          <Input
-            value={quickDonanteForm.nombre}
-            onChange={(e) => setDonanteField("nombre", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"))}
-            placeholder="Juan Pérez"
-            className={cn(donanteErrors.nombre && "border-destructive focus-visible:ring-destructive")}
-          />
-          <FieldError>{donanteErrors.nombre}</FieldError>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">Tipo de donante *</label>
-          <select
-            value={quickDonanteForm.tipoDonanteId}
-            onChange={(e) => setDonanteField("tipoDonanteId", e.target.value)}
-            className={SELECT_CLASS(!!donanteErrors.tipoDonanteId)}
-          >
-            <option value="">— Seleccionar tipo —</option>
-            {tiposDonante.map((t) => (
-              <option key={t.id} value={t.id}>{t.descripcion}</option>
-            ))}
-          </select>
-          <FieldError>{donanteErrors.tipoDonanteId}</FieldError>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">
-            Razón social <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
-          <Input
-            value={quickDonanteForm.razonSocial}
-            onChange={(e) => setDonanteField("razonSocial", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La razón social"))}
-            placeholder="Empresa S.A."
-          />
-          <FieldError>{donanteErrors.razonSocial}</FieldError>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">
-            Teléfono <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
-          <Input
-            value={quickDonanteForm.telefono}
-            onChange={(e) => setDonanteField("telefono", e.target.value.replace(/\D/g, ""))}
-            placeholder="5491112345678"
-            inputMode="numeric"
-            maxLength={20}
-          />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">
-            Dirección <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
-          <Input
-            value={quickDonanteForm.direccion}
-            onChange={(e) => setDonanteField("direccion", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La dirección"))}
-            placeholder="Av. Corrientes 1234, CABA"
-          />
-          <FieldError>{donanteErrors.direccion}</FieldError>
-        </div>
       </FormModal>
     </div>
   )
