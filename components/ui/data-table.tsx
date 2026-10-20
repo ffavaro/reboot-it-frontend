@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Eye, FileDown, Pencil, Trash2 } from "lucide
 import { HugeiconsIcon } from "@hugeicons/react"
 import { InboxIcon, SearchRemoveIcon } from "@hugeicons/core-free-icons"
 import { Button } from "@/components/ui/button"
+import { usePermisosPantalla } from "@/components/permisos-pantalla"
 import {
   Tooltip,
   TooltipContent,
@@ -143,12 +144,16 @@ export function DataTable<T extends { id: number | string }>({
   emptySearchText = "No se encontraron resultados con ese criterio.",
   search,
   onView,
-  onEdit,
-  onDelete,
+  onEdit: onEditProp,
+  onDelete: onDeleteProp,
   onDownload,
   isDeleting,
   pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
 }: DataTableProps<T>) {
+  // Editar y dar de baja solo se ofrecen si el rol tiene ese permiso sobre la pantalla
+  const permisos = usePermisosPantalla()
+  const onEdit = permisos.puede("editar") ? onEditProp : undefined
+  const onDelete = permisos.puede("baja") ? onDeleteProp : undefined
   const hasActions = !!onView || !!onEdit || !!onDelete || !!onDownload
   const colSpan = columns.length + (hasActions ? 1 : 0)
 

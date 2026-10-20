@@ -13,8 +13,9 @@ import { useLogin } from "@/hooks/use-auth"
 import { toast } from "react-toastify"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { saveSession, getUser } from "@/lib/auth-utils"
-import { homeDeRol } from "@/lib/nav"
+import { saveSession } from "@/lib/auth-utils"
+import { homeDePermisos } from "@/lib/nav"
+import { permisosApi } from "@/lib/api/permisos"
 export function LoginForm({
   className,
   ...props
@@ -35,8 +36,9 @@ export function LoginForm({
     const result = await login({ email, password })
     if (result?.access_token) {
       saveSession(result.access_token)
-      // cada rol arranca en una pantalla que sí puede ver (donante: donaciones, transportista: hoja de ruta)
-      router.push(homeDeRol(getUser()?.rol?.nombre))
+      // cada rol arranca en la primera pantalla que sí puede ver según sus permisos
+      const permisos = await permisosApi.mias().catch(() => undefined)
+      router.push(homeDePermisos(permisos))
     }
   } catch (err: any) {
     // err ya tiene la forma { statusCode, message, error }
