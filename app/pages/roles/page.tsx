@@ -1,10 +1,11 @@
 "use client"
-import { Plus } from "lucide-react"
+import { KeyRound, Plus } from "lucide-react"
 
 import { useState } from "react"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { CrearButton } from "@/components/ui/crear-button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
@@ -14,12 +15,16 @@ import { useRoles, useCreateRol, useUpdateRol, useDeleteRol } from "@/hooks/use-
 import { useFormErrors } from "@/hooks/use-form-errors"
 import { required, maxLength as maxLengthValidator } from "@/lib/form-validators"
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
+import { PermisosRolDialog } from "@/components/permisos-rol-dialog"
+import { usePermisosPantalla } from "@/components/permisos-pantalla"
+import { getUser } from "@/lib/auth-utils"
 import type { Rol } from "@/lib/type/user"
 import type { TableColumn } from "@/components/ui/data-table"
 
 const EMPTY_FORM = { nombre: "", descripcion: "" }
 
-const COLUMNS: TableColumn<Rol>[] = [
+function buildColumns(onPermisos: (rol: Rol) => void, etiqueta: string): TableColumn<Rol>[] {
+  return [
   {
     key: "nombre",
     header: "Nombre",
@@ -35,7 +40,18 @@ const COLUMNS: TableColumn<Rol>[] = [
     ),
     className: "max-w-md truncate",
   },
-]
+  {
+    key: "permisos",
+    header: "Permisos",
+    cell: (r) => (
+      <Button variant="outline" size="sm" onClick={() => onPermisos(r)}>
+        <KeyRound className="h-3.5 w-3.5" />
+        {etiqueta}
+      </Button>
+    ),
+  },
+  ]
+}
 
 export default function RolesPage() {
   const { roles, isLoading, mutate } = useRoles()
@@ -49,6 +65,20 @@ export default function RolesPage() {
   const [editing, setEditing] = useState<Rol | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [rolPermisos, setRolPermisos] = useState<Rol | null>(null)
+  const permisosPantalla = usePermisosPantalla()
+  const miRolId = getUser()?.rolId
+  const puedeEditarPermisos = permisosPantalla.puede("editar")
+
+  // El rol Admin no se modifica y nadie cambia los permisos de su propio rol
+  const motivoSoloLectura = (r: Rol | null) => {
+    if (!r) return null
+    if (r.nombre.trim().toLowerCase() === "admin") return "Los permisos del rol Admin no se pueden modificar."
+    if (Number(r.id) === miRolId) return "No podés modificar los permisos de tu propio rol."
+    if (!puedeEditarPermisos) return "No tenés permiso para modificar permisos."
+    return null
+  }
+  const columns = buildColumns(setRolPermisos, puedeEditarPermisos ? "Permisos" : "Ver permisos")
 
   const filtered = roles.filter(
     (r: Rol) =>
@@ -140,15 +170,15 @@ export default function RolesPage() {
         <span className="text-sm text-muted-foreground">
           {filtered.length} rol{filtered.length !== 1 ? "es" : ""}
         </span>
-        <Button className="ml-auto" onClick={openCreate}>
+        <CrearButton className="ml-auto" onClick={openCreate}>
           <Plus className="h-4 w-4" />
           Nuevo rol
-        </Button>
+        </CrearButton>
       </div>
 
       <DataTable
         data={filtered}
-        columns={COLUMNS}
+        columns={columns}
         isLoading={isLoading}
         loadingText="Cargando roles..."
         emptyText="No hay roles registrados."
@@ -198,6 +228,13 @@ export default function RolesPage() {
           <FieldError>{errors.descripcion}</FieldError>
         </div>
       </FormModal>
+
+      <PermisosRolDialog
+        key={rolPermisos?.id ?? "cerrado"}
+        rol={rolPermisos ? { id: Number(rolPermisos.id), nombre: rolPermisos.nombre } : null}
+        soloLecturaMotivo={motivoSoloLectura(rolPermisos)}
+        onClose={() => setRolPermisos(null)}
+      />
     </div>
   )
 }
