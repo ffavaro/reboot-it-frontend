@@ -39,6 +39,7 @@ import type { CondicionMaterial } from "@/lib/type/condicion-material"
 import type { Tipo } from "@/lib/type/tipo"
 import type { Marca } from "@/lib/type/marca"
 import type { Modelo } from "@/lib/type/modelo"
+import { CONDICION_MATERIAL, esCondicion } from "@/lib/constants/estados"
 
 const EMPTY_FORM = { loteId: "", tipoMaterialId: "", condicionMaterialId: "", descripcion: "" }
 const EMPTY_QUICK_TIPO = { nombre: "", descripcion: "" }
@@ -140,7 +141,7 @@ export default function MaterialPage() {
 
   // Condición por defecto de todo material nuevo: se define recién al clasificarlo
   const condicionADefinir = condiciones.find(
-    (c: CondicionMaterial) => c.condicion.toLowerCase() === "a definir",
+    (c: CondicionMaterial) => esCondicion(c.condicion, CONDICION_MATERIAL.A_DEFINIR),
   )
 
   function resetDestruccion() {

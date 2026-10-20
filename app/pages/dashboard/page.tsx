@@ -16,6 +16,7 @@ import { useMateriales, useMaterialReporte } from "@/hooks/use-material"
 import { useCondicionesMaterial } from "@/hooks/use-condicion-material"
 import { exportToPdf, exportToExcel, type ExportColumn } from "@/lib/utils/export"
 import { formatDate } from "@/lib/utils/helpers"
+import { esCondicionSinClasificar } from "@/lib/constants/estados"
 import {
   type Periodo, PERIODO_LABELS, getRangoFechas, getRangoAnterior,
   getRangoCustom, getRangoAnteriorCustom, getBucketOrder, getBucketKey,
@@ -236,8 +237,8 @@ export default function DashboardPage() {
     })
 
     materialesActuales.forEach(m => {
-      const nombre = (condicionPorId.get(m.condicionMaterialId ?? -1) ?? "").toLowerCase()
-      if (!nombre || nombre.includes("pendiente")) return
+      // "A definir" (o sin condición) = todavía sin clasificar: no cuenta como material clasificado
+      if (esCondicionSinClasificar(condicionPorId.get(m.condicionMaterialId ?? -1))) return
       const key = bucketKeyOf(m.createdAt)
       clasificadosPorBucket.set(key, (clasificadosPorBucket.get(key) ?? 0) + 1)
     })
@@ -296,7 +297,7 @@ export default function DashboardPage() {
         const nombres = materiales.map(m => (condicionPorId.get(m.condicionMaterialId ?? -1) ?? "").toLowerCase())
         let estado = "En proceso"
         if (materiales.length > 0 && nombres.every(n => n.includes("desecho"))) estado = "Desechado"
-        else if (materiales.length > 0 && nombres.every(n => n && !n.includes("pendiente"))) estado = "Clasificado"
+        else if (materiales.length > 0 && nombres.every(n => !esCondicionSinClasificar(n))) estado = "Clasificado"
 
         return {
           loteId: l.id,

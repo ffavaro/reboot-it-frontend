@@ -27,6 +27,7 @@ import type { CondicionMaterial } from "@/lib/type/condicion-material"
 import type { Turno } from "@/lib/type/turno"
 import { getUser } from "@/lib/auth-utils"
 import { enforceDecimalInput } from "@/lib/utils/number-limit"
+import { CONDICION_MATERIAL, esCondicion } from "@/lib/constants/estados"
 
 const EMPTY_FORM = { donanteId: "", fechaHora: "", estadoDonacionId: "", descripcion: "" }
 const EMPTY_DETALLE = { tipoMaterialId: "", condicionMaterialId: "", cantidadEstimada: "" }
@@ -139,7 +140,7 @@ export default function DonacionPage() {
 
   // Condición por defecto de todo material cargado: se define recién al clasificarlo
   const condicionADefinir = condiciones.find(
-    (c: CondicionMaterial) => c.condicion.toLowerCase() === "a definir",
+    (c: CondicionMaterial) => esCondicion(c.condicion, CONDICION_MATERIAL.A_DEFINIR),
   )
 
   const visibleDonaciones = isDonante && myDonante
