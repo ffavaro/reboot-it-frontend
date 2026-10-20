@@ -20,7 +20,6 @@ import {
 } from "@/hooks/use-turno"
 import { useDonantes } from "@/hooks/use-donantes"
 import { useDonaciones } from "@/hooks/use-donacion"
-import { useUsuarios } from "@/hooks/use-users"
 import { useEstadosTurno } from "@/hooks/use-estado-turno"
 import { useEmpleadosFull } from "@/hooks/use-employees"
 import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
@@ -105,7 +104,6 @@ export default function TurnoPage() {
   const { turnos, isLoading, mutate } = useTurnos()
   const { donantes } = useDonantes()
   const { donaciones } = useDonaciones()
-  const { usuarios } = useUsuarios()
   const { estadosTurno } = useEstadosTurno()
   const { empleados } = useEmpleadosFull()
   const { transportistas } = useEmpleadosTransportistas()
@@ -146,7 +144,7 @@ export default function TurnoPage() {
   }, [fotoPreviewUrl])
 
   const isDonante = user?.rol?.nombre?.toLowerCase() === "donante"
-  const { isTransportista, myTransportista } = getTransportistaActual(usuarios, transportistas)
+  const { isTransportista, myTransportista } = getTransportistaActual(transportistas)
   const isReadOnly = isDonante || isTransportista
 
   const myDonante = isDonante

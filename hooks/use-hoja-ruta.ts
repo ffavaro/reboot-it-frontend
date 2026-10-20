@@ -2,7 +2,7 @@ import useSWR from "swr"
 import useSWRMutation from "swr/mutation"
 import { fetcher, hojaRutaApi, buildQuery } from "@/lib/api"
 import type {
-  HojaRutaDia, HojaRutaDiaQuery, HojaRutaHistorico, HojaRutaHistoricoQuery,
+  GenerarHojaRutaPayload, HojaRutaDia, HojaRutaDiaQuery, HojaRutaHistorico, HojaRutaHistoricoQuery,
 } from "@/lib/type/hoja-ruta"
 
 // enabled=false pausa la consulta (por ejemplo, mientras no se sabe qué transportista es el usuario)
@@ -18,18 +18,18 @@ export function useHojasRutaHistorico(query: HojaRutaHistoricoQuery, enabled = t
   return { hojas: data ?? [], isLoading, error, mutate }
 }
 
-export function useIniciarHojaRuta() {
+export function useGenerarHojaRuta() {
   const { trigger, isMutating, error } = useSWRMutation(
-    "/hojas-ruta/iniciar",
-    (_key: string, { arg }: { arg: number }) => hojaRutaApi.iniciar(arg),
+    "/hojas-ruta/generar",
+    (_key: string, { arg }: { arg: GenerarHojaRutaPayload }) => hojaRutaApi.generar(arg),
   )
-  return { iniciarHojaRuta: trigger, isLoading: isMutating, error }
+  return { generarHojaRuta: trigger, isLoading: isMutating, error }
 }
 
-export function useFinalizarHojaRuta() {
+export function useConfirmarRetiro() {
   const { trigger, isMutating, error } = useSWRMutation(
-    "/hojas-ruta/finalizar",
-    (_key: string, { arg }: { arg: { id: number; kmFinal: number } }) => hojaRutaApi.finalizar(arg.id, arg.kmFinal),
+    "/hojas-ruta/confirmar-retiro",
+    (_key: string, { arg }: { arg: number }) => hojaRutaApi.confirmarRetiro(arg),
   )
-  return { finalizarHojaRuta: trigger, isLoading: isMutating, error }
+  return { confirmarRetiro: trigger, isLoading: isMutating, error }
 }

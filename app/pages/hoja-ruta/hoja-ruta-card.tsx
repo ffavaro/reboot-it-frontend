@@ -1,30 +1,11 @@
 "use client"
 
-import { useState } from "react"
 import type { ReactNode } from "react"
-import { Map as MapIcon, Table2 } from "lucide-react"
-import { DataTable } from "@/components/ui/data-table"
-import type { TableColumn } from "@/components/ui/data-table"
+import { CheckCircle2 } from "lucide-react"
 import { EstadoHojaBadge } from "@/components/ui/estado-hoja-badge"
 import { formatFechaISO, formatKm } from "@/lib/utils/helpers"
 import { cn } from "@/lib/utils"
 import type { HojaRutaDia, ParadaHojaRuta } from "@/lib/type/hoja-ruta"
-
-type Vista = "tabla" | "mapa"
-type FilaParada = ParadaHojaRuta & { id: number }
-
-const COLUMNS: TableColumn<FilaParada>[] = [
-  { key: "orden", header: "#", cell: (p) => <span className="text-muted-foreground">{p.orden}</span> },
-  { key: "donante", header: "Donante", cell: (p) => <span className="font-medium">{p.donante}</span> },
-  {
-    key: "direccion",
-    header: "Dirección",
-    cell: (p) => p.direccion
-      ? <span className="text-muted-foreground">{p.direccion}</span>
-      : <span className="italic text-destructive">Sin dirección cargada</span>,
-  },
-  { key: "hora", header: "Hora del turno", cell: (p) => <span className="tabular-nums text-muted-foreground">{formatHora(p.fechaHora)}</span> },
-]
 
 function formatHora(iso: string): string {
   const d = new Date(iso)
@@ -47,7 +28,7 @@ export function buildWhatsAppUrl(h: HojaRutaDia): string {
     "",
     `Paradas (${h.paradas.length}):`,
     ...h.paradas.map(
-      (p) => `${p.orden}. ${p.donante} - ${p.direccion || "Sin dirección cargada"} (${formatHora(p.fechaHora)} hs)`,
+      (p) => `${p.orden}. ${p.donante} - ${p.direccion || "Sin dirección cargada"} (${formatHora(p.fechaHora)} hs)${p.retirado ? " ✔ retirado" : ""}`,
     ),
   ]
   if (h.mapsUrl) lineas.push("", `Ver ruta en Google Maps: ${h.mapsUrl}`)
@@ -55,15 +36,16 @@ export function buildWhatsAppUrl(h: HojaRutaDia): string {
 }
 
 export function HojaRutaCard({
-  hoja, mostrarTransportista = true, actions,
+  hoja, mostrarTransportista = true, actions, accionesParada,
 }: {
   hoja: HojaRutaDia
   mostrarTransportista?: boolean
   actions: ReactNode
+  // Botones de cada turno (por ejemplo "Confirmar retiro" o "Ver constancia")
+  accionesParada?: (parada: ParadaHojaRuta) => ReactNode
 }) {
   const info = hoja.hojaRuta
-  const [vista, setVista] = useState<Vista>("tabla")
-  const filas: FilaParada[] = hoja.paradas.map((p) => ({ ...p, id: p.turnoId }))
+  const retirados = hoja.paradas.filter((p) => p.retirado).length
   return (
     <div className="flex flex-col gap-4 rounded-lg border p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -89,7 +71,10 @@ export function HojaRutaCard({
 
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
         <span className="text-muted-foreground">
-          Pedidos: <span className="font-medium text-foreground">{hoja.cantidadPedidos}</span>
+          Turnos: <span className="font-medium text-foreground">{hoja.paradas.length}</span>
+          {hoja.estado !== "Pendiente" && (
+            <span className="ml-1 text-xs">({retirados} retirado{retirados !== 1 ? "s" : ""})</span>
+          )}
         </span>
         <span className="text-muted-foreground">
           Km estimados{hoja.origen ? " (ida y vuelta)" : ""}:{" "}
@@ -101,14 +86,14 @@ export function HojaRutaCard({
             Km inicial: <span className="font-medium text-foreground">{formatKm(info.kmInicial)}</span>
           </span>
         )}
+        {info?.kmFinal != null && (
+          <span className="text-muted-foreground">
+            Km final: <span className="font-medium text-foreground">{formatKm(info.kmFinal)}</span>
+          </span>
+        )}
         {hoja.origen && (
           <span className="text-muted-foreground">
             Base: <span className="font-medium text-foreground">{hoja.origen}</span>
-          </span>
-        )}
-        {info?.kmReales != null && (
-          <span className="text-muted-foreground">
-            Km reales: <span className="font-medium text-foreground">{formatKm(info.kmReales)}</span>
           </span>
         )}
       </div>
@@ -117,67 +102,12 @@ export function HojaRutaCard({
         <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{hoja.advertencia}</p>
       )}
 
-      {hoja.recorrido.length > 0 && (
-        <div className="rounded-md border bg-muted/30 p-3">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Recorrido</p>
-          <ol className="flex flex-col gap-2">
-            {hoja.recorrido.map((p, i) => {
-              const paradasPrevias = hoja.recorrido.slice(0, i).filter((x) => x.rol === "parada").length
-              return (
-                <li key={`${p.etiqueta}-${i}`} className="flex items-start gap-3">
-                  <span
-                    className={cn(
-                      "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white",
-                      p.rol === "origen" && "bg-green-600",
-                      p.rol === "destino" && "bg-red-600",
-                      p.rol === "parada" && "bg-blue-600",
-                    )}
-                  >
-                    {p.rol === "origen" ? "O" : p.rol === "destino" ? "D" : paradasPrevias + 1}
-                  </span>
-                  <div className="min-w-0 text-sm">
-                    <p>
-                      <span className="font-medium">{p.etiqueta}</span>
-                      {p.donante && <span className="text-muted-foreground"> · {p.donante}</span>}
-                    </p>
-                    <p className="break-words text-xs text-muted-foreground">{p.direccion}</p>
-                  </div>
-                </li>
-              )
-            })}
-          </ol>
-        </div>
-      )}
-
       {hoja.paradas.length === 0 ? (
-        <p className="py-2 text-sm italic text-muted-foreground">Sin pedidos asignados.</p>
+        <p className="py-2 text-sm italic text-muted-foreground">Sin turnos pendientes de retiro.</p>
       ) : (
-        <div className="flex flex-col gap-3">
-          <div className="inline-flex w-fit rounded-lg border border-border p-0.5" role="group" aria-label="Formato de visualización">
-            {([["tabla", "Tabla", Table2], ["mapa", "Mapa", MapIcon]] as const).map(([key, label, Icon]) => (
-              <button
-                key={key}
-                onClick={() => setVista(key)}
-                aria-pressed={vista === key}
-                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors ${
-                  vista === key
-                    ? "bg-blue-50 font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                <Icon className="size-3.5" />{label}
-              </button>
-            ))}
-          </div>
-
-          {vista === "tabla" ? (
-            <DataTable
-              data={filas}
-              columns={COLUMNS}
-              emptyText="Sin pedidos asignados."
-              pageSizeOptions={[10, 25, 50]}
-            />
-          ) : hoja.embedUrl ? (
+        <>
+          {/* Mapa con los turnos (marcadores) y el recorrido */}
+          {hoja.embedUrl ? (
             <div className="flex flex-col gap-2">
               <iframe
                 src={hoja.embedUrl}
@@ -195,10 +125,78 @@ export function HojaRutaCard({
             <p className="rounded-md border border-dashed py-10 text-center text-sm italic text-muted-foreground">
               {hoja.estado === "Finalizada"
                 ? "El mapa no está disponible para hojas de ruta finalizadas."
-                : "Ninguna parada tiene dirección cargada: no hay ruta para mostrar."}
+                : "Ningún turno tiene dirección cargada: no hay ruta para mostrar."}
             </p>
           )}
-        </div>
+
+          {hoja.recorrido.length > 0 && (
+            <div className="rounded-md border bg-muted/30 p-3">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Recorrido</p>
+              <ol className="flex flex-col gap-2">
+                {hoja.recorrido.map((p, i) => {
+                  const paradasPrevias = hoja.recorrido.slice(0, i).filter((x) => x.rol === "parada").length
+                  return (
+                    <li key={`${p.etiqueta}-${i}`} className="flex items-start gap-3">
+                      <span
+                        className={cn(
+                          "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white",
+                          p.rol === "origen" && "bg-green-600",
+                          p.rol === "destino" && "bg-red-600",
+                          p.rol === "parada" && "bg-blue-600",
+                        )}
+                      >
+                        {p.rol === "origen" ? "O" : p.rol === "destino" ? "D" : paradasPrevias + 1}
+                      </span>
+                      <div className="min-w-0 text-sm">
+                        <p>
+                          <span className="font-medium">{p.etiqueta}</span>
+                          {p.donante && <span className="text-muted-foreground"> · {p.donante}</span>}
+                        </p>
+                        <p className="break-words text-xs text-muted-foreground">{p.direccion}</p>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ol>
+            </div>
+          )}
+
+          {/* Turnos de la hoja: pendientes de retiro y ya retirados */}
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Turnos</p>
+            <ul className="flex flex-col divide-y rounded-md border">
+              {hoja.paradas.map((p) => (
+                <li key={p.turnoId} className="flex flex-wrap items-center justify-between gap-3 px-3 py-2.5">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+                      {p.orden}
+                    </span>
+                    <div className="min-w-0 text-sm">
+                      <p className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{p.donante}</span>
+                        {p.retirado ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                            <CheckCircle2 className="size-3" /> Retirado
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                            Pendiente de retiro
+                          </span>
+                        )}
+                      </p>
+                      <p className="break-words text-xs text-muted-foreground">
+                        {p.direccion || <span className="italic text-destructive">Sin dirección cargada</span>}
+                        {" · "}
+                        <span className="tabular-nums">{formatHora(p.fechaHora)} hs</span>
+                      </p>
+                    </div>
+                  </div>
+                  {accionesParada && <div className="flex flex-wrap gap-2">{accionesParada(p)}</div>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </>
       )}
     </div>
   )
