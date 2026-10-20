@@ -34,8 +34,8 @@ import { formatFechaISO, formatPeso, getErrorMessage } from "@/lib/utils/helpers
 type Tab = "vehiculos" | "tipos"
 
 const DESCRIPCION_MAX = 35
-const PESO_MINIMO_MAX_DIGITS = 2
-const PESO_MAXIMO_MAX_DIGITS = 3
+const PESO_MINIMO_MAX_DIGITS = 6
+const PESO_MAXIMO_MAX_DIGITS = 6
 
 const EMPTY_VEHICULO = { tipoVehiculoId: 0, patente: "", marca: "", modelo: "", itvVencimiento: "", kilometraje: "", tipoCombustible: "" }
 const EMPTY_TIPO = { descripcion: "", pesoMinimo: "", pesoMaximo: "" }
