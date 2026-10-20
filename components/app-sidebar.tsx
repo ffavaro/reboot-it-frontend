@@ -23,7 +23,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
 import { getUser } from "@/lib/auth-utils"
 import { NavItem } from "@/lib/type/sidebar"
-import { navMain } from "@/lib/nav"
+import { navMain, navTop, esAdmin } from "@/lib/nav"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
@@ -34,6 +34,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const isTransportista = rolNombre === "transportista"
 
   const canSeeItem = (item: NavItem): boolean => {
+    if (item.soloAdmin) return esAdmin(rolNombre)
     if (isDonante) {
       return item.allowedRoles?.includes("donante") ?? false
     }
@@ -53,6 +54,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar {...props}>
       <SidebarContent className="gap-0 bg-slate-900">
+        {!isDonante && !isTransportista && (
+          <SidebarGroup className="pb-0">
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {navTop.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      isActive={pathname === item.url}
+                      className="border-l-2 border-transparent text-white/90 hover:border-red-500/50 hover:bg-white/5 hover:text-white data-[active=true]:border-red-500 data-[active=true]:bg-white/5 data-[active=true]:text-white data-[active=true]:font-medium"
+                      render={<a href={item.url} />}
+                    >
+                      {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
+                      {item.title}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
         {visibleSections.map((item) => (
           <Collapsible
             key={item.title}

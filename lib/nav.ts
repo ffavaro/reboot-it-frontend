@@ -1,19 +1,23 @@
 import {
-  BarChart2, Bookmark, Box, Boxes, CalendarCheck, CalendarDays, Camera, Car, Circle, Clock, FileCheck, FileText, HardDrive, Heart, LayoutList, Layers, Leaf, List, MapPin, Package, PackageOpen, Server, Shield, Tag, Trash2, Truck, User, UserCog, Users,
+  BarChart2, Bookmark, Box, Boxes, CalendarCheck, CalendarDays, Camera, Car, Circle, Clock, FileCheck, FileText, HardDrive, Heart, History, LayoutList, Layers, Leaf, List, MapPin, Package, PackageOpen, Server, Shield, Tag, Trash2, Truck, User, UserCog, Users,
 } from "lucide-react"
-import type { NavSection } from "@/lib/type/sidebar"
+import type { NavItem, NavSection } from "@/lib/type/sidebar"
 
 // Si allowedRoles está definido, solo esos roles pueden verlo.
 // Si no está definido, es visible para todos los roles.
 export const DONANTE = ["donante"]
 export const TRANSPORTISTA = ["transportista"]
 
+// Páginas principales que van sueltas, fuera de las secciones del menú (solo staff)
+export const navTop: NavItem[] = [
+  { title: "Dashboard", url: "/pages/dashboard", icon: BarChart2 },
+]
+
 export const navMain: NavSection[] = [
   {
     title: "Gestion de Donantes",
     url: "#",
     items: [
-      { title: "Dashboard", url: "/pages/dashboard", icon: BarChart2 },
       { title: "Agenda", url: "/pages/agenda", icon: CalendarDays },
       { title: "Certificado de disposicion", url: "/pages/certificado-disposicion", allowedRoles: DONANTE, icon: FileCheck },
       { title: "Constancia de retiro", url: "/pages/constancia-retiro", allowedRoles: DONANTE, icon: FileText },
@@ -69,6 +73,7 @@ export const navMain: NavSection[] = [
     title: "Configuracion",
     url: "#",
     items: [
+      { title: "Auditoría", url: "/pages/auditoria", soloAdmin: true, icon: History },
       { title: "Donantes", url: "/pages/donante", icon: Users },
       { title: "Empleados", url: "/pages/employees", icon: User },
       { title: "Estado de turno", url: "/pages/estado-turno", icon: CalendarCheck },
@@ -109,9 +114,14 @@ const RUTAS_PARA_TODOS = ["/pages/perfil"]
 
 const coincide = (pathname: string, url: string) => pathname === url || pathname.startsWith(url + "/")
 
+export const esAdmin = (nombre?: string | null) => !!nombre && sinTildes(nombre) === "admin"
+
 export function puedeAccederARuta(pathname: string, rolNombre?: string | null): boolean {
   const grupo = grupoDeRol(rolNombre)
   if (!grupo) return false
+  // las pantallas exclusivas del Admin no las abre ningún otro rol, aunque sea staff
+  const soloAdmin = navMain.some((section) => section.items.some((item) => item.soloAdmin && coincide(pathname, item.url)))
+  if (soloAdmin && !esAdmin(rolNombre)) return false
   if (grupo === "staff") return true
   if (RUTAS_PARA_TODOS.some((r) => coincide(pathname, r))) return true
   // el resto se rige por el menú: tiene que existir un ítem que contenga la ruta y permita el rol
