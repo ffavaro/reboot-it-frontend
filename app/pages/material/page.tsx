@@ -498,12 +498,12 @@ export default function MaterialPage() {
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">
-            Condición <span className="text-muted-foreground font-normal">(se define al clasificar el material)</span>
+            Condición <span className="text-muted-foreground font-normal">("A definir" hasta clasificar el material)</span>
           </label>
           <select
             value={form.condicionMaterialId}
-            disabled
-            className="flex h-9 w-full rounded-md border border-input bg-muted px-3 py-1 text-sm shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+            onChange={(e) => setForm((f) => ({ ...f, condicionMaterialId: e.target.value }))}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             {condiciones.map((c: CondicionMaterial) => (
               <option key={c.id} value={c.id}>{c.condicion}</option>
