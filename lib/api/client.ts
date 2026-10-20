@@ -19,7 +19,7 @@ function authHeaders(token?: string | null): Record<string, string> {
 }
 
 // 401 en una ruta protegida = el token venció o no es válido: se limpia la sesión y se vuelve al login.
-// Las rutas /auth/* quedan afuera: ahí un 401 es "credenciales inválidas" / "email ya registrado".
+// Las rutas /auth/* quedan afuera: ahí un 401 es "credenciales inválidas" (un email ya registrado responde 409).
 function handleUnauthorized(path: string) {
   if (typeof window === "undefined" || path.startsWith("/auth/")) return
   clearSession()
