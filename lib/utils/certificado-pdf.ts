@@ -9,7 +9,7 @@ function fecha(iso: string | null): string {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : new Date(iso).toLocaleDateString("es-AR")
 }
 
-/** Genera y descarga el PDF del certificado de disposición final emitido por RebootIT. Se arma al descargar. */
+/** Genera y descarga el PDF del certificado de disposición final emitido por Reboot IT. Se arma al descargar. */
 export function descargarCertificadoPdf(c: CertificadoDisposicionDatos) {
   const doc = new jsPDF()
   const ancho = doc.internal.pageSize.getWidth()
@@ -21,14 +21,14 @@ export function descargarCertificadoPdf(c: CertificadoDisposicionDatos) {
   doc.setFontSize(10)
   doc.setFont("helvetica", "normal")
   doc.setTextColor(100)
-  doc.text("RebootIT", ancho / 2, 29, { align: "center" })
+  doc.text("Reboot IT", ancho / 2, 29, { align: "center" })
   doc.setTextColor(0)
   doc.text(`N° ${numero}`, 14, 40)
   doc.text(`Fecha de emisión: ${fecha(c.fechaEmision)}`, ancho - 14, 40, { align: "right" })
 
   const donante = c.donante.razonSocial ? `${c.donante.nombre} (${c.donante.razonSocial})` : c.donante.nombre
   const texto = doc.splitTextToSize(
-    `RebootIT certifica que los materiales detallados a continuación, recibidos del donante ${donante || "—"} en el marco de la donación N° ${c.donacionId ?? "—"}, fueron clasificados y entregados para su disposición final al gestor ambiental indicado.`,
+    `Reboot IT certifica que los materiales detallados a continuación, recibidos del donante ${donante || "—"} en el marco de la donación N° ${c.donacionId ?? "—"}, fueron clasificados y entregados para su disposición final al gestor ambiental indicado.`,
     ancho - 28,
   )
   doc.text(texto, 14, 50)
@@ -85,7 +85,7 @@ export function descargarCertificadoPdf(c: CertificadoDisposicionDatos) {
   doc.line(ancho - 90, base, ancho - 20, base)
   doc.setFont("helvetica", "normal")
   doc.setFontSize(9)
-  doc.text("Firma y sello - RebootIT", 55, base + 5, { align: "center" })
+  doc.text("Firma y sello - Reboot IT", 55, base + 5, { align: "center" })
   doc.text("Firma y sello - Gestor ambiental", ancho - 55, base + 5, { align: "center" })
 
   doc.save(`certificado-disposicion-${numero}.pdf`)
