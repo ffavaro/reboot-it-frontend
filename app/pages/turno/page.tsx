@@ -219,26 +219,6 @@ export default function TurnoPage() {
         </span>
       ),
     },
-    ...(isTransportista
-      ? [{
-          key: "confirmar-retiro",
-          header: "",
-          cell: (t: Turno) => {
-            const estado = t.estadoTurno?.descripcion?.toLowerCase() ?? ""
-            if (estado !== "asignado") return null
-            return (
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-blue-700 border-blue-300 hover:bg-blue-50"
-                onClick={(e) => { e.stopPropagation(); handleConfirmarRetiro(t) }}
-              >
-                Confirmar retiro
-              </Button>
-            )
-          },
-        }]
-      : []),
     ...(!isReadOnly
       ? [{
           key: "acciones-extra",
@@ -525,23 +505,6 @@ export default function TurnoPage() {
       toast.error(err?.message ?? "Error al clasificar el turno")
     } finally {
       setIsUploading(false)
-    }
-  }
-
-  async function handleConfirmarRetiro(t: Turno) {
-    const estadoObj = estadosTurno.find(
-      (e: EstadoTurno) => e.descripcion.toLowerCase() === ESTADO_RETIRO_CONFIRMADO
-    )
-    if (!estadoObj) {
-      toast.error('No se encontró el estado "Retiro Confirmado"')
-      return
-    }
-    try {
-      await updateTurno({ id: t.id, estadoTurnoId: Number(estadoObj.id) })
-      toast.success("Retiro confirmado")
-      await mutate()
-    } catch {
-      toast.error("Error al confirmar el retiro")
     }
   }
 

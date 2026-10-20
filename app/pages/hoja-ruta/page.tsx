@@ -119,7 +119,7 @@ function AdminView() {
             <p className="py-4 text-sm text-muted-foreground">Cargando hojas de ruta…</p>
           ) : hojas.length === 0 ? (
             <p className="py-4 text-sm italic text-muted-foreground">
-              No hay hojas de ruta para esos filtros: ningún transportista tiene pedidos con retiro confirmado en ese período.
+              No hay hojas de ruta para esos filtros: ningún transportista tiene turnos pendientes de retiro en ese período.
             </p>
           ) : (
             <div className="flex flex-col gap-4">
