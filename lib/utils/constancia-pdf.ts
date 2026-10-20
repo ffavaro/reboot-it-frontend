@@ -36,7 +36,7 @@ export function descargarConstanciaPdf(c: ConstanciaRetiroDatos) {
     ["Dirección de retiro", c.direccion || "—"],
     ["Fecha y hora del retiro", fechaHora(c.fechaRetiro)],
     ["Donación N°", c.donacionId != null ? String(c.donacionId) : "—"],
-    ["Turno N°", String(c.turnoId)],
+    ["Turno N°", c.turnoId != null ? String(c.turnoId) : "—"],
     ["Transportista", transportista],
     ["CUIT / DNI del transportista", c.transportista?.cuitDni || "—"],
     ["Vehículo", c.vehiculo ? `${c.vehiculo.patente} — ${c.vehiculo.marca} ${c.vehiculo.modelo}` : "—"],

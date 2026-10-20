@@ -1,7 +1,11 @@
 "use client"
-import { Plus } from "lucide-react"
+import { Plus, Boxes } from "lucide-react"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { usePallets } from "@/hooks/use-pallet"
+import { useMisPermisos } from "@/hooks/use-permisos"
+import { puede } from "@/lib/nav"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -91,6 +95,14 @@ const baseColumns: TableColumn<Lote>[] = [
 ]
 
 export default function LotePage() {
+  const router = useRouter()
+  const { permisos } = useMisPermisos()
+  const { pallets } = usePallets()
+  // Crear un pallet es un permiso de la pantalla Pallets
+  const puedeCrearPallet = puede(permisos, "pallets", "crear")
+  // Un lote solo puede estar en un pallet
+  const palletPorLote = new Map<number, string>()
+  for (const p of pallets) if (p.isActive && p.loteId) palletPorLote.set(p.loteId, p.codigo ?? `#${p.id}`)
   const { registros } = useRegistrosFotograficos()
   const { donaciones } = useDonaciones()
   const { lotes, isLoading, mutate } = useLotes()
@@ -117,6 +129,23 @@ export default function LotePage() {
       header: "Fotos",
       cell: (l) => <FotosDelLote fotos={fotosPorLote.get(l.id) ?? []} max={3} />,
     },
+    ...(puedeCrearPallet
+      ? [{
+          key: "pallet",
+          header: "Pallet",
+          cell: (l: Lote) => {
+            const existente = palletPorLote.get(l.id)
+            return existente ? (
+              <span className="text-xs text-muted-foreground">En pallet <span className="font-mono">{existente}</span></span>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => router.push(`/pages/pallet?loteId=${l.id}`)}>
+                <Boxes className="h-3.5 w-3.5" />
+                Crear pallet
+              </Button>
+            )
+          },
+        }]
+      : []),
   ]
 
   const filtered = lotes.filter((l: Lote) => {

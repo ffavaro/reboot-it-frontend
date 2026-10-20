@@ -111,7 +111,7 @@ export interface ConfirmarRetiroResultado {
 // Datos de la constancia de retiro de un turno, para mostrarla y descargarla en PDF
 export interface ConstanciaRetiroDatos {
   constanciaId: number
-  turnoId: number
+  turnoId: number | null
   donacionId: number | null
   fechaEmision: string | null
   fechaRetiro: string | null

@@ -1,5 +1,7 @@
 "use client"
 import { Plus } from "lucide-react"
+import { constanciaRetiroApi } from "@/lib/api/constancia-retiro"
+import { descargarConstanciaPdf } from "@/lib/utils/constancia-pdf"
 
 import { useState } from "react"
 import { toast } from "react-toastify"
@@ -19,7 +21,7 @@ import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
 import { useDonantes } from "@/hooks/use-donantes"
 import { useDonaciones } from "@/hooks/use-donacion"
 import { useRetiros } from "@/hooks/use-retiro"
-import { formatDate, getDonanteActual } from "@/lib/utils/helpers"
+import { formatDate, getDonanteActual, getErrorMessage } from "@/lib/utils/helpers"
 import type { ConstanciaRetiro } from "@/lib/type/constancia-retiro"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import type { Donacion } from "@/lib/type/donacion"
@@ -166,6 +168,15 @@ export default function ConstanciaRetiroPage() {
     }
   }
 
+  // El PDF se arma al descargar con los datos de la constancia (no se guarda en el servidor)
+  async function descargarPdf(id: number) {
+    try {
+      descargarConstanciaPdf(await constanciaRetiroApi.datos(id))
+    } catch (error) {
+      toast.error(getErrorMessage(error, "No se pudo descargar la constancia"))
+    }
+  }
+
   async function handleDelete(id: number | string) {
     try {
       await deleteConstancia(Number(id))
@@ -204,6 +215,7 @@ export default function ConstanciaRetiroPage() {
       </div>
 
       <DataTable
+        onDownload={(c) => descargarPdf(c.id)}
         data={filtered}
         columns={columns}
         isLoading={isLoading}

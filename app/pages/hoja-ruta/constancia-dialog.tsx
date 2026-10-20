@@ -55,7 +55,7 @@ export function ConstanciaDialog({ turnoId, onClose }: { turnoId: number | null;
               <dt className="text-muted-foreground">Fecha del retiro</dt>
               <dd className="font-medium">{fechaHora(datos.fechaRetiro)}</dd>
               <dt className="text-muted-foreground">Donación / Turno</dt>
-              <dd className="font-medium">N° {datos.donacionId ?? "—"} / N° {datos.turnoId}</dd>
+              <dd className="font-medium">N° {datos.donacionId ?? "—"} / N° {datos.turnoId ?? "—"}</dd>
               <dt className="text-muted-foreground">Transportista</dt>
               <dd className="font-medium">{datos.transportista ? `${datos.transportista.nombre} ${datos.transportista.apellido}` : "—"}</dd>
               <dt className="text-muted-foreground">Vehículo</dt>
