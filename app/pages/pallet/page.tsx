@@ -30,6 +30,7 @@ import { useFormErrors } from "@/hooks/use-form-errors"
 import { requiredSelect, positiveNumber, maxDigits } from "@/lib/form-validators"
 import { enforceDecimalInput, DEFAULT_WEIGHT_MAX_DIGITS } from "@/lib/utils/number-limit"
 import type { Pallet } from "@/lib/type/pallet"
+import { getErrorMessage } from "@/lib/utils/helpers"
 import type { Rack } from "@/lib/type/rack"
 import type { Lote } from "@/lib/type/lote"
 
@@ -191,8 +192,8 @@ export default function PalletPage() {
       }
       await mutate()
       setModalOpen(false)
-    } catch {
-      toast.error("Error al guardar el pallet")
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Error al guardar el pallet"))
     }
   }
 
@@ -238,6 +239,10 @@ export default function PalletPage() {
       toast.error("Error al crear el lote")
     }
   }
+
+  // Un lote solo puede estar en un pallet: se ofrecen los libres (más el que ya tiene el pallet que se edita)
+  const lotesOcupados = new Set(pallets.filter((p) => p.loteId && p.id !== editing?.id).map((p) => p.loteId))
+  const lotesDisponibles = lotes.filter((l: Lote) => !lotesOcupados.has(l.id))
 
   const canSave = !!form.rackId && !!form.loteId
   const canSaveQuickLote = !!quickLoteForm.donacionId
@@ -333,7 +338,7 @@ export default function PalletPage() {
               )}
             >
               <option value="">Seleccionar lote...</option>
-              {lotes.map((l: Lote) => (
+              {lotesDisponibles.map((l: Lote) => (
                 <option key={l.id} value={l.id}>
                   Lote #{l.id}{l.pesoBrutoKg ? ` — ${l.pesoBrutoKg} kg` : ""}
                 </option>
