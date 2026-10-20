@@ -796,8 +796,9 @@ export default function TurnoPage() {
               >
                 <option value="">Seleccionar transportista...</option>
                 {transportistas.map((et: EmpleadoTransportista) => {
+                  // con el DNI se distinguen dos empleados con el mismo nombre
                   const nombre = et.empleado
-                    ? `${et.empleado.nombre} ${et.empleado.apellido}`
+                    ? `${et.empleado.nombre} ${et.empleado.apellido}${et.empleado.cuitDni ? ` - ${et.empleado.cuitDni}` : ""}`
                     : `Transportista #${et.id}`
                   return <option key={et.id} value={et.id}>{nombre}</option>
                 })}
@@ -819,7 +820,7 @@ export default function TurnoPage() {
                 })
                 .map((emp: Empleado) => (
                   <option key={emp.id} value={emp.id}>
-                    {emp.nombre} {emp.apellido}{emp.cargo ? ` — ${emp.cargo}` : ""}
+                    {emp.nombre} {emp.apellido}{emp.cuitDni ? ` - ${emp.cuitDni}` : ""}{emp.cargo ? ` — ${emp.cargo}` : ""}
                   </option>
                 ))}
               </select>
