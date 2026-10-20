@@ -16,6 +16,8 @@ type MultiSelectProps = {
   // Nombre en plural para el resumen: "3 donantes"
   pluralLabel?: string
   searchPlaceholder?: string
+  // Selección única: elegir una opción reemplaza a la anterior y cierra la lista
+  single?: boolean
   className?: string
   "aria-label"?: string
 }
@@ -23,7 +25,7 @@ type MultiSelectProps = {
 // Selector múltiple con buscador, pensado para listas largas (cientos de donantes).
 export function MultiSelect({
   options, value, onChange, placeholder = "Todos", pluralLabel = "seleccionados",
-  searchPlaceholder = "Buscar…", className, ...props
+  searchPlaceholder = "Buscar…", single = false, className, ...props
 }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState("")
@@ -35,6 +37,12 @@ export function MultiSelect({
   }, [options, query])
 
   function alternar(v: number) {
+    if (single) {
+      onChange(seleccion.has(v) ? [] : [v])
+      setOpen(false)
+      setQuery("")
+      return
+    }
     onChange(seleccion.has(v) ? value.filter(x => x !== v) : [...value, v])
   }
 
@@ -74,7 +82,7 @@ export function MultiSelect({
           />
         </div>
 
-        <ul className="max-h-60 overflow-y-auto" role="listbox" aria-multiselectable="true">
+        <ul className="max-h-60 overflow-y-auto" role="listbox" aria-multiselectable={!single}>
           {filtradas.length === 0 ? (
             <li className="px-2 py-3 text-center text-xs text-muted-foreground">Sin resultados</li>
           ) : filtradas.map(o => {
