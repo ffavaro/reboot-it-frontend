@@ -16,6 +16,13 @@ export interface Empleado {
   rol: Rol
 }
 
+// Ficha de transportista que se crea junto con el empleado cuando su rol es Transportista
+export interface DatosTransportistaPayload {
+  vehiculoId: number
+  carnetUrl: string
+  carnetVencimiento: string
+}
+
 export interface CreateEmpleadoPayload {
   rolId: number
   nombre: string
@@ -27,6 +34,7 @@ export interface CreateEmpleadoPayload {
   cargo?: string
   tieneCarnet?: boolean
   fotoUrl?: string
+  transportista?: DatosTransportistaPayload
   // El alta crea también el usuario del empleado con este email y contraseña
   email: string
   password: string
@@ -43,6 +51,8 @@ export interface UpdateEmpleadoPayload {
   cargo?: string | null
   tieneCarnet?: boolean
   fotoUrl?: string
+  // Solo al pasar el empleado al rol Transportista
+  transportista?: DatosTransportistaPayload
 }
 
 export interface Usuario  {

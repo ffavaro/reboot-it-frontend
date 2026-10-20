@@ -2,6 +2,8 @@
 import { Plus, RotateCcw, UserRound } from "lucide-react"
 
 import { useEffect, useState } from "react"
+import { DatePicker } from "@/components/ui/date-picker"
+import { useVehiculos } from "@/hooks/use-vehicles"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -153,6 +155,12 @@ export default function EmployeePage() {
   const [editing, setEditing] = useState<Empleado | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  // Datos de transportista (solo si el rol elegido es Transportista): vehículo y carnet de conducir
+  const { vehiculos } = useVehiculos()
+  const [transp, setTransp] = useState({ vehiculoId: "", carnetVencimiento: "" })
+  const [carnetFile, setCarnetFile] = useState<File | null>(null)
+  const [transpErrors, setTranspErrors] = useState<{ vehiculoId?: string; carnetVencimiento?: string; carnet?: string }>({})
+
   // Foto tipo carnet (opcional): archivo elegido y su vista previa
   const [fotoFile, setFotoFile] = useState<File | null>(null)
   const [fotoPreview, setFotoPreview] = useState<string | null>(null)
@@ -163,6 +171,27 @@ export default function EmployeePage() {
     setFotoPreview(url)
     return () => URL.revokeObjectURL(url)
   }, [fotoFile])
+
+  const rolElegido = roles.find((r) => String(r.id) === String(form.rolId))
+  const esRolTransportista = (rolElegido?.nombre ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === "transportista"
+  // Se piden vehículo y carnet al dar de alta a un transportista o al pasar un empleado a ese rol
+  const pideTransportista = esRolTransportista && (!editing || form.rolId !== editing.rolId)
+  // Un transportista necesita carnet: se marca solo y no se puede quitar
+  const tieneCarnetEfectivo = form.tieneCarnet || pideTransportista
+
+  function elegirCarnet(file: File | undefined) {
+    if (!file) return
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+      setTranspErrors((e) => ({ ...e, carnet: "El carnet debe ser una imagen JPG, PNG o WEBP" }))
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setTranspErrors((e) => ({ ...e, carnet: "El carnet no puede superar los 5 MB" }))
+      return
+    }
+    setCarnetFile(file)
+    setTranspErrors((e) => ({ ...e, carnet: undefined }))
+  }
 
   function elegirFoto(file: File | undefined) {
     if (!file) return
@@ -208,6 +237,9 @@ export default function EmployeePage() {
     setForm({ ...EMPTY_FORM, fechaAlta: todayISO() })
     setFotoFile(null)
     setFotoPreview(null)
+    setTransp({ vehiculoId: "", carnetVencimiento: "" })
+    setCarnetFile(null)
+    setTranspErrors({})
     reset()
     setModalOpen(true)
   }
@@ -217,6 +249,9 @@ export default function EmployeePage() {
     setEditing(e)
     setFotoFile(null)
     setFotoPreview(null)
+    setTransp({ vehiculoId: "", carnetVencimiento: "" })
+    setCarnetFile(null)
+    setTranspErrors({})
     setForm({
       rolId: e.rolId,
       nombre: e.nombre,
@@ -239,6 +274,9 @@ export default function EmployeePage() {
     setEditing(e)
     setFotoFile(null)
     setFotoPreview(null)
+    setTransp({ vehiculoId: "", carnetVencimiento: "" })
+    setCarnetFile(null)
+    setTranspErrors({})
     setForm({
       rolId: e.rolId,
       nombre: e.nombre,
@@ -275,10 +313,25 @@ export default function EmployeePage() {
       toast.error("Completá los campos obligatorios marcados en rojo", { toastId: "empleado-incompleto" })
       return
     }
+    if (pideTransportista) {
+      const errores = {
+        vehiculoId: transp.vehiculoId ? undefined : "Seleccioná el vehículo que va a utilizar",
+        carnetVencimiento: transp.carnetVencimiento ? undefined : "Indicá el vencimiento del carnet de conducir",
+        carnet: carnetFile ? undefined : "Subí la foto del carnet de conducir",
+      }
+      setTranspErrors(errores)
+      if (errores.vehiculoId || errores.carnetVencimiento || errores.carnet) {
+        toast.error("Completá los datos del transportista: vehículo y carnet de conducir", { toastId: "transportista-incompleto" })
+        return
+      }
+    }
     try {
       const fotoUrl = fotoFile ? await uploadFoto(fotoFile) : editing?.fotoUrl ?? undefined
+      const datosTransportista = pideTransportista
+        ? { vehiculoId: Number(transp.vehiculoId), carnetUrl: await uploadFoto(carnetFile as File), carnetVencimiento: transp.carnetVencimiento }
+        : undefined
       const payload = {
-        tieneCarnet: form.tieneCarnet,
+        tieneCarnet: tieneCarnetEfectivo,
         ...(fotoUrl ? { fotoUrl } : {}),
         nombre: form.nombre.trim(),
         apellido: form.apellido.trim(),
@@ -290,10 +343,10 @@ export default function EmployeePage() {
       }
       if (editing) {
         // al editar, solo el SysAdmin envía el rol (cambiarlo es exclusivo suyo)
-        await updateEmpleado({ id: editing.id, ...payload, ...(esAdmin ? { rolId: form.rolId } : {}) })
+        await updateEmpleado({ id: editing.id, ...payload, ...(esAdmin ? { rolId: form.rolId } : {}), ...(datosTransportista ? { transportista: datosTransportista } : {}) })
         toast.success("Empleado actualizado")
       } else {
-        await createEmpleado({ ...payload, rolId: form.rolId, email: form.email.trim(), password: form.password })
+        await createEmpleado({ ...payload, rolId: form.rolId, ...(datosTransportista ? { transportista: datosTransportista } : {}), email: form.email.trim(), password: form.password })
         toast.success("Empleado creado")
       }
       await mutate()
@@ -472,13 +525,16 @@ export default function EmployeePage() {
             <label className="flex items-start gap-2 rounded-xl border border-border bg-muted/40 p-3 text-sm">
               <input
                 type="checkbox"
-                checked={form.tieneCarnet}
+                checked={tieneCarnetEfectivo}
+                disabled={pideTransportista}
                 onChange={(e) => set("tieneCarnet", e.target.checked)}
                 className="mt-0.5 h-4 w-4 rounded border-input"
               />
               <span>
                 <span className="font-medium">Tiene carnet de conducir</span>
-                <span className="block text-xs text-muted-foreground">Es necesario para poder asignarlo como transportista.</span>
+                <span className="block text-xs text-muted-foreground">
+                  {pideTransportista ? "Un transportista necesita carnet de conducir." : "Es necesario para poder asignarlo como transportista."}
+                </span>
               </span>
             </label>
 
@@ -508,6 +564,57 @@ export default function EmployeePage() {
             <FechaAltaField value={form.fechaAlta} error={errors.fechaAlta} onChange={set} />
           </div>
         </div>
+
+        {/* Ficha de transportista: vehículo que va a utilizar y carnet de conducir */}
+        {pideTransportista && !isViewing && (
+          <div className="flex flex-col gap-4">
+            <h3 className="border-b border-border pb-1 text-sm font-semibold text-primary">Datos de transportista</h3>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Vehículo que va a utilizar *</label>
+                <select
+                  value={transp.vehiculoId}
+                  onChange={(e) => { setTransp((t) => ({ ...t, vehiculoId: e.target.value })); setTranspErrors((er) => ({ ...er, vehiculoId: undefined })) }}
+                  className={cn(
+                    "w-full rounded-4xl border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0",
+                    transpErrors.vehiculoId ? "border-destructive" : "border-input",
+                  )}
+                >
+                  <option value="">— Seleccionar vehículo —</option>
+                  {vehiculos.map((v) => (
+                    <option key={v.id} value={v.id}>{v.patente} — {v.marca} {v.modelo}</option>
+                  ))}
+                </select>
+                <FieldError>{transpErrors.vehiculoId}</FieldError>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Vencimiento del carnet de conducir *</label>
+                <DatePicker
+                  variant="field"
+                  value={transp.carnetVencimiento}
+                  onChange={(v) => { setTransp((t) => ({ ...t, carnetVencimiento: v })); setTranspErrors((er) => ({ ...er, carnetVencimiento: undefined })) }}
+                  placeholder="Seleccionar fecha"
+                  aria-label="Vencimiento del carnet de conducir"
+                />
+                <FieldError>{transpErrors.carnetVencimiento}</FieldError>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">
+                Foto del carnet de conducir * <span className="text-xs font-normal text-muted-foreground">(jpg, png, webp — máx. 5 MB)</span>
+              </label>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) => elegirCarnet(e.target.files?.[0])}
+                className="text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-input file:bg-transparent file:px-3 file:py-1 file:text-sm file:font-medium cursor-pointer"
+              />
+              {carnetFile && <p className="text-xs text-muted-foreground">Seleccionada: {carnetFile.name}</p>}
+              <FieldError>{transpErrors.carnet}</FieldError>
+            </div>
+            <p className="text-xs text-muted-foreground">Al crear el empleado se registra también como transportista, con este vehículo.</p>
+          </div>
+        )}
 
         {/* Usuario con el que el empleado inicia sesión */}
         <div className="flex flex-col gap-4">
