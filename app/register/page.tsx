@@ -155,7 +155,7 @@ export default function RegisterPage() {
         direccion: formData.direccion.trim() || undefined,
         telefono: formData.telefono.trim() || undefined,
         usuarioId,
-      });
+      }, authResult?.access_token);
       toast.success('Registro exitoso! Por favor, inicia sesión.');
       setFormData(EMPTY_FORM);
       setTouched({});
