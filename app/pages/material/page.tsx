@@ -50,8 +50,11 @@ const TIPO_ALMACENAMIENTO = "almacenamiento"
 const columns: TableColumn<Material>[] = [
   {
     key: "loteId",
-    header: "Lote",
-    cell: (m) => <span className="font-mono text-xs">#{m.loteId}</span>,
+    header: "Donación",
+    cell: (m) =>
+      m.lote?.donacionId != null
+        ? <span className="font-mono text-xs">#{m.lote.donacionId}</span>
+        : <span className="italic text-muted-foreground">—</span>,
   },
   {
     key: "tipoMaterial",
@@ -126,7 +129,7 @@ export default function MaterialPage() {
     const tipo = m.tipoMaterial?.nombre?.toLowerCase() ?? ""
     const condicion = m.condicionMaterial?.condicion?.toLowerCase() ?? ""
     return (
-      String(m.loteId).includes(q) ||
+      String(m.lote?.donacionId ?? "").includes(q) ||
       tipo.includes(q) ||
       condicion.includes(q) ||
       (m.descripcion ?? "").toLowerCase().includes(q)
@@ -322,13 +325,13 @@ export default function MaterialPage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold tracking-tight">Materiales</h1>
         <p className="text-sm text-muted-foreground">
-          Administrá los materiales registrados por lote.
+          Administrá los materiales registrados por donación.
         </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput
-          placeholder="Buscar por lote, tipo, condición o descripción..."
+          placeholder="Buscar por donación, tipo, condición o descripción..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
@@ -361,7 +364,7 @@ export default function MaterialPage() {
         onOpenChange={setModalOpen}
         title={isViewing ? "Ver material" : "Gestionar material"}
         readOnly={isViewing}
-        description={editing ? "Modificá los datos del material." : "Registrá un nuevo material en un lote."}
+        description={editing ? "Modificá los datos del material." : "Registrá un nuevo material de una donación."}
         onSave={handleSave}
         isLoading={isCreating || isClasificando}
         saveLabel={editing ? "Guardar cambios" : "Crear material"}
@@ -513,7 +516,7 @@ export default function MaterialPage() {
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">
-            Lote <span className="text-muted-foreground font-normal">(opcional)</span>
+            Donación <span className="text-muted-foreground font-normal">(opcional)</span>
           </label>
           <div className="flex gap-2">
             <select
@@ -522,10 +525,10 @@ export default function MaterialPage() {
               disabled={isViewing}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
             >
-              <option value="">Sin lote asignado</option>
+              <option value="">Sin donación asignada</option>
               {lotes.map((l: Lote) => (
                 <option key={l.id} value={l.id}>
-                  #{l.id} — Donación #{l.donacionId}
+                  Donación #{l.donacionId}
                   {l.pesoBrutoKg ? ` (${l.pesoBrutoKg} kg)` : ""}
                 </option>
               ))}
@@ -535,7 +538,7 @@ export default function MaterialPage() {
                 type="button"
                 variant="outline"
                 size="icon"
-                title="No está en la lista: crear nuevo lote"
+                title="No está en la lista: asociar una donación nueva"
                 onClick={openQuickLote}
               >
                 <Plus className="h-4 w-4" />
