@@ -271,7 +271,10 @@ export default function EmployeePage() {
         email: [required("el email"), emailFormat(), maxLengthValidator(EMAIL_MAX)],
         password: [required("la contraseña"), minLength(PASSWORD_MIN), maxLengthValidator(PASSWORD_MAX)],
       } : {}),
-    })) return
+    })) {
+      toast.error("Completá los campos obligatorios marcados en rojo", { toastId: "empleado-incompleto" })
+      return
+    }
     try {
       const fotoUrl = fotoFile ? await uploadFoto(fotoFile) : editing?.fotoUrl ?? undefined
       const payload = {
@@ -313,10 +316,6 @@ export default function EmployeePage() {
   // Usuario que quedó vinculado al empleado al crearlo (se muestra al ver o editar)
   const usuarioAsociado = editing ? usuarios.find((u) => String(u.empleadoId) === String(editing.id)) : undefined
 
-  const canSave =
-    !!form.nombre.trim() && !!form.apellido.trim() && form.rolId !== 0 &&
-    !!form.cuitDni && !!form.fechaAlta && !!form.direccion.trim() && form.telefono.trim().length >= 6 &&
-    (!!editing || (!!form.email.trim() && form.password.length >= PASSWORD_MIN))
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -384,7 +383,6 @@ export default function EmployeePage() {
         }
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
-        saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear empleado"}
       >
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
