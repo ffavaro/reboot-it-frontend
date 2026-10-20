@@ -28,3 +28,17 @@ export interface UpdateCertificadoDisposicionPayload {
   gestorAmbientalId?: number
   terminosCondiciones?: string | null
 }
+
+// Datos del certificado para generar su PDF
+export interface CertificadoDisposicionDatos {
+  certificadoId: number
+  numeroCertificado: string | null
+  fechaEmision: string | null
+  terminosCondiciones: string | null
+  loteId: number
+  pesoBrutoKg: number | string | null
+  donacionId: number | null
+  donante: { nombre: string; razonSocial: string | null; telefono: string | null; direccion: string | null }
+  gestor: { razonSocial: string; cuit: string | null; habilitacion: string | null; contacto: string | null } | null
+  materiales: { tipo: string; condicion: string; cantidad: number }[]
+}

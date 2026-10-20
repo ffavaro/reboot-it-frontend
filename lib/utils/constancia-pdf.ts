@@ -24,7 +24,7 @@ export function descargarConstanciaPdf(c: ConstanciaRetiroDatos) {
   doc.setFontSize(10)
   doc.setFont("helvetica", "normal")
   doc.setTextColor(100)
-  doc.text("RebootIT", ancho / 2, 29, { align: "center" })
+  doc.text("Reboot IT", ancho / 2, 29, { align: "center" })
   doc.setTextColor(0)
   doc.text(`N° ${nroConstancia}`, 14, 40)
   doc.text(`Fecha de emisión: ${fecha(c.fechaEmision)}`, ancho - 14, 40, { align: "right" })

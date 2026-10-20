@@ -28,6 +28,8 @@ import { formatDate, getErrorMessage } from "@/lib/utils/helpers"
 import { DataTable, type TableColumn } from "@/components/ui/data-table"
 import { getUser } from "@/lib/auth-utils"
 import { uploadFoto } from "@/lib/api/client"
+import { certificadoDisposicionApi } from "@/lib/api/certificado-disposicion"
+import { descargarCertificadoPdf } from "@/lib/utils/certificado-pdf"
 
 const EMPTY_FORM = {
   loteId: "",
@@ -245,6 +247,15 @@ export default function CertificadoDisposicionPage() {
     }
   }
 
+  // El PDF se arma al descargar con los datos del certificado (no se guarda en el servidor)
+  async function descargarPdf(id: number) {
+    try {
+      descargarCertificadoPdf(await certificadoDisposicionApi.datos(id))
+    } catch (error) {
+      toast.error(getErrorMessage(error, "No se pudo descargar el certificado"))
+    }
+  }
+
   async function handleDelete(id: number | string) {
     try {
       await deleteCertificado(Number(id))
@@ -287,6 +298,7 @@ export default function CertificadoDisposicionPage() {
       <DataTable
         data={filtered}
         columns={columns}
+        onDownload={(c) => descargarPdf(c.id)}
         isLoading={isLoading}
         loadingText="Cargando certificados..."
         emptyText="No hay certificados de disposición registrados."

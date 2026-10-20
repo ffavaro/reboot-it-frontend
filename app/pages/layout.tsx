@@ -65,7 +65,7 @@ export default function RootLayout({
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem>
-                    <BreadcrumbPage className="text-sm font-medium tracking-tight text-white">RebootIT</BreadcrumbPage>
+                    <BreadcrumbPage className="text-sm font-medium tracking-tight text-white">Reboot IT</BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>

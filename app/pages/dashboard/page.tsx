@@ -408,7 +408,7 @@ export default function DashboardPage() {
       {/* Toolbar global */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
         <div>
-          <h1 className="text-xl font-medium text-foreground">RebootIT Analytics</h1>
+          <h1 className="text-xl font-medium text-foreground">Reboot IT Analytics</h1>
           <p className="text-sm text-muted-foreground">Panel de control operativo — {rango.label}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
