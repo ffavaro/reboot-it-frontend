@@ -31,6 +31,12 @@ export interface Donacion {
   detalles?: DonacionDetalle[]
 }
 
+// Respuesta de crear una donación: incluye el turno que se generó junto con ella
+export interface DonacionCreada extends Donacion {
+  turno: { id: number; fechaHora: string }
+  loteId: number
+}
+
 export interface CreateDetallePayload {
   tipoMaterialId: number
   condicionMaterialId: number
@@ -45,6 +51,8 @@ export interface CreateDonacionPayload {
   direccionRetiro?: string
   pesoEstimadoKg?: number
   descripcion?: string
+  // URLs de fotos opcionales de los materiales (hasta 5)
+  fotosUrls?: string[]
   detalles?: CreateDetallePayload[]
 }
 

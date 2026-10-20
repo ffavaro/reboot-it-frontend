@@ -1,4 +1,4 @@
-import type { Donacion, CreateDonacionPayload, UpdateDonacionPayload, ReporteDonacion, ReporteDonacionQuery } from "@/lib/type/donacion"
+import type { Donacion, DonacionCreada, CreateDonacionPayload, UpdateDonacionPayload, ReporteDonacion, ReporteDonacionQuery } from "@/lib/type/donacion"
 import { request } from "./client"
 
 export const donacionApi = {
@@ -14,7 +14,7 @@ export const donacionApi = {
   },
 
   create: (data: CreateDonacionPayload) =>
-    request<Donacion>("/donacion", { method: "POST", body: JSON.stringify(data) }),
+    request<DonacionCreada>("/donacion", { method: "POST", body: JSON.stringify(data) }),
 
   update: (id: number, data: UpdateDonacionPayload) =>
     request<Donacion>(`/donacion/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
