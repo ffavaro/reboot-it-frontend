@@ -22,6 +22,9 @@ export interface CreateEmpleadoPayload {
   direccion: string
   telefono?: string
   cargo?: string
+  // El alta crea también el usuario del empleado con este email y contraseña
+  email: string
+  password: string
 }
 
 export interface UpdateEmpleadoPayload {
@@ -38,6 +41,8 @@ export interface UpdateEmpleadoPayload {
 export interface Usuario  {
   id: string
   nombre: string
+  apellido?: string | null
+  cuitDni?: string | null
   email: string
   rol: Rol
   empleadoId?: string | null
@@ -46,6 +51,8 @@ export interface Usuario  {
 
 export interface CreateUsuarioPayload {
   nombre: string
+  apellido?: string
+  cuitDni?: string
   email: string
   rolId: number
   password?: string
@@ -53,6 +60,9 @@ export interface CreateUsuarioPayload {
 }
 
 export interface UpdateUsuarioPayload {
+  nombre?: string
+  apellido?: string
+  cuitDni?: string
   rolId?: number
   empleadoId?: number | null
 }

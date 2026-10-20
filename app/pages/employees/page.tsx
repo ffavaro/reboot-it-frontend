@@ -18,12 +18,18 @@ import {
   useDeleteEmpleado,
 } from "@/hooks/use-employees"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import { required, requiredSelect, maxLength as maxLengthValidator, dniOCuit, notFutureDate } from "@/lib/form-validators"
+import { required, requiredSelect, maxLength as maxLengthValidator, dniOCuit, notFutureDate, emailFormat, minLength } from "@/lib/form-validators"
 import { CuitDniField, DireccionField, FechaAltaField, DIRECCION_MAX } from "@/components/empleado-fields"
 import { formatFechaISO, getErrorMessage, todayISO } from "@/lib/utils/helpers"
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { Empleado } from "@/lib/type/user"
 import type { TableColumn } from "@/components/ui/data-table"
+import { useUsuarios } from "@/hooks/use-users"
+
+// Límites del usuario que se crea junto con el empleado
+const EMAIL_MAX = 100
+const PASSWORD_MIN = 6
+const PASSWORD_MAX = 12
 
 const EMPTY_FORM = {
   rolId: 0,
@@ -34,6 +40,8 @@ const EMPTY_FORM = {
   direccion: "",
   telefono: "",
   cargo: "",
+  email: "",
+  password: "",
 }
 
 function AvatarInitials({ nombre, apellido }: { nombre: string; apellido: string }) {
@@ -105,6 +113,7 @@ const COLUMNS: TableColumn<Empleado>[] = [
 
 export default function EmployeePage() {
   const { empleados, isLoading, mutate } = useEmpleadosFull()
+  const { usuarios } = useUsuarios()
   const { roles } = useRoles()
   const { createEmpleado, isLoading: isCreating } = useCreateEmpleado()
   const { updateEmpleado, isLoading: isUpdating } = useUpdateEmpleado()
@@ -150,6 +159,8 @@ export default function EmployeePage() {
       direccion: e.direccion ?? "",
       telefono: e.telefono ?? "",
       cargo: e.cargo ?? "",
+      email: "",
+      password: "",
     })
     reset()
     setModalOpen(true)
@@ -167,6 +178,8 @@ export default function EmployeePage() {
       direccion: e.direccion ?? "",
       telefono: e.telefono ?? "",
       cargo: e.cargo ?? "",
+      email: "",
+      password: "",
     })
     reset()
     setModalOpen(true)
@@ -181,6 +194,11 @@ export default function EmployeePage() {
       cuitDni: [required("el CUIT/DNI"), dniOCuit()],
       fechaAlta: [required("la fecha de alta"), notFutureDate("La fecha de alta")],
       direccion: [required("la dirección"), maxLengthValidator(DIRECCION_MAX)],
+      // el usuario se crea junto con el empleado, así que email y contraseña solo se piden al crear
+      ...(!editing ? {
+        email: [required("el email"), emailFormat(), maxLengthValidator(EMAIL_MAX)],
+        password: [required("la contraseña"), minLength(PASSWORD_MIN), maxLengthValidator(PASSWORD_MAX)],
+      } : {}),
     })) return
     try {
       const payload = {
@@ -197,7 +215,7 @@ export default function EmployeePage() {
         await updateEmpleado({ id: editing.id, ...payload })
         toast.success("Empleado actualizado")
       } else {
-        await createEmpleado(payload)
+        await createEmpleado({ ...payload, email: form.email.trim(), password: form.password })
         toast.success("Empleado creado")
       }
       await mutate()
@@ -217,9 +235,13 @@ export default function EmployeePage() {
     }
   }
 
+  // Usuario que quedó vinculado al empleado al crearlo (se muestra al ver o editar)
+  const usuarioAsociado = editing ? usuarios.find((u) => String(u.empleadoId) === String(editing.id)) : undefined
+
   const canSave =
     !!form.nombre.trim() && !!form.apellido.trim() && form.rolId !== 0 &&
-    !!form.cuitDni && !!form.fechaAlta && !!form.direccion.trim()
+    !!form.cuitDni && !!form.fechaAlta && !!form.direccion.trim() &&
+    (!!editing || (!!form.email.trim() && form.password.length >= PASSWORD_MIN))
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -360,6 +382,51 @@ export default function EmployeePage() {
             {/* Por defecto, la fecha del día en curso; se puede cambiar */}
             <FechaAltaField value={form.fechaAlta} error={errors.fechaAlta} onChange={set} />
           </div>
+        </div>
+
+        {/* Usuario con el que el empleado inicia sesión */}
+        <div className="flex flex-col gap-4">
+          <h3 className="border-b border-border pb-1 text-sm font-semibold text-primary">Usuario</h3>
+          {editing ? (
+            <div className="flex flex-col gap-1 rounded-xl border border-border bg-muted/40 p-4">
+              <p className="text-xs text-muted-foreground">Usuario asociado</p>
+              <p className="text-sm font-medium">
+                {usuarioAsociado ? usuarioAsociado.email : <span className="italic font-normal text-muted-foreground">Sin usuario asociado</span>}
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium">Email *</label>
+                  <Input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => set("email", enforceMaxLength(e.target.value, EMAIL_MAX, "El email"))}
+                    placeholder="juan.perez@empresa.com"
+                    className={cn(errors.email && "border-destructive focus-visible:ring-destructive")}
+                  />
+                  <FieldError>{errors.email}</FieldError>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium">
+                    Contraseña * <span className="text-muted-foreground font-normal">({PASSWORD_MIN} a {PASSWORD_MAX} caracteres)</span>
+                  </label>
+                  <Input
+                    type="password"
+                    value={form.password}
+                    onChange={(e) => set("password", enforceMaxLength(e.target.value, PASSWORD_MAX, "La contraseña"))}
+                    placeholder="••••••••"
+                    className={cn(errors.password && "border-destructive focus-visible:ring-destructive")}
+                  />
+                  <FieldError>{errors.password}</FieldError>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Al crear el empleado se crea automáticamente su usuario, con su mismo nombre, apellido, CUIT/DNI y rol.
+              </p>
+            </>
+          )}
         </div>
       </FormModal>
     </div>
