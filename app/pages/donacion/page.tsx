@@ -27,12 +27,14 @@ import type { CondicionMaterial } from "@/lib/type/condicion-material"
 import type { Turno } from "@/lib/type/turno"
 import { getUser } from "@/lib/auth-utils"
 import { enforceDecimalInput } from "@/lib/utils/number-limit"
+import { formatPeso, getErrorMessage } from "@/lib/utils/helpers"
 import { CONDICION_MATERIAL, esCondicion } from "@/lib/constants/estados"
 
 const EMPTY_FORM = { donanteId: "", fechaHora: "", estadoDonacionId: "", descripcion: "" }
 const EMPTY_DETALLE = { tipoMaterialId: "", condicionMaterialId: "", cantidadEstimada: "" }
 type DetalleRow = typeof EMPTY_DETALLE
-const PESO_ESTIMADO_MAX_DIGITS = 3
+const PESO_ESTIMADO_MAX_DIGITS = 7
+const CANTIDAD_MAX_DIGITS = 6
 
 const MESES_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -235,7 +237,7 @@ export default function DonacionPage() {
     setNecesitaRetiro(d.necesitaRetiro ?? false)
     setUsarOtraDireccion(!!d.direccionRetiro)
     setDireccionRetiro(d.direccionRetiro ?? "")
-    setPesoEstimadoKg(d.pesoEstimadoKg != null ? String(d.pesoEstimadoKg) : "")
+    setPesoEstimadoKg(formatPeso(d.pesoEstimadoKg))
     setForm({
       donanteId: String(d.donanteId),
       fechaHora: "",
@@ -260,7 +262,7 @@ export default function DonacionPage() {
     setNecesitaRetiro(d.necesitaRetiro ?? false)
     setUsarOtraDireccion(!!d.direccionRetiro)
     setDireccionRetiro(d.direccionRetiro ?? "")
-    setPesoEstimadoKg(d.pesoEstimadoKg != null ? String(d.pesoEstimadoKg) : "")
+    setPesoEstimadoKg(formatPeso(d.pesoEstimadoKg))
     setForm({
       donanteId: String(d.donanteId),
       fechaHora: "",
@@ -292,6 +294,15 @@ export default function DonacionPage() {
     setDetalles((prev) => prev.map((d, i) => (i === idx ? { ...d, [field]: value } : d)))
   }
 
+  // La cantidad son unidades: solo dígitos, sin coma, punto ni signo
+  function updateCantidad(idx: number, value: string) {
+    const soloDigitos = value.replace(/[^0-9]/g, "").slice(0, CANTIDAD_MAX_DIGITS)
+    if (soloDigitos !== value) {
+      toast.error("La cantidad debe ser un número entero, sin coma ni punto", { toastId: "cantidad-entera" })
+    }
+    updateDetalleField(idx, "cantidadEstimada", soloDigitos)
+  }
+
   async function handleSave() {
     if (!form.donanteId) {
       toast.error("El donante es obligatorio")
@@ -309,6 +320,14 @@ export default function DonacionPage() {
       toast.error("Seleccioná el tipo de material para cada ítem")
       return
     }
+    if (detalles.some((d) => d.cantidadEstimada !== "" && !/^[1-9][0-9]*$/.test(d.cantidadEstimada))) {
+      toast.error("La cantidad de cada material debe ser un número entero mayor a 0")
+      return
+    }
+    if (detalles.some((d) => !d.condicionMaterialId) && !condicionADefinir) {
+      toast.error("No se pudo determinar la condición del material. Recargá la página e intentá de nuevo")
+      return
+    }
     if (necesitaRetiro && usarOtraDireccion && !direccionRetiro.trim()) {
       toast.error("Ingresá la dirección donde se realizará el retiro")
       return
@@ -320,7 +339,7 @@ export default function DonacionPage() {
 
     const detallesPayload = detalles.map((d) => ({
       tipoMaterialId: Number(d.tipoMaterialId),
-      condicionMaterialId: Number(d.condicionMaterialId),
+      condicionMaterialId: Number(d.condicionMaterialId || condicionADefinir?.id),
       cantidadEstimada: d.cantidadEstimada ? Number(d.cantidadEstimada) : undefined,
     }))
 
@@ -358,8 +377,7 @@ export default function DonacionPage() {
       await mutate()
       setSheetOpen(false)
     } catch (err: unknown) {
-      const msg = (err as { message?: string })?.message
-      toast.error(msg ?? "Error al guardar la donación")
+      toast.error(getErrorMessage(err, "Error al guardar la donación"))
     }
   }
 
@@ -736,20 +754,6 @@ export default function DonacionPage() {
                     onChange={(e) => setDireccionRetiro(e.target.value)}
                   />
                 )}
-                <div className="flex flex-col gap-1.5 pt-1">
-                  <label className="text-xs font-medium">
-                    Peso estimado de la donación (kg) *
-                  </label>
-                  <Input
-                    inputMode="decimal"
-                    placeholder="Ej: 25.50"
-                    value={pesoEstimadoKg}
-                    onChange={(e) => setPesoEstimadoKg(enforceDecimalInput(e.target.value, PESO_ESTIMADO_MAX_DIGITS, "El peso estimado"))}
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Se usa para asignar un transportista cuyo vehículo soporte esta carga.
-                  </p>
-                </div>
               </div>
             )}
           </div>
@@ -799,11 +803,10 @@ export default function DonacionPage() {
                         </td>
                         <td className="px-2 py-1.5">
                           <Input
-                            type="number"
-                            min={1}
+                            inputMode="numeric"
                             placeholder="—"
                             value={det.cantidadEstimada}
-                            onChange={(e) => updateDetalleField(idx, "cantidadEstimada", e.target.value)}
+                            onChange={(e) => updateCantidad(idx, e.target.value)}
                             className="h-8 text-xs"
                           />
                         </td>
@@ -834,6 +837,24 @@ export default function DonacionPage() {
               </div>
             )}
           </div>
+
+          {/* Peso estimado: se pide al final, con todos los materiales ya cargados */}
+          {necesitaRetiro && (
+            <div className="flex flex-col gap-1.5 rounded-md border px-3 py-2.5">
+              <label className="text-sm font-medium">
+                Peso estimado de la donación (kg) *
+              </label>
+              <Input
+                inputMode="decimal"
+                placeholder="Ej: 25.50"
+                value={pesoEstimadoKg}
+                onChange={(e) => setPesoEstimadoKg(enforceDecimalInput(e.target.value, PESO_ESTIMADO_MAX_DIGITS, "El peso estimado"))}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Se usa para asignar un transportista cuyo vehículo soporte esta carga.
+              </p>
+            </div>
+          )}
 
         </div>
       </FormModal>
