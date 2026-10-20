@@ -37,10 +37,11 @@ import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import { getUser } from "@/lib/auth-utils"
 import type { TokenPayload } from "@/lib/auth-utils"
 import { formatDateTime, getTransportistaActual } from "@/lib/utils/helpers"
+import { ESTADO_TURNO } from "@/lib/constants/estados"
 
 const EMPTY_FORM = { donanteId: "", estadoTurnoId: "", fechaHora: "", descripcion: "" }
 const EMPTY_ASIGNAR = { empleadoId: "", empleadoTransportistaId: "" }
-const ESTADO_RETIRO_CONFIRMADO = "retiro confirmado"
+const ESTADO_RETIRO_CONFIRMADO = ESTADO_TURNO.RETIRO_CONFIRMADO.toLowerCase()
 
 const MESES_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
 const DIAS_CAL = ["Lu","Ma","Mi","Ju","Vi"]
@@ -600,7 +601,7 @@ export default function TurnoPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={isViewing ? "Ver turno" : editing ? "Editar turno" : "Nuevo turno"}
+        title={isViewing ? "Ver turno" : "Gestionar turno"}
         readOnly={isViewing}
         description={editing ? "Modificá los datos del turno." : "Registrá un nuevo turno para un donante."}
         onSave={handleSave}

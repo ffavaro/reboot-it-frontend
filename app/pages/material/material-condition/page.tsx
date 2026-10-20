@@ -184,7 +184,7 @@ export default function CondicionMaterialPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={isViewing ? "Ver condición de material" : editing ? "Editar condición" : "Nueva condición de material"}
+        title={isViewing ? "Ver condición de material" : "Gestionar condición de material"}
         readOnly={isViewing}
         description={
           editing

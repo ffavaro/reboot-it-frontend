@@ -1,10 +1,11 @@
 "use client"
-import { Plus } from "lucide-react"
+import { Plus, History } from "lucide-react"
+import Link from "next/link"
 
 import { useState } from "react"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
@@ -22,10 +23,13 @@ import {
   useDeleteTipoVehiculo,
 } from "@/hooks/use-vehicles"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import { required, requiredSelect, maxLength as maxLengthValidator, positiveNumber, maxDigits } from "@/lib/form-validators"
+import { required, requiredSelect, maxLength as maxLengthValidator, positiveNumber, maxDigits, integerNonNegative } from "@/lib/form-validators"
 import { enforceMaxLength } from "@/lib/utils/text-limit"
 import { enforceDecimalInput } from "@/lib/utils/number-limit"
 import type { Vehiculo, TipoVehiculo } from "@/lib/type/vehicle"
+import { VehiculoInfoFields } from "@/components/vehiculo-fields"
+import { VigenciaBadge } from "@/components/ui/vigencia-badge"
+import { formatFechaISO, formatPeso, getErrorMessage } from "@/lib/utils/helpers"
 
 type Tab = "vehiculos" | "tipos"
 
@@ -33,12 +37,24 @@ const DESCRIPCION_MAX = 35
 const PESO_MINIMO_MAX_DIGITS = 2
 const PESO_MAXIMO_MAX_DIGITS = 3
 
-const EMPTY_VEHICULO = { tipoVehiculoId: 0, patente: "", marca: "", modelo: "" }
+const EMPTY_VEHICULO = { tipoVehiculoId: 0, patente: "", marca: "", modelo: "", itvVencimiento: "", kilometraje: "", tipoCombustible: "" }
 const EMPTY_TIPO = { descripcion: "", pesoMinimo: "", pesoMaximo: "" }
 
 // ---------------------------------------------------------------------------
 // Vehículos tab
 // ---------------------------------------------------------------------------
+
+function vehiculoToForm(v: Vehiculo) {
+  return {
+    tipoVehiculoId: v.tipoVehiculoId,
+    patente: v.patente,
+    marca: v.marca,
+    modelo: v.modelo,
+    itvVencimiento: v.itvVencimiento ? v.itvVencimiento.slice(0, 10) : "",
+    kilometraje: v.kilometraje != null ? String(v.kilometraje) : "",
+    tipoCombustible: v.tipoCombustible ?? "",
+  }
+}
 
 const vehiculoColumns: TableColumn<Vehiculo>[] = [
   {
@@ -64,6 +80,34 @@ const vehiculoColumns: TableColumn<Vehiculo>[] = [
         {v.tipoVehiculo?.descripcion ?? "—"}
       </span>
     ),
+  },
+  {
+    key: "tipoCombustible",
+    header: "Combustible",
+    cell: (v) => v.tipoCombustible ?? <span className="italic text-muted-foreground">—</span>,
+  },
+  {
+    key: "kilometraje",
+    header: "Kilometraje",
+    cell: (v) =>
+      v.kilometraje != null ? (
+        <span className="tabular-nums">{v.kilometraje.toLocaleString("es-AR")} km</span>
+      ) : (
+        <span className="italic text-muted-foreground">—</span>
+      ),
+  },
+  {
+    key: "itvVencimiento",
+    header: "Venc. ITV",
+    cell: (v) =>
+      v.itvVencimiento ? (
+        <span className="inline-flex items-center gap-2">
+          <span className="text-muted-foreground tabular-nums">{formatFechaISO(v.itvVencimiento)}</span>
+          <VigenciaBadge fecha={v.itvVencimiento} />
+        </span>
+      ) : (
+        <span className="italic text-muted-foreground">—</span>
+      ),
   },
 ]
 
@@ -114,7 +158,7 @@ function VehiculosTab() {
   function openEdit(v: Vehiculo) {
     setIsViewing(false)
     setEditing(v)
-    setForm({ tipoVehiculoId: v.tipoVehiculoId, patente: v.patente, marca: v.marca, modelo: v.modelo })
+    setForm(vehiculoToForm(v))
     reset()
     setModalOpen(true)
   }
@@ -122,7 +166,7 @@ function VehiculosTab() {
   function openView(v: Vehiculo) {
     setIsViewing(true)
     setEditing(v)
-    setForm({ tipoVehiculoId: v.tipoVehiculoId, patente: v.patente, marca: v.marca, modelo: v.modelo })
+    setForm(vehiculoToForm(v))
     reset()
     setModalOpen(true)
   }
@@ -133,19 +177,27 @@ function VehiculosTab() {
       marca: [required("la marca")],
       modelo: [required("el modelo")],
       tipoVehiculoId: [requiredSelect("un tipo de vehículo")],
+      tipoCombustible: [requiredSelect("el tipo de combustible")],
+      kilometraje: [required("el kilometraje"), integerNonNegative()],
+      itvVencimiento: [required("el vencimiento de la ITV")],
     })) return
     try {
+      const payload = {
+        ...form,
+        patente: form.patente.trim(),
+        kilometraje: Number(form.kilometraje),
+      }
       if (editing) {
-        await updateVehiculo({ id: editing.id, ...form })
+        await updateVehiculo({ id: editing.id, ...payload })
         toast.success("Vehículo actualizado")
       } else {
-        await createVehiculo(form)
+        await createVehiculo(payload)
         toast.success("Vehículo creado")
       }
       await mutate()
       setModalOpen(false)
-    } catch {
-      toast.error("Error al guardar el vehículo")
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Error al guardar el vehículo"))
     }
   }
 
@@ -228,7 +280,7 @@ function VehiculosTab() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={isViewing ? "Ver vehículo" : editing ? "Editar vehículo" : "Nuevo vehículo"}
+        title={isViewing ? "Ver vehículo" : "Gestionar vehículo"}
         readOnly={isViewing}
         description={
           editing
@@ -238,6 +290,17 @@ function VehiculosTab() {
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
         saveLabel={editing ? "Guardar cambios" : "Crear vehículo"}
+        footerActions={
+          editing ? (
+            <Link
+              href={`/pages/vehicles/historial-km?vehiculoId=${editing.id}`}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              <History className="h-4 w-4" />
+              Ver historial de km
+            </Link>
+          ) : undefined
+        }
       >
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Patente</label>
@@ -308,13 +371,19 @@ function VehiculosTab() {
           </div>
           <FieldError>{errors.tipoVehiculoId}</FieldError>
         </div>
+
+        <VehiculoInfoFields
+          values={form}
+          errors={errors}
+          onChange={(field, value) => set(field, value)}
+        />
       </FormModal>
 
       {/* Alta rápida de tipo de vehículo */}
       <FormModal
         open={quickTipoOpen}
         onOpenChange={setQuickTipoOpen}
-        title="Nuevo tipo de vehículo"
+        title="Gestionar tipo de vehículo"
         description="Cargá los datos del tipo para asociarlo al vehículo."
         onSave={handleSaveQuickTipo}
         isLoading={isCreatingTipo}
@@ -397,7 +466,7 @@ const tipoVehiculoColumns: TableColumn<TipoVehiculo>[] = [
     header: "Peso mínimo (kg)",
     cell: (t) => (
       <span className="text-muted-foreground">
-        {t.pesoMinimo ?? <span className="italic">—</span>}
+        {t.pesoMinimo != null ? formatPeso(t.pesoMinimo) : <span className="italic">—</span>}
       </span>
     ),
   },
@@ -406,7 +475,7 @@ const tipoVehiculoColumns: TableColumn<TipoVehiculo>[] = [
     header: "Peso máximo (kg)",
     cell: (t) => (
       <span className="text-muted-foreground">
-        {t.pesoMaximo ?? <span className="italic">—</span>}
+        {t.pesoMaximo != null ? formatPeso(t.pesoMaximo) : <span className="italic">—</span>}
       </span>
     ),
   },
@@ -437,8 +506,8 @@ function TiposTab() {
     setEditing(t)
     setForm({
       descripcion: t.descripcion,
-      pesoMinimo: t.pesoMinimo != null ? String(t.pesoMinimo) : "",
-      pesoMaximo: t.pesoMaximo != null ? String(t.pesoMaximo) : "",
+      pesoMinimo: formatPeso(t.pesoMinimo),
+      pesoMaximo: formatPeso(t.pesoMaximo),
     })
     reset()
     setModalOpen(true)
@@ -449,8 +518,8 @@ function TiposTab() {
     setEditing(t)
     setForm({
       descripcion: t.descripcion,
-      pesoMinimo: t.pesoMinimo != null ? String(t.pesoMinimo) : "",
-      pesoMaximo: t.pesoMaximo != null ? String(t.pesoMaximo) : "",
+      pesoMinimo: formatPeso(t.pesoMinimo),
+      pesoMaximo: formatPeso(t.pesoMaximo),
     })
     reset()
     setModalOpen(true)
@@ -526,7 +595,7 @@ function TiposTab() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={isViewing ? "Ver tipo de vehículo" : editing ? "Editar tipo" : "Nuevo tipo de vehículo"}
+        title={isViewing ? "Ver tipo de vehículo" : "Gestionar tipo de vehículo"}
         readOnly={isViewing}
         description={
           editing

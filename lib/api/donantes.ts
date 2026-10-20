@@ -4,8 +4,9 @@ import { request } from "./client"
 export const donantesApi = {
   getAll: () => request<Donante[]>("/donantes"),
 
-  create: (data: CreateDonantePayload) =>
-    request<Donante>("/donantes", { method: "POST", body: JSON.stringify(data) }),
+  // token: el registro crea el donante con el token del usuario recién creado (todavía sin sesión)
+  create: (data: CreateDonantePayload, token?: string) =>
+    request<Donante>("/donantes", { method: "POST", body: JSON.stringify(data), token }),
 
   update: (id: number, data: UpdateDonantePayload) =>
     request<Donante>(`/donantes/${id}`, { method: "PATCH", body: JSON.stringify(data) }),

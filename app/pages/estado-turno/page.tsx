@@ -156,7 +156,7 @@ export default function EstadoTurnoPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={isViewing ? "Ver estado de turno" : editing ? "Editar estado de turno" : "Nuevo estado de turno"}
+        title={isViewing ? "Ver estado de turno" : "Gestionar estado de turno"}
         readOnly={isViewing}
         description={
           editing

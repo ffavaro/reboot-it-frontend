@@ -173,7 +173,7 @@ export default function RackPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={isViewing ? "Ver rack" : editing ? "Editar rack" : "Nuevo rack"}
+        title={isViewing ? "Ver rack" : "Gestionar rack"}
         readOnly={isViewing}
         description={
           editing

@@ -35,7 +35,7 @@ const EMPTY_FORM = { donacionId: "", pesoBrutoKg: "", observaciones: "" }
 const columns: TableColumn<Lote>[] = [
   {
     key: "id",
-    header: "ID",
+    header: "N°",
     cell: (l) => <span className="font-mono text-xs">#{l.id}</span>,
   },
   {
@@ -198,7 +198,7 @@ export default function LotePage() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={isViewing ? "Ver lote" : editing ? "Editar lote" : "Nuevo lote"}
+        title={isViewing ? "Ver lote" : "Gestionar lote"}
         readOnly={isViewing}
         description={editing ? "Modificá los datos del lote." : "Registrá un nuevo lote de materiales."}
         onSave={handleSave}

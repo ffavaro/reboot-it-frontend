@@ -18,17 +18,30 @@ import {
   useDeleteEmpleado,
 } from "@/hooks/use-employees"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import { required, requiredSelect, maxLength as maxLengthValidator } from "@/lib/form-validators"
+import { required, requiredSelect, maxLength as maxLengthValidator, dniOCuit, notFutureDate, emailFormat, minLength } from "@/lib/form-validators"
+import { CuitDniField, DireccionField, FechaAltaField, DIRECCION_MAX } from "@/components/empleado-fields"
+import { formatFechaISO, getErrorMessage, todayISO } from "@/lib/utils/helpers"
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { Empleado } from "@/lib/type/user"
 import type { TableColumn } from "@/components/ui/data-table"
+import { useUsuarios } from "@/hooks/use-users"
+
+// Límites del usuario que se crea junto con el empleado
+const EMAIL_MAX = 100
+const PASSWORD_MIN = 6
+const PASSWORD_MAX = 12
 
 const EMPTY_FORM = {
   rolId: 0,
   nombre: "",
   apellido: "",
+  cuitDni: "",
+  fechaAlta: "",
+  direccion: "",
   telefono: "",
   cargo: "",
+  email: "",
+  password: "",
 }
 
 function AvatarInitials({ nombre, apellido }: { nombre: string; apellido: string }) {
@@ -49,6 +62,24 @@ const COLUMNS: TableColumn<Empleado>[] = [
         <AvatarInitials nombre={emp.nombre} apellido={emp.apellido} />
         <span className="font-medium">{emp.nombre} {emp.apellido}</span>
       </div>
+    ),
+  },
+  {
+    key: "cuitDni",
+    header: "CUIT / DNI",
+    cell: (emp) => (
+      <span className="font-mono text-xs text-muted-foreground">
+        {emp.cuitDni ?? <span className="italic">—</span>}
+      </span>
+    ),
+  },
+  {
+    key: "fechaAlta",
+    header: "Fecha de alta",
+    cell: (emp) => (
+      <span className="text-muted-foreground tabular-nums">
+        {formatFechaISO(emp.fechaAlta) ?? <span className="italic">—</span>}
+      </span>
     ),
   },
   {
@@ -82,6 +113,7 @@ const COLUMNS: TableColumn<Empleado>[] = [
 
 export default function EmployeePage() {
   const { empleados, isLoading, mutate } = useEmpleadosFull()
+  const { usuarios } = useUsuarios()
   const { roles } = useRoles()
   const { createEmpleado, isLoading: isCreating } = useCreateEmpleado()
   const { updateEmpleado, isLoading: isUpdating } = useUpdateEmpleado()
@@ -98,7 +130,8 @@ export default function EmployeePage() {
     (e) =>
       e.nombre.toLowerCase().includes(search.toLowerCase()) ||
       e.apellido.toLowerCase().includes(search.toLowerCase()) ||
-      (e.cargo ?? "").toLowerCase().includes(search.toLowerCase()),
+      (e.cargo ?? "").toLowerCase().includes(search.toLowerCase()) ||
+      (e.cuitDni ?? "").includes(search.trim()),
   )
 
   function set(field: keyof typeof EMPTY_FORM, value: string | number) {
@@ -109,7 +142,7 @@ export default function EmployeePage() {
   function openCreate() {
     setIsViewing(false)
     setEditing(null)
-    setForm(EMPTY_FORM)
+    setForm({ ...EMPTY_FORM, fechaAlta: todayISO() })
     reset()
     setModalOpen(true)
   }
@@ -121,8 +154,13 @@ export default function EmployeePage() {
       rolId: e.rolId,
       nombre: e.nombre,
       apellido: e.apellido,
+      cuitDni: e.cuitDni ?? "",
+      fechaAlta: e.fechaAlta ? e.fechaAlta.slice(0, 10) : "",
+      direccion: e.direccion ?? "",
       telefono: e.telefono ?? "",
       cargo: e.cargo ?? "",
+      email: "",
+      password: "",
     })
     reset()
     setModalOpen(true)
@@ -135,8 +173,13 @@ export default function EmployeePage() {
       rolId: e.rolId,
       nombre: e.nombre,
       apellido: e.apellido,
+      cuitDni: e.cuitDni ?? "",
+      fechaAlta: e.fechaAlta ? e.fechaAlta.slice(0, 10) : "",
+      direccion: e.direccion ?? "",
       telefono: e.telefono ?? "",
       cargo: e.cargo ?? "",
+      email: "",
+      password: "",
     })
     reset()
     setModalOpen(true)
@@ -148,12 +191,23 @@ export default function EmployeePage() {
       apellido: [required("el apellido"), maxLengthValidator(DEFAULT_TEXT_MAX)],
       rolId: [requiredSelect("un rol")],
       cargo: [maxLengthValidator(DEFAULT_TEXT_MAX)],
+      cuitDni: [required("el CUIT/DNI"), dniOCuit()],
+      fechaAlta: [required("la fecha de alta"), notFutureDate("La fecha de alta")],
+      direccion: [required("la dirección"), maxLengthValidator(DIRECCION_MAX)],
+      // el usuario se crea junto con el empleado, así que email y contraseña solo se piden al crear
+      ...(!editing ? {
+        email: [required("el email"), emailFormat(), maxLengthValidator(EMAIL_MAX)],
+        password: [required("la contraseña"), minLength(PASSWORD_MIN), maxLengthValidator(PASSWORD_MAX)],
+      } : {}),
     })) return
     try {
       const payload = {
         rolId: form.rolId,
         nombre: form.nombre.trim(),
         apellido: form.apellido.trim(),
+        cuitDni: form.cuitDni,
+        fechaAlta: form.fechaAlta,
+        direccion: form.direccion.trim(),
         telefono: form.telefono.trim() || undefined,
         cargo: form.cargo.trim() || undefined,
       }
@@ -161,13 +215,13 @@ export default function EmployeePage() {
         await updateEmpleado({ id: editing.id, ...payload })
         toast.success("Empleado actualizado")
       } else {
-        await createEmpleado(payload)
+        await createEmpleado({ ...payload, email: form.email.trim(), password: form.password })
         toast.success("Empleado creado")
       }
       await mutate()
       setModalOpen(false)
-    } catch {
-      toast.error("Error al guardar el empleado")
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Error al guardar el empleado"))
     }
   }
 
@@ -181,7 +235,13 @@ export default function EmployeePage() {
     }
   }
 
-  const canSave = !!form.nombre.trim() && !!form.apellido.trim() && form.rolId !== 0
+  // Usuario que quedó vinculado al empleado al crearlo (se muestra al ver o editar)
+  const usuarioAsociado = editing ? usuarios.find((u) => String(u.empleadoId) === String(editing.id)) : undefined
+
+  const canSave =
+    !!form.nombre.trim() && !!form.apellido.trim() && form.rolId !== 0 &&
+    !!form.cuitDni && !!form.fechaAlta && !!form.direccion.trim() &&
+    (!!editing || (!!form.email.trim() && form.password.length >= PASSWORD_MIN))
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -194,7 +254,7 @@ export default function EmployeePage() {
 
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput
-          placeholder="Buscar por nombre, apellido o cargo..."
+          placeholder="Buscar por nombre, apellido, DNI o cargo..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
@@ -225,7 +285,7 @@ export default function EmployeePage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={isViewing ? "Ver empleado" : editing ? "Editar empleado" : "Nuevo empleado"}
+        title={isViewing ? "Ver empleado" : "Gestionar empleado"}
         readOnly={isViewing}
         description={
           editing
@@ -237,73 +297,136 @@ export default function EmployeePage() {
         saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear empleado"}
       >
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">Nombre *</label>
-            <Input
-              value={form.nombre}
-              onChange={(e) => set("nombre", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"))}
-              placeholder="Juan"
-              className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
-            />
-            <FieldError>{errors.nombre}</FieldError>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {/* Columna izquierda — Datos personales */}
+          <div className="flex flex-col gap-4">
+            <h3 className="border-b border-border pb-1 text-sm font-semibold text-primary">Datos personales</h3>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Nombre *</label>
+              <Input
+                value={form.nombre}
+                onChange={(e) => set("nombre", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"))}
+                placeholder="Juan"
+                className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
+              />
+              <FieldError>{errors.nombre}</FieldError>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Apellido *</label>
+              <Input
+                value={form.apellido}
+                onChange={(e) => set("apellido", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El apellido"))}
+                placeholder="Pérez"
+                className={cn(errors.apellido && "border-destructive focus-visible:ring-destructive")}
+              />
+              <FieldError>{errors.apellido}</FieldError>
+            </div>
+
+            <CuitDniField value={form.cuitDni} error={errors.cuitDni} onChange={set} />
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">
+                Teléfono <span className="text-muted-foreground font-normal">(opcional)</span>
+              </label>
+              <Input
+                value={form.telefono}
+                onChange={(e) => set("telefono", e.target.value.replace(/\D/g, ""))}
+                placeholder="5491112345678"
+                inputMode="numeric"
+                maxLength={20}
+              />
+            </div>
+
+            <DireccionField value={form.direccion} error={errors.direccion} onChange={set} />
           </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">Apellido *</label>
-            <Input
-              value={form.apellido}
-              onChange={(e) => set("apellido", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El apellido"))}
-              placeholder="Pérez"
-              className={cn(errors.apellido && "border-destructive focus-visible:ring-destructive")}
-            />
-            <FieldError>{errors.apellido}</FieldError>
+
+          {/* Columna derecha — Datos corporativos */}
+          <div className="flex flex-col gap-4">
+            <h3 className="border-b border-border pb-1 text-sm font-semibold text-primary">Datos corporativos</h3>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Rol *</label>
+              <select
+                value={form.rolId}
+                onChange={(e) => set("rolId", Number(e.target.value))}
+                className={cn(
+                  "w-full rounded-4xl border bg-background px-3 py-2 text-sm",
+                  "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0",
+                  errors.rolId ? "border-destructive" : "border-input",
+                )}
+              >
+                <option value={0}>— Seleccionar rol —</option>
+                {roles.filter((r) => r.nombre.toLowerCase() !== "donante").map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.nombre}
+                  </option>
+                ))}
+              </select>
+              <FieldError>{errors.rolId}</FieldError>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">
+                Cargo <span className="text-muted-foreground font-normal">(opcional)</span>
+              </label>
+              <Input
+                value={form.cargo}
+                onChange={(e) => set("cargo", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El cargo"))}
+                placeholder="Técnico IT"
+              />
+              <FieldError>{errors.cargo}</FieldError>
+            </div>
+
+            {/* Por defecto, la fecha del día en curso; se puede cambiar */}
+            <FechaAltaField value={form.fechaAlta} error={errors.fechaAlta} onChange={set} />
           </div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Rol *</label>
-          <select
-            value={form.rolId}
-            onChange={(e) => set("rolId", Number(e.target.value))}
-            className={cn(
-              "w-full rounded-4xl border bg-background px-3 py-2 text-sm",
-              "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0",
-              errors.rolId ? "border-destructive" : "border-input",
-            )}
-          >
-            <option value={0}>— Seleccionar rol —</option>
-            {roles.filter((r) => r.nombre.toLowerCase() !== "donante").map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.nombre}
-              </option>
-            ))}
-          </select>
-          <FieldError>{errors.rolId}</FieldError>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
-            Cargo <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
-          <Input
-            value={form.cargo}
-            onChange={(e) => set("cargo", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El cargo"))}
-            placeholder="Técnico IT"
-          />
-          <FieldError>{errors.cargo}</FieldError>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
-            Teléfono <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
-          <Input
-            value={form.telefono}
-            onChange={(e) => set("telefono", e.target.value.replace(/\D/g, ""))}
-            placeholder="5491112345678"
-            inputMode="numeric"
-            maxLength={20}
-          />
+        {/* Usuario con el que el empleado inicia sesión */}
+        <div className="flex flex-col gap-4">
+          <h3 className="border-b border-border pb-1 text-sm font-semibold text-primary">Usuario</h3>
+          {editing ? (
+            <div className="flex flex-col gap-1 rounded-xl border border-border bg-muted/40 p-4">
+              <p className="text-xs text-muted-foreground">Usuario asociado</p>
+              <p className="text-sm font-medium">
+                {usuarioAsociado ? usuarioAsociado.email : <span className="italic font-normal text-muted-foreground">Sin usuario asociado</span>}
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium">Email *</label>
+                  <Input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => set("email", enforceMaxLength(e.target.value, EMAIL_MAX, "El email"))}
+                    placeholder="juan.perez@empresa.com"
+                    className={cn(errors.email && "border-destructive focus-visible:ring-destructive")}
+                  />
+                  <FieldError>{errors.email}</FieldError>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium">
+                    Contraseña * <span className="text-muted-foreground font-normal">({PASSWORD_MIN} a {PASSWORD_MAX} caracteres)</span>
+                  </label>
+                  <Input
+                    type="password"
+                    value={form.password}
+                    onChange={(e) => set("password", enforceMaxLength(e.target.value, PASSWORD_MAX, "La contraseña"))}
+                    placeholder="••••••••"
+                    className={cn(errors.password && "border-destructive focus-visible:ring-destructive")}
+                  />
+                  <FieldError>{errors.password}</FieldError>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Al crear el empleado se crea automáticamente su usuario, con su mismo nombre, apellido, CUIT/DNI y rol.
+              </p>
+            </>
+          )}
         </div>
       </FormModal>
     </div>

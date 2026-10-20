@@ -134,7 +134,7 @@ export default function MarcasPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={isViewing ? "Ver marca" : editing ? "Editar marca" : "Nueva marca"}
+        title={isViewing ? "Ver marca" : "Gestionar marca"}
         readOnly={isViewing}
         description={
           editing

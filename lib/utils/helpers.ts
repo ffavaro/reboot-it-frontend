@@ -46,3 +46,34 @@ export const validateCuitDni = (v: string) => {
   const digits = v.replace(/\D/g, '');
   return digits.length === 8 || digits.length === 11;
 }
+// ── Fechas "solo día" (yyyy-MM-dd) ───────────────────────────────────────────
+// new Date("2026-05-20") se interpreta como UTC y en Argentina muestra el día anterior,
+// por eso las columnas de tipo DATE se formatean cortando el string.
+export const todayISO = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+
+export const formatFechaISO = (iso: string | null | undefined) => {
+  if (!iso) return null
+  return iso.slice(0, 10).split("-").reverse().join("/")
+}
+
+// Una fecha de vencimiento está vigente hasta el final de ese mismo día
+export const isVigente = (iso: string | null | undefined) => !!iso && iso.slice(0, 10) >= todayISO()
+
+// El backend devuelve los DECIMAL como string ("100.00"): se muestra sin ceros sobrantes ("100", "12.5")
+export const formatPeso = (v: number | string | null | undefined) => {
+  if (v === null || v === undefined || v === "") return ""
+  const n = Number(v)
+  return Number.isNaN(n) ? String(v) : String(n)
+}
+
+// Los errores del backend traen `message` como string (conflictos) o como lista (validaciones del DTO)
+export const getErrorMessage = (error: unknown, fallback: string) => {
+  const message = (error as { message?: string | string[] } | null)?.message
+  if (Array.isArray(message)) return message[0] ?? fallback
+  return message || fallback
+}
+
+export const formatKm = (km: number) => `${km.toLocaleString("es-AR", { maximumFractionDigits: 1 })} km`

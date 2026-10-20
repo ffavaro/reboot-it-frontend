@@ -1,7 +1,18 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = ['/', '/login', '/register', '/forgot-password']
+// '/' es pública solo como ruta exacta: como todas las rutas empiezan con '/', compararla por prefijo
+// dejaba pública a toda la aplicación y el middleware nunca redirigía al login
+const PUBLIC_EXACT_PATHS = ['/']
+// El resto, por coincidencia exacta o por prefijo explícito ('/login' y '/login/...', pero no '/loginx')
+const PUBLIC_PATH_PREFIXES = ['/login', '/register', '/forgot-password']
+
+function isPublicPath(pathname: string): boolean {
+  return (
+    PUBLIC_EXACT_PATHS.includes(pathname) ||
+    PUBLIC_PATH_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'))
+  )
+}
 
 function isExpired(token: string): boolean {
   try {
@@ -16,7 +27,7 @@ function isExpired(token: string): boolean {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  if (pathname === '/' || PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+  if (isPublicPath(pathname)) {
     return NextResponse.next()
   }
 
@@ -36,5 +47,6 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon\\.ico|api).*)'],
+  // Se salta lo estático: _next, api y cualquier archivo con extensión (favicon, /img/logo.png, etc.)
+  matcher: ['/((?!_next/static|_next/image|api|.*\\.[a-zA-Z0-9]+$).*)'],
 }

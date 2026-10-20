@@ -208,7 +208,7 @@ export default function MedioAlmacenamientoPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={isViewing ? "Ver medio de almacenamiento" : editing ? "Editar medio de almacenamiento" : "Nuevo medio de almacenamiento"}
+        title={isViewing ? "Ver medio de almacenamiento" : "Gestionar medio de almacenamiento"}
         readOnly={isViewing}
         description={
           editing

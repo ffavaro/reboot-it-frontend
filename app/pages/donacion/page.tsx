@@ -27,6 +27,7 @@ import type { CondicionMaterial } from "@/lib/type/condicion-material"
 import type { Turno } from "@/lib/type/turno"
 import { getUser } from "@/lib/auth-utils"
 import { enforceDecimalInput } from "@/lib/utils/number-limit"
+import { CONDICION_MATERIAL, esCondicion } from "@/lib/constants/estados"
 
 const EMPTY_FORM = { donanteId: "", fechaHora: "", estadoDonacionId: "", descripcion: "" }
 const EMPTY_DETALLE = { tipoMaterialId: "", condicionMaterialId: "", cantidadEstimada: "" }
@@ -139,7 +140,7 @@ export default function DonacionPage() {
 
   // Condición por defecto de todo material cargado: se define recién al clasificarlo
   const condicionADefinir = condiciones.find(
-    (c: CondicionMaterial) => c.condicion.toLowerCase() === "a definir",
+    (c: CondicionMaterial) => esCondicion(c.condicion, CONDICION_MATERIAL.A_DEFINIR),
   )
 
   const visibleDonaciones = isDonante && myDonante
@@ -375,7 +376,7 @@ export default function DonacionPage() {
   const columns: TableColumn<Donacion>[] = [
     {
       key: "id",
-      header: "ID",
+      header: "N°",
       cell: (d) => `#${d.id}`,
       className: "font-mono text-xs w-14",
     },
@@ -486,7 +487,7 @@ export default function DonacionPage() {
       <FormModal
         open={sheetOpen}
         onOpenChange={setSheetOpen}
-        title={isViewing ? "Ver donación" : editing ? "Editar donación" : "Nueva donación"}
+        title={isViewing ? "Ver donación" : "Gestionar donación"}
         readOnly={isViewing}
         onSave={handleSave}
         isLoading={isCreating || isUpdating}

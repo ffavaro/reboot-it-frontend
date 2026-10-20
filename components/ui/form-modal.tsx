@@ -19,6 +19,8 @@ type FormModalProps = {
   saveDisabled?: boolean
   saveLabel?: string
   readOnly?: boolean
+  // Acciones extra a la izquierda del pie (por ejemplo, un link al detalle relacionado)
+  footerActions?: React.ReactNode
   children: React.ReactNode
 }
 
@@ -32,6 +34,7 @@ export function FormModal({
   saveDisabled = false,
   saveLabel = "Guardar",
   readOnly = false,
+  footerActions,
   children,
 }: FormModalProps) {
   return (
@@ -58,7 +61,8 @@ export function FormModal({
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 rounded-b-2xl px-6 py-4">
+        <div className="flex items-center justify-end gap-2 rounded-b-2xl px-6 py-4">
+          {footerActions && <div className="mr-auto">{footerActions}</div>}
           {readOnly ? (
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cerrar

@@ -21,92 +21,9 @@ import {
 } from "@/components/ui/sidebar"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
-import {
-  BarChart2, Bookmark, Box, Boxes, CalendarCheck, CalendarDays, Camera, Car,
-  Circle, Clock, FileCheck, FileText, HardDrive, Heart,
-  LayoutList, Layers, Leaf, List, MapPin, Package, PackageOpen,
-  Server, Shield, Tag, Trash2, Truck, User, UserCog, Users,
-} from "lucide-react"
 import { getUser } from "@/lib/auth-utils"
-import { NavSection, NavItem } from "@/lib/type/sidebar"
-
-// Si allowedRoles está definido, solo esos roles pueden verlo.
-// Si no está definido, es visible para todos los roles.
-const DONANTE = ["donante"]
-const TRANSPORTISTA = ["transportista"]
-
-const navMain: NavSection[] = [
-  {
-    title: "Gestion de Donantes",
-    url: "#",
-    items: [
-      { title: "Dashboard", url: "/pages/dashboard", icon: BarChart2 },
-      { title: "Agenda", url: "/pages/agenda", icon: CalendarDays },
-      { title: "Certificado de disposicion", url: "/pages/certificado-disposicion", allowedRoles: DONANTE, icon: FileCheck },
-      { title: "Constancia de retiro", url: "/pages/constancia-retiro", allowedRoles: DONANTE, icon: FileText },
-      { title: "Donaciones", url: "/pages/donacion", allowedRoles: DONANTE, icon: Heart },
-      { title: "Registro fotográfico", url: "/pages/registro-fotografico", icon: Camera },
-      { title: "Turnos", url: "/pages/turno", allowedRoles: [...DONANTE, ...TRANSPORTISTA], icon: Clock },
-    ],
-  },
-  {
-    title: "Logistica y Distribucion",
-    url: "#",
-    items: [
-      { title: "Vehiculos", url: "/pages/vehicles", allowedRoles: TRANSPORTISTA, icon: Truck },
-      { title: "Retiros", url: "/pages/retiro", allowedRoles: TRANSPORTISTA, icon: PackageOpen },
-      { title: "Hoja de ruta", url: "/pages/hoja-ruta", allowedRoles: TRANSPORTISTA, icon: MapPin },
-      { title: "Empleado Transportista", url: "/pages/empleado-transportista", icon: Car },
-    ],
-  },
-  {
-    title: "Gestion de Clasificacion",
-    url: "#",
-    items: [
-      { title: "Materiales", url: "/pages/material", icon: Layers },
-      { title: "Condicion de Material", url: "/pages/material/material-condition", icon: Circle },
-      { title: "Tipos de Material", url: "/pages/material/material-type", icon: Tag },
-      { title: "Proceso de destrucción", url: "/pages/proceso-destruccion", icon: Trash2 },
-    ],
-  },
-  {
-    title: "Inventario y almacenamiento",
-    url: "#",
-    items: [
-      { title: "Medio de Almacenamiento", url: "/pages/medio-almacenamiento", icon: HardDrive },
-      { title: "Tipos", url: "/pages/medio-almacenamiento/types", icon: List },
-      { title: "Marcas", url: "/pages/medio-almacenamiento/brands", icon: Bookmark },
-      { title: "Modelos", url: "/pages/medio-almacenamiento/models", icon: Box },
-      { title: "Racks", url: "/pages/rack", icon: Server },
-      { title: "Pallets", url: "/pages/pallet", icon: Boxes },
-      { title: "Lotes", url: "/pages/lote", icon: Package },
-    ],
-  },
-  {
-    title: "Reportes y Analitica",
-    url: "#",
-    items: [
-      { title: "Reporte de Donaciones", url: "/pages/reportes/donaciones", icon: BarChart2 },
-      { title: "Reporte de Retiros", url: "/pages/reportes/retiros", icon: BarChart2 },
-      { title: "Reporte de Inventario", url: "/pages/reportes/inventario", icon: BarChart2 },
-      { title: "Reporte de Procesos de Destrucción", url: "/pages/reportes/procesos-destruccion", icon: BarChart2 },
-    ],
-  },
-  {
-    title: "Configuracion",
-    url: "#",
-    items: [
-      { title: "Donantes", url: "/pages/donante", icon: Users },
-      { title: "Empleados", url: "/pages/employees", icon: User },
-      { title: "Estado de turno", url: "/pages/estado-turno", icon: CalendarCheck },
-      { title: "Estado de proceso de destrucción", url: "/pages/estado-proceso-destruccion", icon: Layers },
-      { title: "Gestora Ambiental", url: "/pages/gestor-ambiental", icon: Leaf },
-      { title: "Metodos de destrucción", url: "/pages/metodo-destruccion", icon: LayoutList },
-      { title: "Roles", url: "/pages/roles", icon: Shield },
-      { title: "Usuarios", url: "/pages/user-management", icon: UserCog },
-    ],
-  }
-]
+import { NavItem } from "@/lib/type/sidebar"
+import { navMain } from "@/lib/nav"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()

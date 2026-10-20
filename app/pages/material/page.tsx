@@ -39,6 +39,7 @@ import type { CondicionMaterial } from "@/lib/type/condicion-material"
 import type { Tipo } from "@/lib/type/tipo"
 import type { Marca } from "@/lib/type/marca"
 import type { Modelo } from "@/lib/type/modelo"
+import { CONDICION_MATERIAL, esCondicion } from "@/lib/constants/estados"
 
 const EMPTY_FORM = { loteId: "", tipoMaterialId: "", condicionMaterialId: "", descripcion: "" }
 const EMPTY_QUICK_TIPO = { nombre: "", descripcion: "" }
@@ -140,7 +141,7 @@ export default function MaterialPage() {
 
   // Condición por defecto de todo material nuevo: se define recién al clasificarlo
   const condicionADefinir = condiciones.find(
-    (c: CondicionMaterial) => c.condicion.toLowerCase() === "a definir",
+    (c: CondicionMaterial) => esCondicion(c.condicion, CONDICION_MATERIAL.A_DEFINIR),
   )
 
   function resetDestruccion() {
@@ -357,7 +358,7 @@ export default function MaterialPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={isViewing ? "Ver material" : editing ? "Editar material" : "Nuevo material"}
+        title={isViewing ? "Ver material" : "Gestionar material"}
         readOnly={isViewing}
         description={editing ? "Modificá los datos del material." : "Registrá un nuevo material en un lote."}
         onSave={handleSave}
@@ -547,7 +548,7 @@ export default function MaterialPage() {
       <FormModal
         open={quickTipoOpen}
         onOpenChange={setQuickTipoOpen}
-        title="Nuevo tipo de material"
+        title="Gestionar tipo de material"
         description="Cargá los datos del tipo para asociarlo al material."
         onSave={handleSaveQuickTipo}
         isLoading={isCreatingTipo}
@@ -579,7 +580,7 @@ export default function MaterialPage() {
       <FormModal
         open={quickLoteOpen}
         onOpenChange={setQuickLoteOpen}
-        title="Nuevo lote"
+        title="Gestionar lote"
         description="Cargá los datos del lote para asociarlo al material."
         onSave={handleSaveQuickLote}
         isLoading={isCreatingLote}

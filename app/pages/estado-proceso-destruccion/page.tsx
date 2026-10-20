@@ -168,9 +168,7 @@ export default function EstadoProcesoDestruccionPage() {
         title={
           isViewing
             ? "Ver estado"
-            : editing
-              ? "Editar estado"
-              : "Nuevo estado de proceso de destrucción"
+            : "Gestionar estado de proceso de destrucción"
         }
         readOnly={isViewing}
         description={

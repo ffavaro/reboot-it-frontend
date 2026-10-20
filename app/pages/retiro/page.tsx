@@ -25,6 +25,7 @@ import type { Vehiculo } from "@/lib/type/vehicle"
 import type { Donacion } from "@/lib/type/donacion"
 import type { Turno } from "@/lib/type/turno"
 import { formatDate } from "@/lib/utils/helpers"
+import { ESTADO_DONACION } from "@/lib/constants/estados"
 
 const EMPTY_FORM = {
   donacionId: "",
@@ -86,7 +87,7 @@ export default function RetiroPage() {
   const { turnos } = useTurnos()
 
   const donacionesEnProceso = donaciones.filter(
-    (d: Donacion) => d.estadoDonacion?.descripcion === "En proceso"
+    (d: Donacion) => d.estadoDonacion?.descripcion === ESTADO_DONACION.EN_PROCESO
   )
   const { createRetiro, isLoading: isCreating } = useCreateRetiro()
   const { updateRetiro, isLoading: isUpdating } = useUpdateRetiro()
@@ -231,7 +232,7 @@ export default function RetiroPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={isViewing ? "Ver retiro" : editing ? "Editar retiro" : "Nuevo retiro"}
+        title={isViewing ? "Ver retiro" : "Gestionar retiro"}
         readOnly={isViewing}
         description={editing ? "Modificá los datos del retiro." : "Registrá un nuevo retiro de donación."}
         onSave={handleSave}

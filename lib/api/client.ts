@@ -1,3 +1,5 @@
+import { clearSession, getToken } from "@/lib/auth-utils"
+
 // Si la env var viene sin esquema (ej. Railway con solo "backend.up.railway.app"),
 // el navegador la trata como ruta relativa y la concatena con el origin del frontend
 // en vez de pegarle al backend. Se le agrega https:// como red de seguridad.
@@ -9,13 +11,34 @@ function resolveBaseUrl(): string {
 
 const BASE_URL = resolveBaseUrl()
 
-export async function request<T>(path: string, options?: RequestInit): Promise<T> {
+// token: permite usar uno explícito (ej. el del usuario recién registrado, que todavía no tiene sesión guardada)
+type RequestOptions = RequestInit & { token?: string }
+
+function authHeaders(token?: string | null): Record<string, string> {
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+// 401 en una ruta protegida = el token venció o no es válido: se limpia la sesión y se vuelve al login.
+// Las rutas /auth/* quedan afuera: ahí un 401 es "credenciales inválidas" / "email ya registrado".
+function handleUnauthorized(path: string) {
+  if (typeof window === "undefined" || path.startsWith("/auth/")) return
+  clearSession()
+  if (!window.location.pathname.startsWith("/login")) window.location.assign("/login")
+}
+
+export async function request<T>(path: string, options?: RequestOptions): Promise<T> {
+  const { token, headers, ...rest } = options ?? {}
   const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
+    ...rest,
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token ?? getToken()),
+      ...(headers as Record<string, string> | undefined),
+    },
   })
 
   if (!res.ok) {
+    if (res.status === 401) handleUnauthorized(path)
     const error = await res.json().catch(() => ({ message: res.statusText }))
     throw error
   }
@@ -30,8 +53,10 @@ export async function fetcher<T>(path: string): Promise<T> {
 export async function uploadFoto(file: File): Promise<string> {
   const formData = new FormData()
   formData.append("file", file)
-  const res = await fetch(`${BASE_URL}/upload`, { method: "POST", body: formData })
+  // Sin Content-Type: el navegador arma el multipart con su boundary
+  const res = await fetch(`${BASE_URL}/upload`, { method: "POST", headers: authHeaders(getToken()), body: formData })
   if (!res.ok) {
+    if (res.status === 401) handleUnauthorized("/upload")
     const error = await res.json().catch(() => ({ message: res.statusText }))
     throw error
   }

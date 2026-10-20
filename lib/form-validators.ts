@@ -33,7 +33,28 @@ export const cuitFormat = (): Validator => (value) => {
   return s && !/^\d{2}-\d{8}-\d$/.test(s) ? "Formato inválido (XX-XXXXXXXX-X)" : null
 }
 
-export const onlyLetters = (): Validator => (value) => {
+// Solo dígitos (sin signos ni decimales), con 8 (DNI) u 11 (CUIT) cifras
+export const dniOCuit = (): Validator => (value) => {
+  const s = String(value ?? "").trim()
+  if (!s) return null
+  if (!/^\d+$/.test(s)) return "Solo se permiten números positivos"
+  return s.length === 8 || s.length === 11 ? null : "Debe tener 8 (DNI) u 11 (CUIT) dígitos"
+}
+
+export const integerNonNegative = (): Validator => (value) => {
+  const s = String(value ?? "").trim()
+  return s && !/^\d+$/.test(s) ? "Debe ser un número entero positivo" : null
+}
+
+export const notFutureDate = (label: string): Validator => (value) => {
+  const s = String(value ?? "").trim()
+  if (!s) return null
+  const d = new Date()
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+  return s > today ? `${label} no puede ser futura` : null
+}
+
+export const onlyLetters =(): Validator => (value) => {
   const s = String(value ?? "").trim()
   return s && !/^[a-zA-ZÀ-ÿ\s]+$/.test(s) ? "Solo se permiten letras" : null
 }

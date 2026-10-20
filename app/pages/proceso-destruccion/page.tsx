@@ -371,7 +371,7 @@ export default function ProcesoDestruccionPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={isViewing ? "Ver proceso de destrucción" : editing ? "Editar proceso de destrucción" : "Nuevo proceso de destrucción"}
+        title={isViewing ? "Ver proceso de destrucción" : "Gestionar proceso de destrucción"}
         readOnly={isViewing}
         description={
           editing
@@ -486,7 +486,7 @@ export default function ProcesoDestruccionPage() {
       <FormModal
         open={quickMedioOpen}
         onOpenChange={setQuickMedioOpen}
-        title="Nuevo medio de almacenamiento"
+        title="Gestionar medio de almacenamiento"
         description="Cargá los datos del medio para asociarlo al proceso."
         onSave={handleSaveQuickMedio}
         isLoading={isCreatingMedio}
@@ -576,7 +576,7 @@ export default function ProcesoDestruccionPage() {
       <FormModal
         open={quickMetodoOpen}
         onOpenChange={setQuickMetodoOpen}
-        title="Nuevo método de destrucción"
+        title="Gestionar método de destrucción"
         description="Cargá los datos del método para asociarlo al proceso."
         onSave={handleSaveQuickMetodo}
         isLoading={isCreatingMetodo}
