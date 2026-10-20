@@ -14,6 +14,7 @@ import { toast } from "react-toastify"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { saveSession, getUser } from "@/lib/auth-utils"
+import { homeDeRol } from "@/lib/nav"
 export function LoginForm({
   className,
   ...props
@@ -34,9 +35,8 @@ export function LoginForm({
     const result = await login({ email, password })
     if (result?.access_token) {
       saveSession(result.access_token)
-      const user = getUser()
-      const isDonante = user?.rol?.nombre?.toLowerCase() === "donante"
-      router.push(isDonante ? "/pages/donacion" : "/pages/dashboard")
+      // cada rol arranca en una pantalla que sí puede ver (donante: donaciones, transportista: hoja de ruta)
+      router.push(homeDeRol(getUser()?.rol?.nombre))
     }
   } catch (err: any) {
     // err ya tiene la forma { statusCode, message, error }

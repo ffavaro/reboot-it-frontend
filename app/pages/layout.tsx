@@ -14,7 +14,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { UserIcon, ChevronRight, LogOut } from "lucide-react"
 import { useEffect, useState } from "react";
 import { getUser, clearSession } from "@/lib/auth-utils"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
+import { toast } from "react-toastify"
+import { grupoDeRol, homeDeRol, puedeAccederARuta } from "@/lib/nav"
 
 export default function RootLayout({
   children,
@@ -22,8 +24,26 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   const [user, setUser] = useState<ReturnType<typeof getUser>>(null)
+  const [sesionLeida, setSesionLeida] = useState(false)
   const router = useRouter()
-  useEffect(() => { setUser(getUser()) }, [])
+  const pathname = usePathname()
+  useEffect(() => { setUser(getUser()); setSesionLeida(true) }, [])
+
+  // Protección de pantallas por rol (la misma regla que el menú; el backend valida de nuevo).
+  // null = todavía no se leyó la sesión · false = el rol no puede ver esta ruta
+  const acceso = !sesionLeida ? null : user ? puedeAccederARuta(pathname, user.rol?.nombre) : false
+
+  useEffect(() => {
+    if (acceso !== false) return
+    // sin sesión, o con un token sin rol reconocible: se vuelve a iniciar sesión
+    if (!user || !grupoDeRol(user.rol?.nombre)) {
+      clearSession()
+      router.replace("/login")
+      return
+    }
+    toast.error("No tenés permisos para ver esa pantalla.", { toastId: "sin-permiso" })
+    router.replace(homeDeRol(user.rol?.nombre))
+  }, [acceso, user, router])
 
   const handleLogout = () => {
     clearSession()
@@ -79,7 +99,8 @@ export default function RootLayout({
             </div>
           </header>
           <main className="p-4 md:p-6">
-            {children}
+            {/* No se monta la pantalla hasta confirmar el acceso, así no dispara llamadas que el backend rechazaría */}
+            {acceso ? children : null}
           </main>{/*
           <ChatWidget /> ver de poner en el otro layout */}
         </SidebarInset>
