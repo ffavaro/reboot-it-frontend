@@ -1,5 +1,5 @@
 "use client"
-import { Plus } from "lucide-react"
+import { Plus, RotateCcw } from "lucide-react"
 
 import { useState } from "react"
 import { toast } from "react-toastify"
@@ -17,7 +17,11 @@ import {
   useCreateEmpleado,
   useUpdateEmpleado,
   useDeleteEmpleado,
+  useReactivarEmpleado,
 } from "@/hooks/use-employees"
+import type { EstadoEmpleados } from "@/lib/api/empleados"
+import { usePermisosPantalla } from "@/components/permisos-pantalla"
+import { getUser } from "@/lib/auth-utils"
 import { useFormErrors } from "@/hooks/use-form-errors"
 import { required, requiredSelect, maxLength as maxLengthValidator, dniOCuit, notFutureDate, emailFormat, minLength } from "@/lib/form-validators"
 import { CuitDniField, DireccionField, FechaAltaField, DIRECCION_MAX } from "@/components/empleado-fields"
@@ -54,7 +58,8 @@ function AvatarInitials({ nombre, apellido }: { nombre: string; apellido: string
   )
 }
 
-const COLUMNS: TableColumn<Empleado>[] = [
+function buildColumns(onReactivar?: (e: Empleado) => void): TableColumn<Empleado>[] {
+  return [
   {
     key: "nombre",
     header: "Empleado",
@@ -62,6 +67,9 @@ const COLUMNS: TableColumn<Empleado>[] = [
       <div className="flex flex-wrap items-center gap-3">
         <AvatarInitials nombre={emp.nombre} apellido={emp.apellido} />
         <span className="font-medium">{emp.nombre} {emp.apellido}</span>
+        {!emp.isActive && (
+          <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[11px] font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300">Desactivado</span>
+        )}
       </div>
     ),
   },
@@ -110,10 +118,27 @@ const COLUMNS: TableColumn<Empleado>[] = [
       </span>
     ),
   },
-]
+  ...(onReactivar ? [{
+    key: "reactivar",
+    header: "",
+    cell: (emp: Empleado) => emp.isActive ? null : (
+      <Button variant="outline" size="sm" onClick={() => onReactivar(emp)}>
+        <RotateCcw className="h-3.5 w-3.5" />
+        Reactivar
+      </Button>
+    ),
+  }] : []),
+  ]
+}
 
 export default function EmployeePage() {
-  const { empleados, isLoading, mutate } = useEmpleadosFull()
+  const [estado, setEstado] = useState<EstadoEmpleados>("activos")
+  const { empleados, isLoading, mutate } = useEmpleadosFull(estado)
+  const { reactivarEmpleado } = useReactivarEmpleado()
+  const permisosPantalla = usePermisosPantalla()
+  // Desactivar, reactivar, ver desactivados y cambiar el rol son exclusivos del SysAdmin
+  const puedeDesactivar = permisosPantalla.puede("baja")
+  const esAdmin = (getUser()?.rol?.nombre ?? "").trim().toLowerCase() === "admin"
   const { usuarios } = useUsuarios()
   const { roles } = useRoles()
   const { createEmpleado, isLoading: isCreating } = useCreateEmpleado()
@@ -126,6 +151,18 @@ export default function EmployeePage() {
   const [editing, setEditing] = useState<Empleado | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+
+  async function handleReactivar(e: Empleado) {
+    try {
+      await reactivarEmpleado(e.id)
+      await mutate()
+      toast.success("Empleado reactivado")
+    } catch (error) {
+      toast.error(getErrorMessage(error, "No se pudo reactivar el empleado"))
+    }
+  }
+
+  const columns = buildColumns(puedeDesactivar ? handleReactivar : undefined)
 
   const filtered = empleados.filter(
     (e) =>
@@ -195,6 +232,7 @@ export default function EmployeePage() {
       cuitDni: [required("el CUIT/DNI"), dniOCuit()],
       fechaAlta: [required("la fecha de alta"), notFutureDate("La fecha de alta")],
       direccion: [required("la dirección"), maxLengthValidator(DIRECCION_MAX)],
+      telefono: [required("el teléfono"), minLength(6)],
       // el usuario se crea junto con el empleado, así que email y contraseña solo se piden al crear
       ...(!editing ? {
         email: [required("el email"), emailFormat(), maxLengthValidator(EMAIL_MAX)],
@@ -203,20 +241,20 @@ export default function EmployeePage() {
     })) return
     try {
       const payload = {
-        rolId: form.rolId,
         nombre: form.nombre.trim(),
         apellido: form.apellido.trim(),
         cuitDni: form.cuitDni,
         fechaAlta: form.fechaAlta,
         direccion: form.direccion.trim(),
-        telefono: form.telefono.trim() || undefined,
+        telefono: form.telefono.trim(),
         cargo: form.cargo.trim() || undefined,
       }
       if (editing) {
-        await updateEmpleado({ id: editing.id, ...payload })
+        // al editar, solo el SysAdmin envía el rol (cambiarlo es exclusivo suyo)
+        await updateEmpleado({ id: editing.id, ...payload, ...(esAdmin ? { rolId: form.rolId } : {}) })
         toast.success("Empleado actualizado")
       } else {
-        await createEmpleado({ ...payload, email: form.email.trim(), password: form.password })
+        await createEmpleado({ ...payload, rolId: form.rolId, email: form.email.trim(), password: form.password })
         toast.success("Empleado creado")
       }
       await mutate()
@@ -231,8 +269,8 @@ export default function EmployeePage() {
       await deleteEmpleado(id as number)
       await mutate()
       toast.success("Empleado desactivado")
-    } catch {
-      toast.error("Error al eliminar el empleado")
+    } catch (error) {
+      toast.error(getErrorMessage(error, "No se pudo desactivar el empleado"))
     }
   }
 
@@ -241,7 +279,7 @@ export default function EmployeePage() {
 
   const canSave =
     !!form.nombre.trim() && !!form.apellido.trim() && form.rolId !== 0 &&
-    !!form.cuitDni && !!form.fechaAlta && !!form.direccion.trim() &&
+    !!form.cuitDni && !!form.fechaAlta && !!form.direccion.trim() && form.telefono.trim().length >= 6 &&
     (!!editing || (!!form.email.trim() && form.password.length >= PASSWORD_MIN))
 
   return (
@@ -263,6 +301,18 @@ export default function EmployeePage() {
         <span className="text-sm text-muted-foreground">
           {filtered.length} empleado{filtered.length !== 1 ? "s" : ""}
         </span>
+        {puedeDesactivar && (
+          <select
+            value={estado}
+            onChange={(e) => setEstado(e.target.value as EstadoEmpleados)}
+            className="h-9 rounded-4xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            aria-label="Filtrar por estado"
+          >
+            <option value="activos">Activos</option>
+            <option value="inactivos">Desactivados</option>
+            <option value="todos">Todos</option>
+          </select>
+        )}
         <CrearButton className="ml-auto" onClick={openCreate}>
           <Plus className="h-4 w-4" />
           Nuevo empleado
@@ -271,16 +321,19 @@ export default function EmployeePage() {
 
       <DataTable
         data={filtered}
-        columns={COLUMNS}
+        columns={columns}
         isLoading={isLoading}
         loadingText="Cargando empleados..."
-        emptyText="No hay empleados registrados."
+        emptyText={estado === "inactivos" ? "No hay empleados desactivados." : "No hay empleados registrados."}
         emptySearchText="No se encontraron empleados."
         search={search}
         onView={openView}
         onEdit={openEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
+        showEdit={(e) => e.isActive}
+        showDelete={(e) => e.isActive}
+        deleteTexts={{ accion: "Desactivar", pregunta: "¿Desactivar este empleado?", detalle: "No podrá iniciar sesión. Sus datos se conservan y podés reactivarlo cuando quieras.", enCurso: "Desactivando..." }}
       />
 
       <FormModal
@@ -304,17 +357,6 @@ export default function EmployeePage() {
             <h3 className="border-b border-border pb-1 text-sm font-semibold text-primary">Datos personales</h3>
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Nombre *</label>
-              <Input
-                value={form.nombre}
-                onChange={(e) => set("nombre", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"))}
-                placeholder="Juan"
-                className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
-              />
-              <FieldError>{errors.nombre}</FieldError>
-            </div>
-
-            <div className="flex flex-col gap-2">
               <label className="text-sm font-medium">Apellido *</label>
               <Input
                 value={form.apellido}
@@ -325,19 +367,30 @@ export default function EmployeePage() {
               <FieldError>{errors.apellido}</FieldError>
             </div>
 
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Nombre *</label>
+              <Input
+                value={form.nombre}
+                onChange={(e) => set("nombre", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"))}
+                placeholder="Juan"
+                className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
+              />
+              <FieldError>{errors.nombre}</FieldError>
+            </div>
+
             <CuitDniField value={form.cuitDni} error={errors.cuitDni} onChange={set} />
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Teléfono <span className="text-muted-foreground font-normal">(opcional)</span>
-              </label>
+              <label className="text-sm font-medium">Teléfono *</label>
               <Input
                 value={form.telefono}
                 onChange={(e) => set("telefono", e.target.value.replace(/\D/g, ""))}
                 placeholder="5491112345678"
                 inputMode="numeric"
                 maxLength={20}
+                className={cn(errors.telefono && "border-destructive focus-visible:ring-destructive")}
               />
+              <FieldError>{errors.telefono}</FieldError>
             </div>
 
             <DireccionField value={form.direccion} error={errors.direccion} onChange={set} />
@@ -347,6 +400,7 @@ export default function EmployeePage() {
           <div className="flex flex-col gap-4">
             <h3 className="border-b border-border pb-1 text-sm font-semibold text-primary">Datos corporativos</h3>
 
+            {(!editing || isViewing || esAdmin) && (
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium">Rol *</label>
               <select
@@ -359,7 +413,7 @@ export default function EmployeePage() {
                 )}
               >
                 <option value={0}>— Seleccionar rol —</option>
-                {roles.filter((r) => r.nombre.toLowerCase() !== "donante").map((r) => (
+                {roles.filter((r) => r.nombre.toLowerCase() !== "donante" && (esAdmin || r.nombre.toLowerCase() !== "admin")).map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.nombre}
                   </option>
@@ -367,6 +421,7 @@ export default function EmployeePage() {
               </select>
               <FieldError>{errors.rolId}</FieldError>
             </div>
+            )}
 
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium">

@@ -50,6 +50,11 @@ type DataTableProps<T extends { id: number | string }> = {
   onView?: (row: T) => void
   onEdit?: (row: T) => void
   onDelete?: (id: number | string) => void
+  // Textos del botón de baja (por defecto "Eliminar"); sirven para acciones como "Desactivar"
+  deleteTexts?: { accion: string; pregunta: string; detalle: string; enCurso: string }
+  // Permiten ocultar editar o dar de baja en filas puntuales (por ejemplo, un registro ya desactivado)
+  showEdit?: (row: T) => boolean
+  showDelete?: (row: T) => boolean
   onDownload?: (row: T) => void
   isDeleting?: boolean
   pageSizeOptions?: number[]
@@ -89,12 +94,16 @@ function ActionBtn({
   )
 }
 
+const TEXTOS_ELIMINAR = { accion: "Eliminar", pregunta: "¿Eliminar este registro?", detalle: "Esta acción no se puede deshacer.", enCurso: "Eliminando..." }
+
 function DeleteButton({
   onConfirm,
   isDeleting,
+  texts = TEXTOS_ELIMINAR,
 }: {
   onConfirm: () => void
   isDeleting?: boolean
+  texts?: typeof TEXTOS_ELIMINAR
 }) {
   const [open, setOpen] = React.useState(false)
 
@@ -104,7 +113,7 @@ function DeleteButton({
         render={
           <Button
             variant="ghost"
-            aria-label="Eliminar"
+            aria-label={texts.accion}
             className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
           />
         }
@@ -112,8 +121,8 @@ function DeleteButton({
         <Trash2 className="h-3.5 w-3.5" />
       </PopoverTrigger>
       <PopoverContent side="top" align="end" className="w-64">
-        <p className="text-sm font-medium">¿Eliminar este registro?</p>
-        <p className="mt-1 text-xs text-muted-foreground">Esta acción no se puede deshacer.</p>
+        <p className="text-sm font-medium">{texts.pregunta}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{texts.detalle}</p>
         <div className="mt-3 flex justify-end gap-2">
           <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
             Cancelar
@@ -127,7 +136,7 @@ function DeleteButton({
               setOpen(false)
             }}
           >
-            {isDeleting ? "Eliminando..." : "Eliminar"}
+            {isDeleting ? texts.enCurso : texts.accion}
           </Button>
         </div>
       </PopoverContent>
@@ -146,6 +155,9 @@ export function DataTable<T extends { id: number | string }>({
   onView,
   onEdit: onEditProp,
   onDelete: onDeleteProp,
+  deleteTexts,
+  showEdit,
+  showDelete,
   onDownload,
   isDeleting,
   pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
@@ -228,7 +240,7 @@ export function DataTable<T extends { id: number | string }>({
                             onClick={() => onView(row)}
                           />
                         )}
-                        {onEdit && (
+                        {onEdit && (showEdit ? showEdit(row) : true) && (
                           <ActionBtn
                             label="Editar"
                             variant="outline"
@@ -246,10 +258,11 @@ export function DataTable<T extends { id: number | string }>({
                             onClick={() => onDownload(row)}
                           />
                         )}
-                        {onDelete && (
+                        {onDelete && (showDelete ? showDelete(row) : true) && (
                           <DeleteButton
                             onConfirm={() => onDelete(row.id)}
                             isDeleting={isDeleting}
+                            texts={deleteTexts}
                           />
                         )}
                       </div>

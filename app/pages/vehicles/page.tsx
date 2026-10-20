@@ -258,7 +258,7 @@ function VehiculosTab() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
         />
-        <CrearButton className="ml-auto" onClick={openCreate}>
+        <CrearButton soloPleno className="ml-auto" onClick={openCreate}>
           <Plus className="h-4 w-4" />
           Nuevo vehículo
         </CrearButton>
@@ -575,7 +575,7 @@ function TiposTab() {
   return (
     <>
       <div className="flex items-center">
-        <CrearButton className="ml-auto" onClick={openCreate}>
+        <CrearButton soloPleno className="ml-auto" onClick={openCreate}>
           <Plus className="h-4 w-4" />
           Nuevo tipo
         </CrearButton>

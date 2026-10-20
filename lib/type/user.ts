@@ -20,7 +20,7 @@ export interface CreateEmpleadoPayload {
   cuitDni: string
   fechaAlta: string
   direccion: string
-  telefono?: string
+  telefono: string
   cargo?: string
   // El alta crea también el usuario del empleado con este email y contraseña
   email: string

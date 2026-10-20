@@ -44,6 +44,8 @@ export function LoginForm({
     // err ya tiene la forma { statusCode, message, error }
     if (err?.statusCode === 401) {
       toast.error("Usuario o contraseña incorrectos")
+    } else if (err?.statusCode === 403 && err?.message) {
+      toast.error(String(err.message))
     } else {
       toast.error("Error al iniciar sesión")
     }
