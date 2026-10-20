@@ -247,7 +247,7 @@ export default function CertificadoDisposicionPage() {
       <FormModal
         open={sheetOpen}
         onOpenChange={setSheetOpen}
-        title={isViewing ? "Ver certificado" : editing ? "Editar certificado" : "Nuevo certificado de disposición"}
+        title={isViewing ? "Ver certificado" : "Gestionar certificado de disposición"}
         readOnly={isViewing}
         description={
           editing

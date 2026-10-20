@@ -134,7 +134,7 @@ export default function TiposPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={isViewing ? "Ver tipo" : editing ? "Editar tipo" : "Nuevo tipo"}
+        title={isViewing ? "Ver tipo" : "Gestionar tipo"}
         readOnly={isViewing}
         description={
           editing

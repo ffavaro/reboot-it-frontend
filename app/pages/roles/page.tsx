@@ -163,7 +163,7 @@ export default function RolesPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={isViewing ? "Ver rol" : editing ? "Editar rol" : "Nuevo rol"}
+        title={isViewing ? "Ver rol" : "Gestionar rol"}
         readOnly={isViewing}
         description={
           editing

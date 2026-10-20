@@ -1,3 +1,5 @@
+export const TIPOS_COMBUSTIBLE = ["Nafta", "Diésel", "GNC", "Eléctrico", "Híbrido"] as const
+
 export interface TipoVehiculo {
   id: number
   descripcion: string
@@ -11,6 +13,9 @@ export interface Vehiculo {
   patente: string
   marca: string
   modelo: string
+  itvVencimiento: string | null
+  kilometraje: number | null
+  tipoCombustible: string | null
   isActive: boolean
   tipoVehiculo: TipoVehiculo
 }
@@ -20,6 +25,9 @@ export interface CreateVehiculoPayload {
   patente: string
   marca: string
   modelo: string
+  itvVencimiento: string
+  kilometraje: number
+  tipoCombustible: string
 }
 
 export interface UpdateVehiculoPayload {
@@ -27,6 +35,9 @@ export interface UpdateVehiculoPayload {
   patente?: string
   marca?: string
   modelo?: string
+  itvVencimiento?: string
+  kilometraje?: number
+  tipoCombustible?: string
 }
 
 export interface CreateTipoVehiculoPayload {

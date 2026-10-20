@@ -209,7 +209,7 @@ export default function ModelosPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={isViewing ? "Ver modelo" : editing ? "Editar modelo" : "Nuevo modelo"}
+        title={isViewing ? "Ver modelo" : "Gestionar modelo"}
         readOnly={isViewing}
         description={
           editing
@@ -289,7 +289,7 @@ export default function ModelosPage() {
       <FormModal
         open={quickMarcaOpen}
         onOpenChange={setQuickMarcaOpen}
-        title="Nueva marca"
+        title="Gestionar marca"
         description="Cargá el nombre de la marca para asociarla al modelo."
         onSave={handleSaveQuickMarca}
         isLoading={isCreatingMarca}
@@ -310,7 +310,7 @@ export default function ModelosPage() {
       <FormModal
         open={quickTipoOpen}
         onOpenChange={setQuickTipoOpen}
-        title="Nuevo tipo"
+        title="Gestionar tipo"
         description="Cargá el nombre del tipo para asociarlo al modelo."
         onSave={handleSaveQuickTipo}
         isLoading={isCreatingTipo}

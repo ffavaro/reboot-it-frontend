@@ -11,7 +11,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { useLogin } from "@/hooks/use-auth"
 import { toast } from "react-toastify"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { saveSession, getUser } from "@/lib/auth-utils"
 export function LoginForm({

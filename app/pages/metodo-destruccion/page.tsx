@@ -172,9 +172,7 @@ export default function MetodoDestruccionPage() {
         title={
           isViewing
             ? "Ver método de destrucción"
-            : editing
-              ? "Editar método de destrucción"
-              : "Nuevo método de destrucción"
+            : "Gestionar método de destrucción"
         }
         readOnly={isViewing}
         description={

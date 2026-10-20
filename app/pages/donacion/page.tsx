@@ -375,7 +375,7 @@ export default function DonacionPage() {
   const columns: TableColumn<Donacion>[] = [
     {
       key: "id",
-      header: "ID",
+      header: "N°",
       cell: (d) => `#${d.id}`,
       className: "font-mono text-xs w-14",
     },
@@ -486,7 +486,7 @@ export default function DonacionPage() {
       <FormModal
         open={sheetOpen}
         onOpenChange={setSheetOpen}
-        title={isViewing ? "Ver donación" : editing ? "Editar donación" : "Nueva donación"}
+        title={isViewing ? "Ver donación" : "Gestionar donación"}
         readOnly={isViewing}
         onSave={handleSave}
         isLoading={isCreating || isUpdating}

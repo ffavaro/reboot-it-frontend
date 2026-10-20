@@ -4,6 +4,9 @@ export interface Empleado {
   rolId: number
   nombre: string
   apellido: string
+  cuitDni?: string | null
+  fechaAlta?: string | null
+  direccion?: string | null
   telefono?: string | null
   cargo?: string | null
   isActive: boolean
@@ -14,6 +17,9 @@ export interface CreateEmpleadoPayload {
   rolId: number
   nombre: string
   apellido: string
+  cuitDni: string
+  fechaAlta: string
+  direccion: string
   telefono?: string
   cargo?: string
 }
@@ -22,6 +28,9 @@ export interface UpdateEmpleadoPayload {
   rolId?: number
   nombre?: string
   apellido?: string
+  cuitDni?: string
+  fechaAlta?: string
+  direccion?: string
   telefono?: string | null
   cargo?: string | null
 }

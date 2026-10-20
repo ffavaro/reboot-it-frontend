@@ -2,10 +2,13 @@
 
 import { useState, useMemo } from "react"
 import { SearchInput } from "@/components/ui/search-input"
+import { DatePicker } from "@/components/ui/date-picker"
+import { VehiculosUsoChart } from "@/components/vehiculos-uso-chart"
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, ComposedChart, Line, Area
 } from "recharts"
+import { BarChart3, Table2 } from "lucide-react"
 import { useLotes } from "@/hooks/use-lote"
 import { useDonantes } from "@/hooks/use-donantes"
 import { useDonacionReporte } from "@/hooks/use-donacion"
@@ -46,6 +49,13 @@ function KpiCard({ label, value, sub, trend }: {
 }
 
 // ── Componente Badge de estado ─────────────────────────────────────────────
+const ESTADOS_LOTE = ["En proceso", "Clasificado", "Desechado"] as const
+const ESTADO_COLORS: Record<string, string> = {
+  "En proceso":  "#F5A623",
+  "Clasificado": "#639922",
+  "Desechado":   "#E24B4A",
+}
+
 function EstadoBadge({ estado }: { estado: string }) {
   const styles: Record<string, string> = {
     "En proceso":  "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
@@ -79,6 +89,12 @@ export default function DashboardPage() {
   const [search, setSearch] = useState("")
   const [customDesde, setCustomDesde] = useState(defaultDesde())
   const [customHasta, setCustomHasta] = useState(defaultHasta())
+  // Sección "Últimos movimientos de lotes"
+  const [lotesVista, setLotesVista] = useState<"grafico" | "tabla">("grafico")
+  const [lotesDesde, setLotesDesde] = useState("")
+  const [lotesHasta, setLotesHasta] = useState("")
+  const [lotesEstado, setLotesEstado] = useState("")
+  const [lotesDonanteId, setLotesDonanteId] = useState<number | "">("")
 
   const usaRangoCustom = activePreset === null
 
@@ -267,11 +283,14 @@ export default function DashboardPage() {
     return map
   }, [todosMateriales])
 
-  type FilaTabla = { id: string; donante: string; fecha: string; pesoKg: number; estado: string }
+  type FilaTabla = { loteId: number; id: string; donanteId: number | null; donante: string; fechaIso: string; fecha: string; pesoKg: number; estado: string }
 
+  // Todos los lotes del donante global (sin recortar por período: la sección tiene su propio filtro de fechas).
+  // Más recientes primero; a igual fecha, por número de lote descendente
   const filasTabla: FilaTabla[] = useMemo(() => {
-    return [...lotesFiltrados]
-      .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
+    return lotes
+      .filter(l => donanteId === "" || l.donacion?.donanteId === donanteId)
+      .sort((a, b) => (b.createdAt ?? "").slice(0, 10).localeCompare((a.createdAt ?? "").slice(0, 10)) || b.id - a.id)
       .map(l => {
         const materiales = materialesPorLote.get(l.id) ?? []
         const nombres = materiales.map(m => (condicionPorId.get(m.condicionMaterialId ?? -1) ?? "").toLowerCase())
@@ -280,25 +299,68 @@ export default function DashboardPage() {
         else if (materiales.length > 0 && nombres.every(n => n && !n.includes("pendiente"))) estado = "Clasificado"
 
         return {
+          loteId: l.id,
           id: `LOT-${String(l.id).padStart(4, "0")}`,
+          donanteId: l.donacion?.donanteId ?? null,
           donante: (l.donacion ? donantePorId.get(l.donacion.donanteId) : undefined) ?? "—",
+          fechaIso: (l.createdAt ?? "").slice(0, 10),
           fecha: formatDate(l.createdAt ?? null) ?? "—",
           pesoKg: Number(l.pesoBrutoKg ?? 0),
           estado,
         }
       })
-  }, [lotesFiltrados, donantePorId, materialesPorLote, condicionPorId])
+  }, [lotes, donanteId, donantePorId, materialesPorLote, condicionPorId])
 
-  const filasBuscadas = useMemo(() => (
-    search ? filasTabla.filter(f => f.donante.toLowerCase().includes(search.toLowerCase())) : filasTabla
-  ), [filasTabla, search])
+  // Filtros propios de la sección de lotes. Sin fechas elegidas, se usa el período global;
+  // con alguna fecha elegida, se filtra solo por ese rango (permite consultar meses anteriores)
+  const usaFechasLotes = !!lotesDesde || !!lotesHasta
+  const lotesRangoDesde = usaFechasLotes ? lotesDesde : rango.fechaDesde
+  const lotesRangoHasta = usaFechasLotes ? lotesHasta : rango.fechaHasta
+
+  const lotesFiltrosActivos = !!lotesDesde || !!lotesHasta || lotesEstado !== "" || lotesDonanteId !== "" || !!search
+
+  function limpiarFiltrosLotes() {
+    setLotesDesde("")
+    setLotesHasta("")
+    setLotesEstado("")
+    setLotesDonanteId("")
+    setSearch("")
+  }
+
+  const filasBuscadas = useMemo(() => filasTabla.filter(f =>
+    !!f.fechaIso &&
+    (!lotesRangoDesde || f.fechaIso >= lotesRangoDesde) &&
+    (!lotesRangoHasta || f.fechaIso <= lotesRangoHasta) &&
+    (lotesEstado === "" || f.estado === lotesEstado) &&
+    (lotesDonanteId === "" || f.donanteId === lotesDonanteId) &&
+    (!search || f.donante.toLowerCase().includes(search.toLowerCase()))
+  ), [filasTabla, lotesRangoDesde, lotesRangoHasta, lotesEstado, lotesDonanteId, search])
 
   const filasVisibles = useMemo(() => filasBuscadas.slice(0, 25), [filasBuscadas])
 
+  // Donantes que tienen lotes en el período, para el filtro de la sección
+  const donantesConLotes = useMemo(() => {
+    const ids = new Set(filasTabla.map(f => f.donanteId).filter((id): id is number => id !== null))
+    return donantes.filter(d => ids.has(d.id))
+  }, [filasTabla, donantes])
+
+  // Gráfico de lotes: cantidad por fecha de ingreso, apilada por estado (orden cronológico)
+  const lotesChartData = useMemo(() => {
+    const porFecha = new Map<string, { fecha: string; pesoKg: number } & Record<string, number | string>>()
+    filasBuscadas.forEach(f => {
+      if (!f.fechaIso) return
+      const row = porFecha.get(f.fechaIso) ?? { fecha: f.fecha, pesoKg: 0, "En proceso": 0, "Clasificado": 0, "Desechado": 0 }
+      row[f.estado] = (row[f.estado] as number) + 1
+      row.pesoKg = Math.round((row.pesoKg + f.pesoKg) * 10) / 10
+      porFecha.set(f.fechaIso, row)
+    })
+    return [...porFecha.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, row]) => row)
+  }, [filasBuscadas])
+
   const exportColumns: ExportColumn<FilaTabla>[] = [
-    { header: "ID Lote", accessor: f => f.id },
-    { header: "Donante", accessor: f => f.donante },
     { header: "Fecha ingreso", accessor: f => f.fecha },
+    { header: "Nro. Lote", accessor: f => f.id },
+    { header: "Donante", accessor: f => f.donante },
     { header: "Peso (kg)", accessor: f => f.pesoKg },
     { header: "Estado actual", accessor: f => f.estado },
   ]
@@ -340,27 +402,24 @@ export default function DashboardPage() {
               {PERIODO_LABELS[p]}
             </button>
           ))}
-          <div className={`flex items-center gap-1 rounded-lg border px-2 py-1 ${usaRangoCustom ? "border-blue-400 bg-blue-50 dark:bg-blue-900/30" : "border-border"}`}>
-            <input
-              type="date"
+          <div className={`flex items-center gap-0.5 rounded-lg border px-1 py-0.5 ${usaRangoCustom ? "border-blue-400 bg-blue-50 dark:bg-blue-900/30" : "border-border"}`}>
+            <DatePicker
               value={customDesde}
-              onChange={e => handleCustomDesdeChange(e.target.value)}
-              className="text-xs bg-transparent focus:outline-none"
+              onChange={v => v && handleCustomDesdeChange(v)}
+              max={customHasta || undefined}
               aria-label="Fecha desde"
             />
-            <span className="text-xs text-muted-foreground">a</span>
-            <input
-              type="date"
+            <span className="text-xs text-muted-foreground">→</span>
+            <DatePicker
               value={customHasta}
+              onChange={v => v && handleCustomHastaChange(v)}
               min={customDesde || undefined}
-              onChange={e => handleCustomHastaChange(e.target.value)}
-              className="text-xs bg-transparent focus:outline-none"
               aria-label="Fecha hasta"
             />
             {activePreset === null && (customDesde !== defaultDesde() || customHasta !== defaultHasta()) && (
               <button
                 onClick={limpiarFiltro}
-                className="text-xs text-muted-foreground hover:text-foreground ml-1"
+                className="text-xs text-muted-foreground hover:text-foreground px-1.5"
                 title="Volver al rango por defecto (últimos 3 meses)"
               >
                 ✕
@@ -402,8 +461,68 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Nivel 2 — Gráficos */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Nivel 2 — Gráfico principal: destino de materiales */}
+      <div className="rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-5">
+        <p className="text-base font-medium text-foreground mb-1">Distribución de destino de materiales</p>
+        <p className="text-xs text-muted-foreground mb-4">Destino final de los materiales clasificados — {rango.label}</p>
+        {donutTotal === 0 ? (
+          <div className="h-[280px] flex items-center justify-center text-xs text-muted-foreground text-center px-6">
+            Sin materiales clasificados en este período{donanteId !== "" ? " para el donante seleccionado" : ""}.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center gap-6">
+            <div className="relative">
+              <ResponsiveContainer width="100%" height={280}>
+                <PieChart>
+                  <Pie
+                    data={donutData}
+                    cx="50%" cy="50%"
+                    innerRadius={80} outerRadius={125}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {donutData.map((_, i) => (
+                      <Cell key={i} fill={DONUT_COLORS[i]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value) => [`${value ?? 0} materiales`]}
+                    contentStyle={{ borderRadius: 8, border: "0.5px solid rgba(128,128,128,0.2)", fontSize: 12 }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-3xl font-medium text-foreground leading-none">{donutTotal}</span>
+                <span className="text-xs text-muted-foreground mt-1">materiales</span>
+              </div>
+            </div>
+            <div className="flex flex-col gap-3">
+              {DONUT_LABELS.map((label, i) => {
+                const pct = Math.round(donutData[i].value / donutTotal * 100)
+                return (
+                  <div key={i} className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="flex items-center gap-2 text-foreground min-w-0">
+                        <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: DONUT_COLORS[i] }}></span>
+                        <span className="truncate">{label}</span>
+                      </span>
+                      <span className="text-muted-foreground tabular-nums flex-shrink-0">
+                        {donutData[i].value} <span className="font-medium text-foreground">({pct}%)</span>
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: DONUT_COLORS[i] }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Nivel 2.5 — Gráficos secundarios */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
 
         {/* Gráfico de barras */}
         <div className="rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
@@ -431,51 +550,6 @@ export default function DashboardPage() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-
-        {/* Gráfico de dona */}
-        <div className="rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
-          <p className="text-sm font-medium text-foreground mb-1">Distribución de destino de materiales</p>
-          <p className="text-xs text-muted-foreground mb-4">Destino final de los materiales clasificados — {rango.label}</p>
-          {donutTotal === 0 ? (
-            <div className="h-[220px] flex items-center justify-center text-xs text-muted-foreground text-center px-6">
-              Sin materiales clasificados en este período{donanteId !== "" ? " para el donante seleccionado" : ""}.
-            </div>
-          ) : (
-            <>
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie
-                    data={donutData}
-                    cx="50%" cy="50%"
-                    innerRadius={60} outerRadius={95}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {donutData.map((_, i) => (
-                      <Cell key={i} fill={DONUT_COLORS[i]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value) => [`${value ?? 0} materiales`]}
-                    contentStyle={{ borderRadius: 8, border: "0.5px solid rgba(128,128,128,0.2)", fontSize: 12 }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex flex-col gap-1.5 mt-2">
-                {DONUT_LABELS.map((label, i) => (
-                  <span key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{background: DONUT_COLORS[i]}}></span>
-                    {label} — {donutData[i].value} ({Math.round(donutData[i].value / donutTotal * 100)}%)
-                  </span>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Nivel 2.5 — Recepción y tendencia combinada */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
         {/* Gráfico de dona: sucursal vs. retiro */}
         <div className="rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
@@ -551,17 +625,32 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Nivel 3 — Tabla */}
+      {/* Nivel 2.7 — Uso de la flota (tiene su propio filtro de fechas) */}
+      <VehiculosUsoChart />
+
+      {/* Nivel 3 — Últimos movimientos de lotes (gráfico / tabla) */}
       <div className="rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-border">
-          <p className="text-sm font-medium text-foreground">Últimos movimientos de lotes</p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm font-medium text-foreground">Últimos movimientos de lotes</p>
+            <div className="inline-flex rounded-lg border border-border p-0.5" role="group" aria-label="Formato de visualización">
+              {([["grafico", "Gráfico", BarChart3], ["tabla", "Tabla", Table2]] as const).map(([key, label, Icon]) => (
+                <button
+                  key={key}
+                  onClick={() => setLotesVista(key)}
+                  aria-pressed={lotesVista === key}
+                  className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md transition-colors ${
+                    lotesVista === key
+                      ? "bg-blue-50 text-blue-800 font-medium dark:bg-blue-900/30 dark:text-blue-300"
+                      : "text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  <Icon className="size-3.5" />{label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="flex flex-wrap gap-2">
-            <SearchInput
-              placeholder="Buscar donante…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-48"
-            />
             <button
               onClick={handleExportPdf}
               disabled={filasVisibles.length === 0}
@@ -578,47 +667,154 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm" style={{ tableLayout: "fixed" }}>
-            <colgroup>
-              <col style={{ width: "100px" }} />
-              <col style={{ width: "180px" }} />
-              <col style={{ width: "140px" }} />
-              <col style={{ width: "120px" }} />
-              <col style={{ width: "140px" }} />
-            </colgroup>
-            <thead>
-              <tr className="bg-muted/60 text-xs text-muted-foreground">
-                <th className="px-4 py-2.5 text-left font-medium">ID Lote</th>
-                <th className="px-4 py-2.5 text-left font-medium">Donante</th>
-                <th className="px-4 py-2.5 text-left font-medium">Fecha ingreso</th>
-                <th className="px-4 py-2.5 text-left font-medium">Peso (kg)</th>
-                <th className="px-4 py-2.5 text-left font-medium">Estado actual</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {isLoading ? (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">Cargando…</td></tr>
-              ) : filasVisibles.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">No se encontraron resultados.</td></tr>
-              ) : (
-                filasVisibles.map(l => (
-                  <tr key={l.id} className="hover:bg-muted/30 transition-colors duration-100">
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{l.id}</td>
-                    <td className="px-4 py-3 text-foreground">{l.donante}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{l.fecha}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{l.pesoKg.toFixed(1)}</td>
-                    <td className="px-4 py-3"><EstadoBadge estado={l.estado} /></td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+
+        {/* Filtros de la sección */}
+        <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-border bg-muted/30">
+          <div className="flex items-center gap-0.5 rounded-lg border border-border bg-background px-1 py-0.5">
+            <DatePicker
+              value={lotesDesde}
+              onChange={setLotesDesde}
+              max={lotesHasta || undefined}
+              placeholder="Desde"
+              clearable
+              aria-label="Lotes desde"
+            />
+            <span className="text-xs text-muted-foreground">→</span>
+            <DatePicker
+              value={lotesHasta}
+              onChange={setLotesHasta}
+              min={lotesDesde || undefined}
+              placeholder="Hasta"
+              clearable
+              aria-label="Lotes hasta"
+            />
+          </div>
+          {!usaFechasLotes && (
+            <span className="text-xs text-muted-foreground">Período general: {rango.label}</span>
+          )}
+          <select
+            value={lotesEstado}
+            onChange={e => setLotesEstado(e.target.value)}
+            className="text-xs h-8 px-3 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            aria-label="Filtrar por estado"
+          >
+            <option value="">Todos los estados</option>
+            {ESTADOS_LOTE.map(e => <option key={e} value={e}>{e}</option>)}
+          </select>
+          <select
+            value={lotesDonanteId}
+            onChange={e => setLotesDonanteId(e.target.value === "" ? "" : Number(e.target.value))}
+            className="text-xs h-8 px-3 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            aria-label="Filtrar por donante"
+          >
+            <option value="">Todos los donantes</option>
+            {donantesConLotes.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+          </select>
+          <SearchInput
+            placeholder="Buscar donante…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-48"
+          />
+          {lotesFiltrosActivos && (
+            <button onClick={limpiarFiltrosLotes} className="text-xs text-muted-foreground hover:text-foreground px-1">
+              ✕ Limpiar filtros
+            </button>
+          )}
         </div>
-        {filasBuscadas.length > filasVisibles.length && (
-          <p className="text-xs text-muted-foreground px-4 py-2 border-t border-border">
-            Mostrando {filasVisibles.length} de {filasBuscadas.length} lotes. Ajustá los filtros para acotar la búsqueda.
-          </p>
+
+        {lotesVista === "grafico" ? (
+          <div className="p-4">
+            {isLoading ? (
+              <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">Cargando…</div>
+            ) : lotesChartData.length === 0 ? (
+              <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">No se encontraron resultados.</div>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-4 mb-3">
+                  {ESTADOS_LOTE.map(e => (
+                    <span key={e} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span className="w-3 h-3 rounded-sm inline-block" style={{ background: ESTADO_COLORS[e] }}></span>{e}
+                    </span>
+                  ))}
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    {filasBuscadas.length} lotes · {Math.round(filasBuscadas.reduce((a, f) => a + f.pesoKg, 0) * 10) / 10} kg
+                  </span>
+                </div>
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={lotesChartData} barCategoryGap="25%">
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.15)" vertical={false} />
+                    <XAxis dataKey="fecha" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: 8, border: "0.5px solid rgba(128,128,128,0.2)", fontSize: 12 }}
+                      cursor={{ fill: "rgba(128,128,128,0.07)" }}
+                      formatter={(value, name) => [`${value} lotes`, name]}
+                      labelFormatter={(label, payload) => {
+                        const peso = payload?.[0]?.payload?.pesoKg
+                        return peso !== undefined ? `${label} — ${peso} kg` : label
+                      }}
+                    />
+                    {ESTADOS_LOTE.map((e, i) => (
+                      <Bar
+                        key={e}
+                        dataKey={e}
+                        name={e}
+                        stackId="estado"
+                        fill={ESTADO_COLORS[e]}
+                        radius={i === ESTADOS_LOTE.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                      />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </>
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm" style={{ tableLayout: "fixed" }}>
+                <colgroup>
+                  <col style={{ width: "140px" }} />
+                  <col style={{ width: "110px" }} />
+                  <col style={{ width: "180px" }} />
+                  <col style={{ width: "120px" }} />
+                  <col style={{ width: "140px" }} />
+                </colgroup>
+                <thead>
+                  <tr className="bg-muted/60 text-xs text-muted-foreground">
+                    <th className="px-4 py-2.5 text-left font-medium">Fecha ingreso</th>
+                    <th className="px-4 py-2.5 text-left font-medium">Nro. Lote</th>
+                    <th className="px-4 py-2.5 text-left font-medium">Donante</th>
+                    <th className="px-4 py-2.5 text-left font-medium">Peso (kg)</th>
+                    <th className="px-4 py-2.5 text-left font-medium">Estado actual</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {isLoading ? (
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">Cargando…</td></tr>
+                  ) : filasVisibles.length === 0 ? (
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">No se encontraron resultados.</td></tr>
+                  ) : (
+                    filasVisibles.map(l => (
+                      <tr key={l.id} className="hover:bg-muted/30 transition-colors duration-100">
+                        <td className="px-4 py-3 text-muted-foreground">{l.fecha}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{l.id}</td>
+                        <td className="px-4 py-3 text-foreground">{l.donante}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{l.pesoKg.toFixed(1)}</td>
+                        <td className="px-4 py-3"><EstadoBadge estado={l.estado} /></td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {filasBuscadas.length > filasVisibles.length && (
+              <p className="text-xs text-muted-foreground px-4 py-2 border-t border-border">
+                Mostrando {filasVisibles.length} de {filasBuscadas.length} lotes. Ajustá los filtros para acotar la búsqueda.
+              </p>
+            )}
+          </>
         )}
       </div>
 

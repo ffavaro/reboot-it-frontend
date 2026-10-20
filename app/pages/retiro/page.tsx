@@ -231,7 +231,7 @@ export default function RetiroPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={isViewing ? "Ver retiro" : editing ? "Editar retiro" : "Nuevo retiro"}
+        title={isViewing ? "Ver retiro" : "Gestionar retiro"}
         readOnly={isViewing}
         description={editing ? "Modificá los datos del retiro." : "Registrá un nuevo retiro de donación."}
         onSave={handleSave}

@@ -1,296 +1,302 @@
 "use client"
 
 import { useState } from "react"
-import { MapPin, MessageCircle } from "lucide-react"
+import { MapPin, MessageCircle, Flag } from "lucide-react"
+import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
-import { useTurnos } from "@/hooks/use-turno"
-import { useDonaciones } from "@/hooks/use-donacion"
+import { Input } from "@/components/ui/input"
+import { FieldError } from "@/components/ui/field"
+import { DatePicker } from "@/components/ui/date-picker"
+import { FormModal } from "@/components/ui/form-modal"
+import { cn } from "@/lib/utils"
+import { useHojasRutaDia, useIniciarHojaRuta, useFinalizarHojaRuta } from "@/hooks/use-hoja-ruta"
 import { useUsuarios } from "@/hooks/use-users"
 import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
 import { getUser } from "@/lib/auth-utils"
-import { getTransportistaActual } from "@/lib/utils/helpers"
-import type { Turno } from "@/lib/type/turno"
-import type { Donacion } from "@/lib/type/donacion"
+import { getErrorMessage, getTransportistaActual, formatKm, todayISO } from "@/lib/utils/helpers"
+import { ESTADOS_HOJA_RUTA } from "@/lib/type/hoja-ruta"
+import type { EstadoHojaRuta, HojaRutaDia } from "@/lib/type/hoja-ruta"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
+import { HojaRutaCard, buildWhatsAppUrl, nombreTransportista } from "./hoja-ruta-card"
+import { HistoricoTab } from "./historico-tab"
 
-// Solo los turnos con el retiro ya confirmado forman parte de la hoja de ruta
-const ESTADO_RETIRO_CONFIRMADO = "retiro confirmado"
 // Estos roles no tienen vehículo propio: ven las hojas de ruta de todos los transportistas
 const ROLES_VEN_TODAS_LAS_HOJAS = ["admin", "administrativo"]
+const KM_MAX_DIGITS = 7
 
-function todayISO(): string {
-  const now = new Date()
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
-}
+type Tab = "hojas" | "historico"
 
-// Compara solo año/mes/día en hora local, ignorando la hora del turno
-function dateOnly(d: Date): number {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
-}
+const SELECT_CLASS =
+  "h-8 rounded-lg border border-border bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
 
-// Se arma el string a mano (no toLocaleString) porque el ICU del entorno puede no
-// tener datos de "es-AR" y cae en el orden mm/dd/yyyy sin avisar
-function formatFechaHora(iso: string): string {
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
+// ---------------------------------------------------------------------------
+// Vista Administrador
+// ---------------------------------------------------------------------------
 
-// El <input type="date"> nativo muestra la fecha en el formato del navegador/SO
-// (a veces mm/dd/yyyy) sin importar el locale que le pasemos, así que el filtro
-// usa un input de texto propio, siempre dd/mm/yyyy, en vez de type="date"
-function isoAVisual(iso: string): string {
-  const [y, m, d] = iso.split("-")
-  return `${d}/${m}/${y}`
-}
+function AdminView() {
+  const [tab, setTab] = useState<Tab>("hojas")
+  const [desde, setDesde] = useState(todayISO())
+  const [hasta, setHasta] = useState(todayISO())
+  const [transportistaId, setTransportistaId] = useState("")
+  const [estado, setEstado] = useState<EstadoHojaRuta | "">("")
 
-// Va agregando las barras a medida que se escriben los dígitos: 14 -> 14/ -> 14/09 -> 14/09/2026
-function enmascararFecha(raw: string): string {
-  const digitos = raw.replace(/\D/g, "").slice(0, 8)
-  const partes = [digitos.slice(0, 2), digitos.slice(2, 4), digitos.slice(4, 8)].filter(Boolean)
-  return partes.join("/")
-}
-
-// Valida que sea una fecha real (rechaza 31/02/2026, no solo el formato)
-function visualAIso(visual: string): string | null {
-  const match = visual.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
-  if (!match) return null
-  const [, dd, mm, yyyy] = match
-  const d = Number(dd), m = Number(mm), y = Number(yyyy)
-  const date = new Date(y, m - 1, d)
-  if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return null
-  return `${yyyy}-${mm}-${dd}`
-}
-
-type Parada = {
-  turnoId: number
-  donante: string
-  direccion: string
-  hora: string
-  estado: string
-}
-
-function turnosPreParadas(turnos: Turno[], donaciones: Donacion[]): Parada[] {
-  return turnos
-    .slice()
-    .sort((a, b) => a.fechaHora.localeCompare(b.fechaHora))
-    .map((t) => {
-      const donacion = t.donacionId ? donaciones.find((d: Donacion) => d.id === t.donacionId) : null
-      const direccion = donacion?.direccionRetiro || t.donante?.direccion || ""
-      return {
-        turnoId: t.id,
-        donante: t.donante?.nombre ?? `Donante #${t.donanteId}`,
-        direccion,
-        hora: formatFechaHora(t.fechaHora),
-        estado: t.estadoTurno?.descripcion ?? "",
-      }
-    })
-}
-
-function buildGoogleMapsUrl(direcciones: string[]): string {
-  if (!direcciones.length) return ""
-  const destino = direcciones[direcciones.length - 1]
-  const waypoints = direcciones.slice(0, -1)
-  const params = new URLSearchParams({ api: "1", destination: destino, travelmode: "driving" })
-  if (waypoints.length) params.set("waypoints", waypoints.join("|"))
-  return `https://www.google.com/maps/dir/?${params.toString()}`
-}
-
-function buildWhatsAppUrl(paradas: Parada[], mapsUrl: string): string {
-  const lineas = [
-    "Hoja de ruta - Retiros confirmados",
-    "",
-    ...paradas.map((p, i) => `${i + 1}. ${p.donante} — ${p.direccion || "Sin dirección cargada"}${p.hora ? ` (${p.hora})` : ""}`),
-  ]
-  if (mapsUrl) lineas.push("", `Ver ruta en Google Maps: ${mapsUrl}`)
-  return `https://wa.me/?text=${encodeURIComponent(lineas.join("\n"))}`
-}
-
-function RutaGrupo({ titulo, paradas }: { titulo?: string; paradas: Parada[] }) {
-  const direccionesValidas = paradas.filter((p) => p.direccion.trim()).map((p) => p.direccion)
-  const mapsUrl = buildGoogleMapsUrl(direccionesValidas)
-  const whatsappUrl = buildWhatsAppUrl(paradas, mapsUrl)
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-3">
-        {titulo && <p className="text-sm font-semibold text-foreground">{titulo}</p>}
-        <span className="text-sm text-muted-foreground">
-          {paradas.length} parada{paradas.length !== 1 ? "s" : ""} con retiro confirmado
-        </span>
-        <div className="ml-auto flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            disabled={!mapsUrl}
-            onClick={() => window.open(mapsUrl, "_blank", "noopener,noreferrer")}
-          >
-            <MapPin className="h-4 w-4" />
-            Abrir en Google Maps
-          </Button>
-          <Button
-            disabled={paradas.length === 0}
-            onClick={() => window.open(whatsappUrl, "_blank", "noopener,noreferrer")}
-          >
-            <MessageCircle className="h-4 w-4" />
-            Compartir por WhatsApp
-          </Button>
-        </div>
-      </div>
-
-      {paradas.length === 0 ? (
-        <p className="text-sm italic text-muted-foreground py-2">
-          No hay turnos con retiro confirmado a partir de esa fecha.
-        </p>
-      ) : (
-        <div className="overflow-x-auto rounded-md border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs text-muted-foreground uppercase">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium w-8">#</th>
-                <th className="px-3 py-2 text-left font-medium">Donante</th>
-                <th className="px-3 py-2 text-left font-medium">Dirección</th>
-                <th className="px-3 py-2 text-left font-medium">Fecha y hora del turno</th>
-                <th className="px-3 py-2 text-left font-medium">Estado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {paradas.map((p, i) => (
-                <tr key={p.turnoId}>
-                  <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
-                  <td className="px-3 py-2 font-medium">{p.donante}</td>
-                  <td className="px-3 py-2 text-muted-foreground">
-                    {p.direccion || <span className="italic text-destructive">Sin dirección cargada</span>}
-                  </td>
-                  <td className="px-3 py-2 text-muted-foreground">{p.hora}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{p.estado}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  )
-}
-
-export default function HojaRutaPage() {
-  const { turnos } = useTurnos()
-  const { donaciones } = useDonaciones()
-  const { usuarios } = useUsuarios()
   const { transportistas } = useEmpleadosTransportistas()
-  const { myTransportista } = getTransportistaActual(usuarios, transportistas)
-
-  const user = getUser()
-  const rolNombre = user?.rol?.nombre?.toLowerCase() ?? ""
-  const veTodasLasHojas = ROLES_VEN_TODAS_LAS_HOJAS.includes(rolNombre)
-
-  const hoy = todayISO()
-  const [desde, setDesde] = useState(hoy)
-  const [desdeTexto, setDesdeTexto] = useState(isoAVisual(hoy))
-  // El filtro nunca puede ir a un día anterior a hoy, aunque se manipule el input a mano
-  const desdeEfectivo = desde < hoy ? hoy : desde
-  const desdeTimestamp = dateOnly(new Date(`${desdeEfectivo}T00:00:00`))
-
-  function handleDesdeTextoChange(raw: string) {
-    const enmascarada = enmascararFecha(raw)
-    setDesdeTexto(enmascarada)
-    if (enmascarada.length < 10) return
-    const iso = visualAIso(enmascarada)
-    if (!iso) return
-    const clamped = iso < hoy ? hoy : iso
-    setDesde(clamped)
-    if (clamped !== iso) setDesdeTexto(isoAVisual(clamped))
-  }
-
-  const turnosConfirmadosDesde = turnos.filter((t: Turno) => {
-    if (!t.isActive) return false
-    const estado = t.estadoTurno?.descripcion?.toLowerCase() ?? ""
-    if (estado !== ESTADO_RETIRO_CONFIRMADO) return false
-    return dateOnly(new Date(t.fechaHora)) >= desdeTimestamp
+  const { hojas, isLoading } = useHojasRutaDia({
+    fechaDesde: desde,
+    fechaHasta: hasta,
+    empleadoTransportistaId: transportistaId ? Number(transportistaId) : undefined,
+    estado: estado || undefined,
   })
-
-  const dateFilter = (
-    <div className="flex items-center gap-3">
-      <label className="text-sm font-medium">Desde</label>
-      <input
-        type="text"
-        inputMode="numeric"
-        placeholder="dd/mm/aaaa"
-        value={desdeTexto}
-        onChange={(e) => handleDesdeTextoChange(e.target.value)}
-        onBlur={() => setDesdeTexto(isoAVisual(desdeEfectivo))}
-        maxLength={10}
-        className="h-9 w-28 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-      />
-    </div>
-  )
-
-  if (veTodasLasHojas) {
-    const grupos = transportistas
-      .filter((et: EmpleadoTransportista) => et.isActive)
-      .map((et: EmpleadoTransportista) => ({
-        id: et.id,
-        nombre: et.empleado ? `${et.empleado.nombre} ${et.empleado.apellido}` : `Transportista #${et.id}`,
-        paradas: turnosPreParadas(
-          turnosConfirmadosDesde.filter((t: Turno) => t.empleadoTransportistaId === et.id),
-          donaciones,
-        ),
-      }))
-      .filter((g) => g.paradas.length > 0)
-
-    return (
-      <div className="flex flex-col gap-6 p-6">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight">Hoja de Ruta</h1>
-          <p className="text-sm text-muted-foreground">
-            Hojas de ruta de todos los transportistas con retiros confirmados.
-          </p>
-        </div>
-
-        {dateFilter}
-
-        {grupos.length === 0 ? (
-          <p className="text-sm italic text-muted-foreground py-4">
-            No hay turnos con retiro confirmado de ningún transportista a partir de esa fecha.
-          </p>
-        ) : (
-          <div className="flex flex-col gap-6">
-            {grupos.map((g) => (
-              <div key={g.id} className="rounded-lg border p-4">
-                <RutaGrupo titulo={g.nombre} paradas={g.paradas} />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    )
-  }
+  const rangoModificado = desde !== todayISO() || hasta !== todayISO()
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold tracking-tight">Hoja de Ruta</h1>
         <p className="text-sm text-muted-foreground">
-          Direcciones de las donaciones con retiro confirmado, listas para armar tu recorrido.
+          Pedidos asignados a cada transportista, con la ruta optimizada y los km estimados.
         </p>
       </div>
 
-      {!myTransportista ? (
-        <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          Todavía no tenés un vehículo asignado. Pedile a un administrador que te asigne uno en "Empleado Transportista".
-        </div>
+      <div className="flex w-fit gap-1 rounded-xl bg-muted p-1">
+        {([["hojas", "Hojas de ruta"], ["historico", "Histórico de hojas de ruta"]] as [Tab, string][]).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={cn(
+              "rounded-lg px-4 py-1.5 text-sm font-medium transition-colors",
+              tab === key ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "historico" ? (
+        <HistoricoTab />
       ) : (
         <>
-          {dateFilter}
-          <RutaGrupo
-            paradas={turnosPreParadas(
-              turnosConfirmadosDesde.filter((t: Turno) => t.empleadoTransportistaId === myTransportista.id),
-              donaciones,
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-0.5 rounded-lg border border-border bg-background px-1 py-0.5">
+              <DatePicker
+                value={desde}
+                onChange={(v) => v && setDesde(v)}
+                max={hasta}
+                aria-label="Hojas de ruta desde"
+              />
+              <span className="text-xs text-muted-foreground">→</span>
+              <DatePicker
+                value={hasta}
+                onChange={(v) => v && setHasta(v)}
+                min={desde}
+                aria-label="Hojas de ruta hasta"
+              />
+            </div>
+            <select value={transportistaId} onChange={(e) => setTransportistaId(e.target.value)} className={SELECT_CLASS} aria-label="Filtrar por transportista">
+              <option value="">Todos los transportistas</option>
+              {transportistas.filter((t: EmpleadoTransportista) => t.isActive).map((t: EmpleadoTransportista) => (
+                <option key={t.id} value={t.id}>
+                  {t.empleado ? `${t.empleado.nombre} ${t.empleado.apellido}` : `Transportista #${t.id}`}
+                </option>
+              ))}
+            </select>
+            <select value={estado} onChange={(e) => setEstado(e.target.value as EstadoHojaRuta | "")} className={SELECT_CLASS} aria-label="Filtrar por estado">
+              <option value="">Todos los estados</option>
+              {ESTADOS_HOJA_RUTA.map((e) => <option key={e} value={e}>{e}</option>)}
+            </select>
+            {(transportistaId || estado || rangoModificado) && (
+              <button
+                onClick={() => { setTransportistaId(""); setEstado(""); setDesde(todayISO()); setHasta(todayISO()) }}
+                className="px-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                ✕ Limpiar filtros
+              </button>
             )}
-          />
+          </div>
+
+          {isLoading ? (
+            <p className="py-4 text-sm text-muted-foreground">Cargando hojas de ruta…</p>
+          ) : hojas.length === 0 ? (
+            <p className="py-4 text-sm italic text-muted-foreground">
+              No hay hojas de ruta para esos filtros: ningún transportista tiene pedidos con retiro confirmado en ese período.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {hojas.map((h) => (
+                <HojaRutaCard
+                  key={`${h.empleadoTransportistaId}-${h.fecha}`}
+                  hoja={h}
+                  actions={
+                    <>
+                      <Button variant="outline" disabled={!h.mapsUrl} onClick={() => window.open(h.mapsUrl!, "_blank", "noopener,noreferrer")}>
+                        <MapPin className="h-4 w-4" />
+                        Abrir en Google Maps
+                      </Button>
+                      <Button disabled={h.paradas.length === 0} onClick={() => window.open(buildWhatsAppUrl(h), "_blank", "noopener,noreferrer")}>
+                        <MessageCircle className="h-4 w-4" />
+                        Compartir por WhatsApp
+                      </Button>
+                    </>
+                  }
+                />
+              ))}
+            </div>
+          )}
         </>
       )}
     </div>
   )
+}
+
+// ---------------------------------------------------------------------------
+// Vista Transportista: solo la hoja de ruta del día, con dos acciones
+// ---------------------------------------------------------------------------
+
+function TransportistaView() {
+  const { usuarios, isLoading: loadingUsuarios } = useUsuarios()
+  const { transportistas, isLoading: loadingTransportistas } = useEmpleadosTransportistas()
+  const { myTransportista } = getTransportistaActual(usuarios, transportistas)
+
+  const { hojas, isLoading, mutate } = useHojasRutaDia(
+    { empleadoTransportistaId: myTransportista?.id },
+    !!myTransportista,
+  )
+  const { iniciarHojaRuta, isLoading: iniciando } = useIniciarHojaRuta()
+  const { finalizarHojaRuta, isLoading: finalizando } = useFinalizarHojaRuta()
+
+  const hoja: HojaRutaDia | undefined = hojas[0]
+  const [modalOpen, setModalOpen] = useState(false)
+  const [kmFinal, setKmFinal] = useState("")
+  const [kmError, setKmError] = useState("")
+
+  // Pendiente -> En proceso la primera vez que se abre la ruta; después solo se vuelve a abrir el mapa
+  async function abrirEnGoogleMaps() {
+    if (!hoja?.mapsUrl) return
+    // La pestaña se abre en el gesto del usuario (si no, el navegador bloquea el popup) y se redirige luego
+    const win = window.open("about:blank", "_blank")
+    try {
+      if (hoja.estado === "Pendiente") {
+        await iniciarHojaRuta(hoja.empleadoTransportistaId)
+        await mutate()
+      }
+      if (win) {
+        win.opener = null
+        win.location.href = hoja.mapsUrl
+      } else {
+        window.open(hoja.mapsUrl, "_blank", "noopener,noreferrer")
+      }
+    } catch (error) {
+      win?.close()
+      toast.error(getErrorMessage(error, "No se pudo iniciar la hoja de ruta"))
+    }
+  }
+
+  function abrirModalFinalizar() {
+    setKmFinal("")
+    setKmError("")
+    setModalOpen(true)
+  }
+
+  async function handleFinalizar() {
+    if (!hoja?.hojaRuta) return
+    const kmInicial = hoja.hojaRuta.kmInicial ?? 0
+    if (!kmFinal.trim()) return setKmError("Ingresá el kilometraje final")
+    const km = Number(kmFinal)
+    if (!Number.isInteger(km) || km < 0) return setKmError("Debe ser un número entero positivo")
+    if (km < kmInicial) return setKmError(`No puede ser menor al kilometraje inicial (${formatKm(kmInicial)})`)
+    try {
+      await finalizarHojaRuta({ id: hoja.hojaRuta.id, kmFinal: km })
+      await mutate()
+      toast.success("Hoja de ruta finalizada")
+      setModalOpen(false)
+    } catch (error) {
+      setKmError(getErrorMessage(error, "No se pudo finalizar la hoja de ruta"))
+    }
+  }
+
+  const cargando = loadingUsuarios || loadingTransportistas || (!!myTransportista && isLoading)
+
+  return (
+    <div className="flex flex-col gap-6 p-6">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-bold tracking-tight">Hoja de Ruta</h1>
+        <p className="text-sm text-muted-foreground">Tu recorrido de hoy, con todas las paradas en el orden más conveniente.</p>
+      </div>
+
+      {cargando ? (
+        <p className="text-sm text-muted-foreground">Cargando tu hoja de ruta…</p>
+      ) : !myTransportista ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          Todavía no tenés un vehículo asignado. Pedile a un administrador que te asigne uno en &quot;Empleado Transportista&quot;.
+        </div>
+      ) : !hoja ? (
+        <p className="py-4 text-sm italic text-muted-foreground">No tenés pedidos asignados para hoy.</p>
+      ) : (
+        <HojaRutaCard
+          hoja={hoja}
+          mostrarTransportista={false}
+          actions={
+            <>
+              <Button
+                variant="outline"
+                disabled={!hoja.mapsUrl || hoja.estado === "Finalizada" || iniciando}
+                onClick={abrirEnGoogleMaps}
+              >
+                <MapPin className="h-4 w-4" />
+                {iniciando ? "Iniciando..." : "Abrir en Google Maps"}
+              </Button>
+              <Button
+                disabled={hoja.estado !== "En proceso"}
+                onClick={abrirModalFinalizar}
+                title={hoja.estado === "Pendiente" ? "Primero abrí la ruta en Google Maps" : undefined}
+              >
+                <Flag className="h-4 w-4" />
+                Finalizar hoja de ruta
+              </Button>
+            </>
+          }
+        />
+      )}
+
+      <FormModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        title="Finalizar hoja de ruta"
+        description="Cargá el kilometraje que marca el vehículo al terminar el recorrido."
+        onSave={handleFinalizar}
+        isLoading={finalizando}
+        saveDisabled={!kmFinal.trim()}
+        saveLabel="Finalizar"
+      >
+        {hoja && (
+          <div className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+            {nombreTransportista(hoja)}
+            {hoja.vehiculo && <> · <span className="font-mono text-xs">{hoja.vehiculo.patente}</span></>}
+            <br />
+            Kilometraje inicial:{" "}
+            <span className="font-medium text-foreground">
+              {hoja.hojaRuta?.kmInicial != null ? formatKm(hoja.hojaRuta.kmInicial) : "—"}
+            </span>
+          </div>
+        )}
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Kilometraje final (km) *</label>
+          <Input
+            value={kmFinal}
+            onChange={(e) => { setKmFinal(e.target.value.replace(/\D/g, "").slice(0, KM_MAX_DIGITS)); setKmError("") }}
+            placeholder="Ej: 85120"
+            inputMode="numeric"
+            className={cn(kmError && "border-destructive focus-visible:ring-destructive")}
+          />
+          <FieldError>{kmError}</FieldError>
+        </div>
+      </FormModal>
+    </div>
+  )
+}
+
+export default function HojaRutaPage() {
+  const rolNombre = getUser()?.rol?.nombre?.toLowerCase() ?? ""
+  return ROLES_VEN_TODAS_LAS_HOJAS.includes(rolNombre) ? <AdminView /> : <TransportistaView />
 }

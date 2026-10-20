@@ -284,7 +284,7 @@ export default function PalletPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={isViewing ? "Ver pallet" : editing ? "Editar pallet" : "Nuevo pallet"}
+        title={isViewing ? "Ver pallet" : "Gestionar pallet"}
         readOnly={isViewing}
         description={editing ? "Modificá los datos del pallet." : "Registrá un nuevo pallet en un rack."}
         onSave={handleSave}
@@ -387,7 +387,7 @@ export default function PalletPage() {
       <FormModal
         open={quickLoteOpen}
         onOpenChange={setQuickLoteOpen}
-        title="Nuevo lote"
+        title="Gestionar lote"
         description="Cargá los datos del lote para asociarlo al pallet."
         onSave={handleSaveQuickLote}
         isLoading={isCreatingLote}

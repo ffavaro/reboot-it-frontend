@@ -204,7 +204,7 @@ export default function GestorAmbientalPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={isViewing ? "Ver gestor ambiental" : editing ? "Editar gestor ambiental" : "Nuevo gestor ambiental"}
+        title={isViewing ? "Ver gestor ambiental" : "Gestionar gestor ambiental"}
         readOnly={isViewing}
         description={
           editing

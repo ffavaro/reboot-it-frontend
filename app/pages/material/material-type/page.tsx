@@ -168,7 +168,7 @@ export default function TipoMaterialPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={isViewing ? "Ver tipo de material" : editing ? "Editar tipo de material" : "Nuevo tipo de material"}
+        title={isViewing ? "Ver tipo de material" : "Gestionar tipo de material"}
         readOnly={isViewing}
         description={
           editing

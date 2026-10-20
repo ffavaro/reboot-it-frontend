@@ -232,9 +232,7 @@ export default function RegistroFotograficoPage() {
         title={
           isViewing
             ? "Ver registro fotográfico"
-            : editing
-            ? "Editar registro fotográfico"
-            : "Nuevo registro fotográfico"
+            : "Gestionar registro fotográfico"
         }
         readOnly={isViewing}
         description={

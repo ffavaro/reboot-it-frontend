@@ -10,6 +10,9 @@ import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { FieldError } from "@/components/ui/field"
+import { DatePicker } from "@/components/ui/date-picker"
+import { VigenciaBadge } from "@/components/ui/vigencia-badge"
+import { VehiculoInfoFields } from "@/components/vehiculo-fields"
 import {
   useEmpleadosTransportistas,
   useCreateEmpleadoTransportista,
@@ -19,20 +22,23 @@ import {
 import { useEmpleadosFull } from "@/hooks/use-employees"
 import { useVehiculos, useTipoVehiculos, useCreateVehiculo } from "@/hooks/use-vehicles"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import { required, requiredSelect } from "@/lib/form-validators"
+import { required, requiredSelect, integerNonNegative } from "@/lib/form-validators"
+import { uploadFoto } from "@/lib/api/client"
+import { formatFechaISO, getErrorMessage, isVigente, todayISO } from "@/lib/utils/helpers"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import type { Empleado } from "@/lib/type/user"
 import type { Vehiculo, TipoVehiculo } from "@/lib/type/vehicle"
 import type { TableColumn } from "@/components/ui/data-table"
 
-const EMPTY_FORM = { empleadoId: "", vehiculoId: "", fechaAsignacion: "" }
-const EMPTY_QUICK_VEHICULO = { tipoVehiculoId: "", patente: "", marca: "", modelo: "" }
-
-function todayISO(): string {
-  const now = new Date()
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+const EMPTY_FORM = { empleadoId: "", vehiculoId: "", fechaAsignacion: "", carnetVencimiento: "" }
+const EMPTY_QUICK_VEHICULO = {
+  tipoVehiculoId: "", patente: "", marca: "", modelo: "",
+  itvVencimiento: "", kilometraje: "", tipoCombustible: "",
 }
+
+const CARNET_MAX_BYTES = 5 * 1024 * 1024
+const CARNET_TIPOS = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
+
 
 const COLUMNS: TableColumn<EmpleadoTransportista>[] = [
   {
@@ -40,7 +46,12 @@ const COLUMNS: TableColumn<EmpleadoTransportista>[] = [
     header: "Empleado",
     cell: (t) =>
       t.empleado ? (
-        <span className="font-medium">{t.empleado.nombre} {t.empleado.apellido}</span>
+        <div className="flex flex-col">
+          <span className="font-medium">{t.empleado.nombre} {t.empleado.apellido}</span>
+          {t.empleado.cuitDni && (
+            <span className="font-mono text-xs text-muted-foreground">{t.empleado.cuitDni}</span>
+          )}
+        </div>
       ) : (
         <span className="italic text-muted-foreground">—</span>
       ),
@@ -57,6 +68,19 @@ const COLUMNS: TableColumn<EmpleadoTransportista>[] = [
         </span>
       ) : (
         <span className="italic text-muted-foreground">Sin vehículo</span>
+      ),
+  },
+  {
+    key: "carnetVencimiento",
+    header: "Carnet de conducir",
+    cell: (t) =>
+      t.carnetVencimiento ? (
+        <span className="inline-flex items-center gap-2">
+          <span className="text-muted-foreground tabular-nums">{formatFechaISO(t.carnetVencimiento)}</span>
+          <VigenciaBadge fecha={t.carnetVencimiento} />
+        </span>
+      ) : (
+        <span className="italic text-muted-foreground">Sin cargar</span>
       ),
   },
   {
@@ -100,6 +124,13 @@ export default function EmpleadoTransportistaPage() {
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
+  // Foto del carnet de conducir
+  const [carnetFile, setCarnetFile] = useState<File | null>(null)
+  const [carnetPreview, setCarnetPreview] = useState<string | null>(null)
+  const [carnetError, setCarnetError] = useState("")
+  const [fileInputKey, setFileInputKey] = useState(0)
+  const [isUploading, setIsUploading] = useState(false)
+
   const [quickVehiculoOpen, setQuickVehiculoOpen] = useState(false)
   const [quickVehiculoForm, setQuickVehiculoForm] = useState(EMPTY_QUICK_VEHICULO)
 
@@ -109,13 +140,56 @@ export default function EmpleadoTransportistaPage() {
       ? `${t.empleado.nombre} ${t.empleado.apellido}`.toLowerCase()
       : ""
     const patente = (t.vehiculo?.patente ?? "").toLowerCase()
-    return nombreCompleto.includes(q) || patente.includes(q)
+    const dni = t.empleado?.cuitDni ?? ""
+    return nombreCompleto.includes(q) || patente.includes(q) || dni.includes(search.trim())
   })
+
+  // "Nombre Apellido - DNI" + estado del carnet si el empleado ya tiene su ficha de transportista
+  function empleadoLabel(e: Empleado) {
+    const base = `${e.nombre} ${e.apellido} - ${e.cuitDni ?? "sin DNI"}`
+    const ficha = transportistas.find((t: EmpleadoTransportista) => t.empleadoId === e.id)
+    if (!ficha) return `${base} · Sin carnet registrado`
+    if (!ficha.carnetVencimiento) return `${base} · Sin carnet cargado`
+    return isVigente(ficha.carnetVencimiento)
+      ? `${base} · Carnet vigente (vence ${formatFechaISO(ficha.carnetVencimiento)})`
+      : `${base} · Carnet vencido (venció ${formatFechaISO(ficha.carnetVencimiento)})`
+  }
+
+  function resetCarnetFile() {
+    if (carnetPreview) URL.revokeObjectURL(carnetPreview)
+    setCarnetFile(null)
+    setCarnetPreview(null)
+    setCarnetError("")
+    setFileInputKey((k) => k + 1)
+  }
+
+  function handleCarnetChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null
+    if (carnetPreview) URL.revokeObjectURL(carnetPreview)
+    setCarnetError("")
+    if (file && !CARNET_TIPOS.includes(file.type)) {
+      setCarnetError("Solo se permiten imágenes (jpg, jpeg, png, webp)")
+      setCarnetFile(null)
+      setCarnetPreview(null)
+      setFileInputKey((k) => k + 1)
+      return
+    }
+    if (file && file.size > CARNET_MAX_BYTES) {
+      setCarnetError("La imagen no puede superar los 5 MB")
+      setCarnetFile(null)
+      setCarnetPreview(null)
+      setFileInputKey((k) => k + 1)
+      return
+    }
+    setCarnetFile(file)
+    setCarnetPreview(file ? URL.createObjectURL(file) : null)
+  }
 
   function openCreate() {
     setIsViewing(false)
     setEditing(null)
     setForm({ ...EMPTY_FORM, fechaAsignacion: todayISO() })
+    resetCarnetFile()
     reset()
     setModalOpen(true)
   }
@@ -123,11 +197,8 @@ export default function EmpleadoTransportistaPage() {
   function openEdit(t: EmpleadoTransportista) {
     setIsViewing(false)
     setEditing(t)
-    setForm({
-      empleadoId: String(t.empleadoId),
-      vehiculoId: t.vehiculoId ? String(t.vehiculoId) : "",
-      fechaAsignacion: t.fechaAsignacion ? t.fechaAsignacion.slice(0, 10) : "",
-    })
+    setForm(transportistaToForm(t))
+    resetCarnetFile()
     reset()
     setModalOpen(true)
   }
@@ -135,25 +206,41 @@ export default function EmpleadoTransportistaPage() {
   function openView(t: EmpleadoTransportista) {
     setIsViewing(true)
     setEditing(t)
-    setForm({
-      empleadoId: String(t.empleadoId),
-      vehiculoId: t.vehiculoId ? String(t.vehiculoId) : "",
-      fechaAsignacion: t.fechaAsignacion ? t.fechaAsignacion.slice(0, 10) : "",
-    })
+    setForm(transportistaToForm(t))
+    resetCarnetFile()
     reset()
     setModalOpen(true)
   }
 
+  function transportistaToForm(t: EmpleadoTransportista) {
+    return {
+      empleadoId: String(t.empleadoId),
+      vehiculoId: t.vehiculoId ? String(t.vehiculoId) : "",
+      fechaAsignacion: t.fechaAsignacion ? t.fechaAsignacion.slice(0, 10) : "",
+      carnetVencimiento: t.carnetVencimiento ? t.carnetVencimiento.slice(0, 10) : "",
+    }
+  }
+
   async function handleSave() {
-    if (!validate(form, {
+    const formOk = validate(form, {
       empleadoId: [requiredSelect("un empleado")],
       vehiculoId: [requiredSelect("un vehículo")],
-    })) return
+      carnetVencimiento: [required("el vencimiento del carnet")],
+    })
+    // Al crear (o al editar una ficha sin foto) hay que subir la foto del carnet
+    const faltaFoto = !carnetFile && !editing?.carnetUrl
+    if (faltaFoto) setCarnetError("Subí la foto del carnet de conducir")
+    if (!formOk || faltaFoto || carnetError) return
+
+    setIsUploading(true)
     try {
+      const carnetUrl = carnetFile ? await uploadFoto(carnetFile) : editing!.carnetUrl!
       const payload = {
         empleadoId: Number(form.empleadoId),
         vehiculoId: Number(form.vehiculoId),
         fechaAsignacion: form.fechaAsignacion || undefined,
+        carnetUrl,
+        carnetVencimiento: form.carnetVencimiento,
       }
       if (editing) {
         await updateTransportista({ id: editing.id, ...payload })
@@ -164,8 +251,10 @@ export default function EmpleadoTransportistaPage() {
       }
       await mutate()
       setModalOpen(false)
-    } catch {
-      toast.error("Error al guardar el empleado transportista")
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Error al guardar el empleado transportista"))
+    } finally {
+      setIsUploading(false)
     }
   }
 
@@ -185,12 +274,20 @@ export default function EmpleadoTransportistaPage() {
     setQuickVehiculoOpen(true)
   }
 
+  function setQuickVehiculoField(field: keyof typeof EMPTY_QUICK_VEHICULO, value: string) {
+    setQuickVehiculoForm((f) => ({ ...f, [field]: value }))
+    clearVehiculoError(field)
+  }
+
   async function handleSaveQuickVehiculo() {
     if (!validateVehiculo(quickVehiculoForm, {
       patente: [required("la patente")],
       marca: [required("la marca")],
       modelo: [required("el modelo")],
       tipoVehiculoId: [requiredSelect("un tipo de vehículo")],
+      tipoCombustible: [requiredSelect("el tipo de combustible")],
+      kilometraje: [required("el kilometraje"), integerNonNegative()],
+      itvVencimiento: [required("el vencimiento de la ITV")],
     })) return
     try {
       const nuevo = await createVehiculo({
@@ -198,6 +295,9 @@ export default function EmpleadoTransportistaPage() {
         patente: quickVehiculoForm.patente.trim(),
         marca: quickVehiculoForm.marca.trim(),
         modelo: quickVehiculoForm.modelo.trim(),
+        itvVencimiento: quickVehiculoForm.itvVencimiento,
+        kilometraje: Number(quickVehiculoForm.kilometraje),
+        tipoCombustible: quickVehiculoForm.tipoCombustible,
       })
       await mutateVehiculos()
       if (nuevo) {
@@ -206,15 +306,18 @@ export default function EmpleadoTransportistaPage() {
       }
       toast.success("Vehículo creado")
       setQuickVehiculoOpen(false)
-    } catch {
-      toast.error("Error al crear el vehículo")
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Error al crear el vehículo"))
     }
   }
 
-  const canSave = !!form.empleadoId && !!form.vehiculoId
+  const canSave = !!form.empleadoId && !!form.vehiculoId && !!form.carnetVencimiento
   const canSaveQuickVehiculo =
     !!quickVehiculoForm.patente.trim() && !!quickVehiculoForm.marca.trim() &&
-    !!quickVehiculoForm.modelo.trim() && !!quickVehiculoForm.tipoVehiculoId
+    !!quickVehiculoForm.modelo.trim() && !!quickVehiculoForm.tipoVehiculoId &&
+    !!quickVehiculoForm.tipoCombustible && !!quickVehiculoForm.kilometraje && !!quickVehiculoForm.itvVencimiento
+
+  const fotoActual = editing?.carnetUrl
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -227,7 +330,7 @@ export default function EmpleadoTransportistaPage() {
 
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput
-          placeholder="Buscar por nombre o patente..."
+          placeholder="Buscar por nombre, DNI o patente..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
@@ -258,7 +361,7 @@ export default function EmpleadoTransportistaPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={(open) => !open && setModalOpen(false)}
-        title={isViewing ? "Ver transportista" : editing ? "Editar transportista" : "Nuevo transportista"}
+        title={isViewing ? "Ver transportista" : "Gestionar transportista"}
         readOnly={isViewing}
         description={
           editing
@@ -266,7 +369,7 @@ export default function EmpleadoTransportistaPage() {
             : "Asigná un empleado como transportista."
         }
         onSave={handleSave}
-        isLoading={isCreating || isUpdating}
+        isLoading={isCreating || isUpdating || isUploading}
         saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear transportista"}
       >
@@ -283,7 +386,7 @@ export default function EmpleadoTransportistaPage() {
             <option value="">Seleccionar empleado...</option>
             {empleados.map((e: Empleado) => (
               <option key={e.id} value={e.id}>
-                {e.nombre} {e.apellido}{e.cargo ? ` — ${e.cargo}` : ""}
+                {empleadoLabel(e)}
               </option>
             ))}
           </select>
@@ -323,6 +426,62 @@ export default function EmpleadoTransportistaPage() {
           <FieldError>{errors.vehiculoId}</FieldError>
         </div>
 
+        {/* Carnet de conducir */}
+        <div className="flex flex-col gap-2">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            Vencimiento del carnet *
+            <VigenciaBadge fecha={form.carnetVencimiento} />
+          </label>
+          <DatePicker
+            variant="field"
+            value={form.carnetVencimiento}
+            onChange={(v) => { setForm((f) => ({ ...f, carnetVencimiento: v })); clearError("carnetVencimiento") }}
+            placeholder="Seleccionar fecha"
+            aria-label="Vencimiento del carnet de conducir"
+          />
+          <FieldError>{errors.carnetVencimiento}</FieldError>
+        </div>
+
+        {fotoActual && (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium">Foto del carnet actual</p>
+            <a href={fotoActual} target="_blank" rel="noopener noreferrer" className={cn(isViewing && "pointer-events-auto")}>
+              <img
+                src={fotoActual}
+                alt="Carnet de conducir"
+                className="h-32 w-auto rounded-md object-contain border border-border hover:opacity-80 transition-opacity"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+              />
+            </a>
+          </div>
+        )}
+
+        {!isViewing && (
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">
+              {fotoActual ? "Reemplazar foto del carnet" : "Foto del carnet de conducir *"}
+              <span className="ml-1 text-xs text-muted-foreground font-normal">
+                {fotoActual ? "(opcional)" : "(jpg, jpeg, png, webp — máx. 5 MB)"}
+              </span>
+            </label>
+            <input
+              key={fileInputKey}
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/webp"
+              onChange={handleCarnetChange}
+              className="text-sm file:mr-3 file:rounded-md file:border file:border-input file:bg-transparent file:px-3 file:py-1 file:text-sm file:font-medium file:cursor-pointer cursor-pointer"
+            />
+            {carnetPreview && (
+              <img
+                src={carnetPreview}
+                alt="Vista previa del carnet"
+                className="h-32 w-auto rounded-md object-contain border border-border"
+              />
+            )}
+            <FieldError>{carnetError}</FieldError>
+          </div>
+        )}
+
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Fecha de asignación</label>
           <Input
@@ -338,7 +497,7 @@ export default function EmpleadoTransportistaPage() {
       <FormModal
         open={quickVehiculoOpen}
         onOpenChange={setQuickVehiculoOpen}
-        title="Nuevo vehículo"
+        title="Gestionar vehículo"
         description="Cargá los datos del vehículo para asignarlo al transportista."
         onSave={handleSaveQuickVehiculo}
         isLoading={isCreatingVehiculo}
@@ -349,10 +508,7 @@ export default function EmpleadoTransportistaPage() {
           <label className="text-sm font-medium">Patente *</label>
           <Input
             value={quickVehiculoForm.patente}
-            onChange={(e) => {
-              setQuickVehiculoForm((f) => ({ ...f, patente: e.target.value.toUpperCase() }))
-              clearVehiculoError("patente")
-            }}
+            onChange={(e) => setQuickVehiculoField("patente", e.target.value.toUpperCase())}
             placeholder="ABC123"
             maxLength={20}
             className={cn(vehiculoErrors.patente && "border-destructive focus-visible:ring-destructive")}
@@ -364,10 +520,7 @@ export default function EmpleadoTransportistaPage() {
           <label className="text-sm font-medium">Marca *</label>
           <Input
             value={quickVehiculoForm.marca}
-            onChange={(e) => {
-              setQuickVehiculoForm((f) => ({ ...f, marca: e.target.value }))
-              clearVehiculoError("marca")
-            }}
+            onChange={(e) => setQuickVehiculoField("marca", e.target.value)}
             placeholder="Ford"
             maxLength={50}
             className={cn(vehiculoErrors.marca && "border-destructive focus-visible:ring-destructive")}
@@ -379,10 +532,7 @@ export default function EmpleadoTransportistaPage() {
           <label className="text-sm font-medium">Modelo *</label>
           <Input
             value={quickVehiculoForm.modelo}
-            onChange={(e) => {
-              setQuickVehiculoForm((f) => ({ ...f, modelo: e.target.value }))
-              clearVehiculoError("modelo")
-            }}
+            onChange={(e) => setQuickVehiculoField("modelo", e.target.value)}
             placeholder="F-100"
             maxLength={50}
             className={cn(vehiculoErrors.modelo && "border-destructive focus-visible:ring-destructive")}
@@ -394,10 +544,7 @@ export default function EmpleadoTransportistaPage() {
           <label className="text-sm font-medium">Tipo de vehículo *</label>
           <select
             value={quickVehiculoForm.tipoVehiculoId}
-            onChange={(e) => {
-              setQuickVehiculoForm((f) => ({ ...f, tipoVehiculoId: e.target.value }))
-              clearVehiculoError("tipoVehiculoId")
-            }}
+            onChange={(e) => setQuickVehiculoField("tipoVehiculoId", e.target.value)}
             className={cn(
               "flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
               vehiculoErrors.tipoVehiculoId ? "border-destructive" : "border-input",
@@ -410,6 +557,12 @@ export default function EmpleadoTransportistaPage() {
           </select>
           <FieldError>{vehiculoErrors.tipoVehiculoId}</FieldError>
         </div>
+
+        <VehiculoInfoFields
+          values={quickVehiculoForm}
+          errors={vehiculoErrors}
+          onChange={setQuickVehiculoField}
+        />
       </FormModal>
     </div>
   )

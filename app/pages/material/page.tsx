@@ -357,7 +357,7 @@ export default function MaterialPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={isViewing ? "Ver material" : editing ? "Editar material" : "Nuevo material"}
+        title={isViewing ? "Ver material" : "Gestionar material"}
         readOnly={isViewing}
         description={editing ? "Modificá los datos del material." : "Registrá un nuevo material en un lote."}
         onSave={handleSave}
@@ -547,7 +547,7 @@ export default function MaterialPage() {
       <FormModal
         open={quickTipoOpen}
         onOpenChange={setQuickTipoOpen}
-        title="Nuevo tipo de material"
+        title="Gestionar tipo de material"
         description="Cargá los datos del tipo para asociarlo al material."
         onSave={handleSaveQuickTipo}
         isLoading={isCreatingTipo}
@@ -579,7 +579,7 @@ export default function MaterialPage() {
       <FormModal
         open={quickLoteOpen}
         onOpenChange={setQuickLoteOpen}
-        title="Nuevo lote"
+        title="Gestionar lote"
         description="Cargá los datos del lote para asociarlo al material."
         onSave={handleSaveQuickLote}
         isLoading={isCreatingLote}

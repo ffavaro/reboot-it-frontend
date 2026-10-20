@@ -230,7 +230,7 @@ function DonantesTab() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={isViewing ? "Ver donante" : editing ? "Editar donante" : "Nuevo donante"}
+        title={isViewing ? "Ver donante" : "Gestionar donante"}
         readOnly={isViewing}
         description={
           editing
@@ -429,7 +429,7 @@ function TiposTab() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={isViewing ? "Ver tipo de donante" : editing ? "Editar tipo" : "Nuevo tipo de donante"}
+        title={isViewing ? "Ver tipo de donante" : "Gestionar tipo de donante"}
         readOnly={isViewing}
         description={
           editing

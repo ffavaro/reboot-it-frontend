@@ -16,6 +16,7 @@ import { ErrorResponse } from '@/lib/type/';
 const EMPTY_FORM = {
   tipoDonanteId: '',
   name: '',
+  apellido: '',
   razonSocial: '',
   email: '',
   cuitDni: '',
@@ -25,12 +26,23 @@ const EMPTY_FORM = {
   confirmPassword: '',
 };
 
+const MAX_NOMBRE = 25;
+const SOLO_LETRAS = /^[\p{L} ]+$/u;
+
 type FormErrors = Partial<Record<keyof typeof EMPTY_FORM, string>>;
 
 function isLegalEntity(tipo: TipoDonante | undefined): boolean {
   if (!tipo) return false;
   const desc = tipo.descripcion.toLowerCase();
   return desc.includes('empresa') || desc.includes('organismo') || desc.includes('público') || desc.includes('publico');
+}
+
+function validateSoloLetras(value: string, campo: string): string | undefined {
+  const v = value.trim();
+  if (!v) return `El ${campo} es obligatorio`;
+  if (v.length > MAX_NOMBRE) return `Máximo ${MAX_NOMBRE} caracteres`;
+  if (!SOLO_LETRAS.test(v)) return 'Solo se permiten letras';
+  return undefined;
 }
 
 export default function RegisterPage() {
@@ -41,7 +53,14 @@ export default function RegisterPage() {
   const { register, isLoading } = useRegister();
   const router = useRouter();
   useEffect(() => {
-    tipoDonanteApi.getAll().then(setTipoDonantes).catch(() => { });
+    tipoDonanteApi.getAll().then((tipos) => {
+      setTipoDonantes(tipos);
+      // Por defecto, el tipo de donante es "Particular"
+      const particular = tipos.find((t) => t.descripcion.trim().toLowerCase() === 'particular');
+      if (particular) {
+        setFormData((prev) => (prev.tipoDonanteId ? prev : { ...prev, tipoDonanteId: String(particular.id) }));
+      }
+    }).catch(() => { });
   }, []);
 
   const selectedTipo = tipoDonantes.find((t) => String(t.id) === formData.tipoDonanteId);
@@ -59,8 +78,10 @@ export default function RegisterPage() {
       if (!data.razonSocial.trim()) e.razonSocial = 'La razón social es obligatoria';
       else if (data.razonSocial.trim().length < 3) e.razonSocial = 'Mínimo 3 caracteres';
     } else if (data.tipoDonanteId) {
-      if (!data.name.trim()) e.name = 'El nombre es obligatorio';
-      else if (data.name.trim().length < 3) e.name = 'Mínimo 3 caracteres';
+      const nameError = validateSoloLetras(data.name, 'nombre');
+      if (nameError) e.name = nameError;
+      const apellidoError = validateSoloLetras(data.apellido, 'apellido');
+      if (apellidoError) e.apellido = apellidoError;
     }
 
     if (!data.email.trim()) e.email = 'El correo es obligatorio';
@@ -84,9 +105,10 @@ export default function RegisterPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     const updated = { ...formData, [name]: value };
-    // Si cambia el tipo, limpiar name/razonSocial para evitar datos cruzados
+    // Si cambia el tipo, limpiar name/apellido/razonSocial para evitar datos cruzados
     if (name === 'tipoDonanteId') {
       updated.name = '';
+      updated.apellido = '';
       updated.razonSocial = '';
     }
     setFormData(updated);
@@ -112,11 +134,13 @@ export default function RegisterPage() {
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
-    const nombreEfectivo = usesRazonSocial ? formData.razonSocial.trim() : formData.name.trim();
+    const nombre = usesRazonSocial ? formData.razonSocial.trim() : formData.name.trim();
+    const apellido = usesRazonSocial ? undefined : formData.apellido.trim();
 
     try {
       const authResult = await register({
-        name: nombreEfectivo,
+        name: nombre,
+        apellido,
         email: formData.email,
         cuitDni: formData.cuitDni,
         password: formData.password,
@@ -125,7 +149,7 @@ export default function RegisterPage() {
         ? jwtDecode<TokenPayload>(authResult.access_token).id
         : undefined;
       await donantesApi.create({
-        nombre: nombreEfectivo,
+        nombre: apellido ? `${nombre} ${apellido}` : nombre,
         tipoDonanteId: Number(formData.tipoDonanteId),
         razonSocial: usesRazonSocial ? formData.razonSocial.trim() : undefined,
         direccion: formData.direccion.trim() || undefined,
@@ -157,6 +181,16 @@ export default function RegisterPage() {
       <p className="text-xs text-red-500 mt-1">{errors[name]}</p>
     ) : null;
 
+  // Muestra el error si existe; si no, la ayuda con el máximo de caracteres
+  const SoloLetrasHint = ({ name }: { name: 'name' | 'apellido' }) =>
+    touched[name] && errors[name] ? (
+      <FieldError name={name} />
+    ) : (
+      <p className="text-xs text-gray-400 mt-1">
+        Máximo {MAX_NOMBRE} caracteres, solo se permiten letras ({formData[name].length}/{MAX_NOMBRE})
+      </p>
+    );
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-rose-100">
@@ -170,7 +204,7 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-rose-100 px-4 py-8">
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-3xl">
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           {/* Header */}
           <div className="bg-red-600 px-6 py-7 text-center">
@@ -202,131 +236,165 @@ export default function RegisterPage() {
                 <FieldError name="tipoDonanteId" />
               </div>
 
-              {/* 2a. Razón Social — empresa u organismo */}
-              {tipoSeleccionado && usesRazonSocial && (
-                <div>
-                  <label htmlFor="razonSocial" className="block text-xs font-semibold text-gray-600 mb-1">
-                    Razón Social
-                  </label>
-                  <Input
-                    id="razonSocial"
-                    type="text"
-                    placeholder="Empresa S.A."
-                    className={`h-9 text-sm ${err('razonSocial')}`}
-                    {...field('razonSocial')}
-                  />
-                  <FieldError name="razonSocial" />
-                </div>
-              )}
-
-              {/* 2b. Nombre Completo — particular */}
-              {tipoSeleccionado && !usesRazonSocial && (
-                <div>
-                  <label htmlFor="name" className="block text-xs font-semibold text-gray-600 mb-1">
-                    Nombre Completo
-                  </label>
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="Juan Pérez"
-                    className={`h-9 text-sm ${err('name')}`}
-                    {...field('name')}
-                  />
-                  <FieldError name="name" />
-                </div>
-              )}
-
               {/* Resto de campos — solo aparecen una vez seleccionado el tipo */}
               {tipoSeleccionado && (
                 <>
-                  {/* Email */}
-                  <div>
-                    <label htmlFor="email" className="block text-xs font-semibold text-gray-600 mb-1">
-                      Correo Electrónico
-                    </label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="correo@ejemplo.com"
-                      className={`h-9 text-sm ${err('email')}`}
-                      {...field('email')}
-                    />
-                    <FieldError name="email" />
-                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Columna izquierda — Datos personales */}
+                    <div className="space-y-4">
+                      <h2 className="text-sm font-semibold text-red-700 border-b border-red-100 pb-1">
+                        Datos personales
+                      </h2>
 
-                  {/* CUIT / DNI */}
-                  <div>
-                    <label htmlFor="cuitDni" className="block text-xs font-semibold text-gray-600 mb-1">
-                      CUIT / DNI
-                    </label>
-                    <Input
-                      id="cuitDni"
-                      type="text"
-                      placeholder="20123456789"
-                      className={`h-9 text-sm ${err('cuitDni')}`}
-                      {...field('cuitDni')}
-                    />
-                    <FieldError name="cuitDni" />
-                  </div>
+                      {/* Razón Social — empresa u organismo */}
+                      {usesRazonSocial && (
+                        <div>
+                          <label htmlFor="razonSocial" className="block text-xs font-semibold text-gray-600 mb-1">
+                            Razón Social
+                          </label>
+                          <Input
+                            id="razonSocial"
+                            type="text"
+                            placeholder="Empresa S.A."
+                            className={`h-9 text-sm ${err('razonSocial')}`}
+                            {...field('razonSocial')}
+                          />
+                          <FieldError name="razonSocial" />
+                        </div>
+                      )}
 
-                  {/* Dirección */}
-                  <div>
-                    <label htmlFor="direccion" className="block text-xs font-semibold text-gray-600 mb-1">
-                      Dirección
-                    </label>
-                    <Input
-                      id="direccion"
-                      type="text"
-                      placeholder="Av. Corrientes 1234, CABA"
-                      className={`h-9 text-sm ${err('direccion')}`}
-                      {...field('direccion')}
-                    />
-                    <FieldError name="direccion" />
-                  </div>
+                      {/* Nombre y Apellido — particular */}
+                      {!usesRazonSocial && (
+                        <>
+                          <div>
+                            <label htmlFor="name" className="block text-xs font-semibold text-gray-600 mb-1">
+                              Nombre
+                            </label>
+                            <Input
+                              id="name"
+                              type="text"
+                              placeholder="Juan"
+                              maxLength={MAX_NOMBRE}
+                              className={`h-9 text-sm ${err('name')}`}
+                              {...field('name')}
+                            />
+                            <SoloLetrasHint name="name" />
+                          </div>
+                          <div>
+                            <label htmlFor="apellido" className="block text-xs font-semibold text-gray-600 mb-1">
+                              Apellido
+                            </label>
+                            <Input
+                              id="apellido"
+                              type="text"
+                              placeholder="Pérez"
+                              maxLength={MAX_NOMBRE}
+                              className={`h-9 text-sm ${err('apellido')}`}
+                              {...field('apellido')}
+                            />
+                            <SoloLetrasHint name="apellido" />
+                          </div>
+                        </>
+                      )}
 
-                  {/* Teléfono */}
-                  <div>
-                    <label htmlFor="telefono" className="block text-xs font-semibold text-gray-600 mb-1">
-                      Teléfono <span className="font-normal text-gray-400">(opcional)</span>
-                    </label>
-                    <Input
-                      id="telefono"
-                      type="tel"
-                      placeholder="+54 11 1234-5678"
-                      className="h-9 text-sm"
-                      {...field('telefono')}
-                    />
-                  </div>
+                      {/* CUIT / DNI */}
+                      <div>
+                        <label htmlFor="cuitDni" className="block text-xs font-semibold text-gray-600 mb-1">
+                          CUIT / DNI
+                        </label>
+                        <Input
+                          id="cuitDni"
+                          type="text"
+                          placeholder="20123456789"
+                          className={`h-9 text-sm ${err('cuitDni')}`}
+                          {...field('cuitDni')}
+                        />
+                        <FieldError name="cuitDni" />
+                      </div>
 
-                  {/* Contraseñas */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label htmlFor="password" className="block text-xs font-semibold text-gray-600 mb-1">
-                        Contraseña
-                      </label>
-                      <Input
-                        id="password"
-                        type="password"
-                        placeholder="••••••••"
-                        className={`h-9 text-sm ${err('password')}`}
-                        {...field('password')}
-                      />
-                      <FieldError name="password" />
+                      {/* Dirección */}
+                      <div>
+                        <label htmlFor="direccion" className="block text-xs font-semibold text-gray-600 mb-1">
+                          Dirección
+                        </label>
+                        <Input
+                          id="direccion"
+                          type="text"
+                          placeholder="Av. Corrientes 1234, CABA"
+                          className={`h-9 text-sm ${err('direccion')}`}
+                          {...field('direccion')}
+                        />
+                        <FieldError name="direccion" />
+                      </div>
+
+                      {/* Teléfono */}
+                      <div>
+                        <label htmlFor="telefono" className="block text-xs font-semibold text-gray-600 mb-1">
+                          Teléfono <span className="font-normal text-gray-400">(opcional)</span>
+                        </label>
+                        <Input
+                          id="telefono"
+                          type="tel"
+                          placeholder="+54 11 1234-5678"
+                          className="h-9 text-sm"
+                          {...field('telefono')}
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label htmlFor="confirmPassword" className="block text-xs font-semibold text-gray-600 mb-1">
-                        Confirmar
-                      </label>
-                      <Input
-                        id="confirmPassword"
-                        type="password"
-                        placeholder="••••••••"
-                        className={`h-9 text-sm ${err('confirmPassword')}`}
-                        {...field('confirmPassword')}
-                      />
-                      <FieldError name="confirmPassword" />
+
+                    {/* Columna derecha — Datos de la cuenta */}
+                    <div className="space-y-4">
+                      <h2 className="text-sm font-semibold text-red-700 border-b border-red-100 pb-1">
+                        Datos de la cuenta
+                      </h2>
+
+                      {/* Email */}
+                      <div>
+                        <label htmlFor="email" className="block text-xs font-semibold text-gray-600 mb-1">
+                          Correo Electrónico
+                        </label>
+                        <Input
+                          id="email"
+                          type="email"
+                          placeholder="correo@ejemplo.com"
+                          className={`h-9 text-sm ${err('email')}`}
+                          {...field('email')}
+                        />
+                        <FieldError name="email" />
+                      </div>
+
+                      {/* Contraseña */}
+                      <div>
+                        <label htmlFor="password" className="block text-xs font-semibold text-gray-600 mb-1">
+                          Contraseña
+                        </label>
+                        <Input
+                          id="password"
+                          type="password"
+                          placeholder="••••••••"
+                          className={`h-9 text-sm ${err('password')}`}
+                          {...field('password')}
+                        />
+                        <FieldError name="password" />
+                      </div>
+
+                      {/* Confirmar contraseña */}
+                      <div>
+                        <label htmlFor="confirmPassword" className="block text-xs font-semibold text-gray-600 mb-1">
+                          Confirmar contraseña
+                        </label>
+                        <Input
+                          id="confirmPassword"
+                          type="password"
+                          placeholder="••••••••"
+                          className={`h-9 text-sm ${err('confirmPassword')}`}
+                          {...field('confirmPassword')}
+                        />
+                        <FieldError name="confirmPassword" />
+                      </div>
                     </div>
                   </div>
+
                   <div className="text-center text-xs text-gray-500 mt-1">
                     <p className="text-xs text-gray-400">
                       Al registrarte aceptás nuestros{' '}

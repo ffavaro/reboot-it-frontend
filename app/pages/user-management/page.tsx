@@ -15,7 +15,9 @@ import { useEmpleadosFull, useCreateEmpleado } from "@/hooks/use-employees"
 import { useRoles } from "@/hooks/use-roles"
 import { useDonantes, useUpdateDonante, useCreateDonante, useTipoDonantes } from "@/hooks/use-donantes"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import { required, requiredSelect, minLength, onlyLetters, emailFormat, maxLength as maxLengthValidator } from "@/lib/form-validators"
+import { required, requiredSelect, minLength, onlyLetters, emailFormat, maxLength as maxLengthValidator, dniOCuit, notFutureDate } from "@/lib/form-validators"
+import { EmpleadoDatosFields, DIRECCION_MAX } from "@/components/empleado-fields"
+import { getErrorMessage, todayISO } from "@/lib/utils/helpers"
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { Rol, Usuario } from "@/lib/type/user"
 import type { Donante } from "@/lib/type/donante"
@@ -73,7 +75,7 @@ const NOMBRE_MAX = DEFAULT_TEXT_MAX
 const EMAIL_MAX = DEFAULT_TEXT_MAX
 const PASSWORD_MAX = 12
 
-const EMPTY_QUICK_EMPLEADO = { rolId: "", nombre: "", apellido: "", telefono: "", cargo: "" }
+const EMPTY_QUICK_EMPLEADO = { rolId: "", nombre: "", apellido: "", cuitDni: "", fechaAlta: "", direccion: "", telefono: "", cargo: "" }
 const EMPTY_QUICK_DONANTE = { tipoDonanteId: "", nombre: "", razonSocial: "", telefono: "", direccion: "" }
 
 const COLUMNS: TableColumn<Usuario>[] = [
@@ -207,7 +209,7 @@ export default function UserManagementPage() {
   }
 
   function openQuickEmpleado() {
-    setQuickEmpleadoForm({ ...EMPTY_QUICK_EMPLEADO, rolId: form.rolId })
+    setQuickEmpleadoForm({ ...EMPTY_QUICK_EMPLEADO, rolId: form.rolId, fechaAlta: todayISO() })
     resetEmpleadoErrors()
     setQuickEmpleadoOpen(true)
   }
@@ -224,6 +226,9 @@ export default function UserManagementPage() {
       apellido: [required("el apellido"), onlyLetters(), maxLengthValidator(DEFAULT_TEXT_MAX)],
       cargo: [maxLengthValidator(DEFAULT_TEXT_MAX)],
       rolId: [requiredSelect("un rol")],
+      cuitDni: [required("el CUIT/DNI"), dniOCuit()],
+      fechaAlta: [required("la fecha de alta"), notFutureDate("La fecha de alta")],
+      direccion: [required("la dirección"), maxLengthValidator(DIRECCION_MAX)],
     })) return
 
     try {
@@ -231,6 +236,9 @@ export default function UserManagementPage() {
         rolId: Number(quickEmpleadoForm.rolId),
         nombre: quickEmpleadoForm.nombre.trim(),
         apellido: quickEmpleadoForm.apellido.trim(),
+        cuitDni: quickEmpleadoForm.cuitDni,
+        fechaAlta: quickEmpleadoForm.fechaAlta,
+        direccion: quickEmpleadoForm.direccion.trim(),
         telefono: quickEmpleadoForm.telefono.trim() || undefined,
         cargo: quickEmpleadoForm.cargo.trim() || undefined,
       })
@@ -238,8 +246,8 @@ export default function UserManagementPage() {
       if (nuevo) setField("empleadoId", String(nuevo.id))
       toast.success("Empleado creado")
       setQuickEmpleadoOpen(false)
-    } catch {
-      toast.error("Error al crear el empleado")
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Error al crear el empleado"))
     }
   }
 
@@ -310,7 +318,8 @@ export default function UserManagementPage() {
     : !!form.nombre.trim() && !!form.email.trim() && form.password.length >= 6 && !!form.rolId && hasAsociado
 
   const canSaveQuickEmpleado =
-    !!quickEmpleadoForm.nombre.trim() && !!quickEmpleadoForm.apellido.trim() && !!quickEmpleadoForm.rolId
+    !!quickEmpleadoForm.nombre.trim() && !!quickEmpleadoForm.apellido.trim() && !!quickEmpleadoForm.rolId &&
+    !!quickEmpleadoForm.cuitDni && !!quickEmpleadoForm.fechaAlta && !!quickEmpleadoForm.direccion.trim()
 
   const canSaveQuickDonante = !!quickDonanteForm.nombre.trim() && !!quickDonanteForm.tipoDonanteId
 
@@ -412,7 +421,7 @@ export default function UserManagementPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={handleModalChange}
-        title={isViewing ? "Ver usuario" : isEdit ? "Editar usuario" : "Nuevo usuario"}
+        title={isViewing ? "Ver usuario" : "Gestionar usuario"}
         readOnly={isViewing}
         description={
           isEdit
@@ -567,7 +576,7 @@ export default function UserManagementPage() {
       <FormModal
         open={quickEmpleadoOpen}
         onOpenChange={setQuickEmpleadoOpen}
-        title="Nuevo empleado"
+        title="Gestionar empleado"
         description="Cargá los datos del empleado para asociarlo al usuario."
         onSave={handleSaveQuickEmpleado}
         isLoading={isCreatingEmpleado}
@@ -606,6 +615,12 @@ export default function UserManagementPage() {
             <FieldError>{empleadoErrors.apellido}</FieldError>
           </div>
         </div>
+
+        <EmpleadoDatosFields
+          values={quickEmpleadoForm}
+          errors={empleadoErrors}
+          onChange={(field, value) => setEmpleadoField(field, value)}
+        />
 
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium">Rol *</label>
@@ -654,7 +669,7 @@ export default function UserManagementPage() {
       <FormModal
         open={quickDonanteOpen}
         onOpenChange={setQuickDonanteOpen}
-        title="Nuevo donante"
+        title="Gestionar donante"
         description="Cargá los datos del donante para asociarlo al usuario."
         onSave={handleSaveQuickDonante}
         isLoading={isCreatingDonante}

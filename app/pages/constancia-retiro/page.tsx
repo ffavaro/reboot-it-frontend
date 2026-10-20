@@ -219,7 +219,7 @@ export default function ConstanciaRetiroPage() {
       <FormModal
         open={sheetOpen}
         onOpenChange={(open) => !open && setSheetOpen(false)}
-        title={isViewing ? "Ver constancia" : editing ? "Editar constancia" : "Nueva constancia de retiro"}
+        title={isViewing ? "Ver constancia" : "Gestionar constancia de retiro"}
         readOnly={isViewing}
         description={
           editing

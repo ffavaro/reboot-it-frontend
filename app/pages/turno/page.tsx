@@ -600,7 +600,7 @@ export default function TurnoPage() {
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={isViewing ? "Ver turno" : editing ? "Editar turno" : "Nuevo turno"}
+        title={isViewing ? "Ver turno" : "Gestionar turno"}
         readOnly={isViewing}
         description={editing ? "Modificá los datos del turno." : "Registrá un nuevo turno para un donante."}
         onSave={handleSave}
