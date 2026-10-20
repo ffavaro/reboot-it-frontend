@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
+import { CrearButton } from "@/components/ui/crear-button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
@@ -576,10 +577,10 @@ export default function TurnoPage() {
           {filtered.length} turno{filtered.length !== 1 ? "s" : ""}
         </span>
         {!isReadOnly && (
-          <Button className="ml-auto" onClick={openCreate}>
+          <CrearButton className="ml-auto" onClick={openCreate}>
             <Plus className="h-4 w-4" />
             Nuevo turno
-          </Button>
+          </CrearButton>
         )}
       </div>
 

@@ -4,6 +4,7 @@ import { Plus } from "lucide-react"
 import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
+import { CrearButton } from "@/components/ui/crear-button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
@@ -348,10 +349,10 @@ export default function ProcesoDestruccionPage() {
         <span className="text-sm text-muted-foreground">
           {filtered.length} proceso{filtered.length !== 1 ? "s" : ""}
         </span>
-        <Button className="ml-auto" onClick={openCreate}>
+        <CrearButton className="ml-auto" onClick={openCreate}>
           <Plus className="h-4 w-4" />
           Nuevo proceso
-        </Button>
+        </CrearButton>
       </div>
 
       <DataTable

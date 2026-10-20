@@ -4,6 +4,7 @@ import { Plus } from "lucide-react"
 import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
+import { CrearButton } from "@/components/ui/crear-button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { FormModal } from "@/components/ui/form-modal"
@@ -195,10 +196,10 @@ export default function ConstanciaRetiroPage() {
           {filtered.length} constancia{filtered.length !== 1 ? "s" : ""}
         </span>
         {!isDonante && (
-          <Button className="ml-auto" onClick={openCreate}>
+          <CrearButton className="ml-auto" onClick={openCreate}>
             <Plus className="h-4 w-4" />
             Nueva constancia
-          </Button>
+          </CrearButton>
         )}
       </div>
 

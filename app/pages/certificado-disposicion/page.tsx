@@ -5,6 +5,7 @@ import { useState, useEffect } from "react"
 import type { TokenPayload } from "@/lib/auth-utils"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
+import { CrearButton } from "@/components/ui/crear-button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { FormModal } from "@/components/ui/form-modal"
@@ -223,10 +224,10 @@ export default function CertificadoDisposicionPage() {
           {filtered.length} certificado{filtered.length !== 1 ? "s" : ""}
         </span>
         {!isDonante && (
-          <Button  className="ml-auto" onClick={openCreate}>
+          <CrearButton  className="ml-auto" onClick={openCreate}>
             <Plus className="h-4 w-4" />
             Nuevo certificado
-          </Button>
+          </CrearButton>
         )}
       </div>
 
