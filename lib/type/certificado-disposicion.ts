@@ -8,6 +8,8 @@ export interface CertificadoDisposicion {
   fechaEmision: string | null
   numeroCertificado: string | null
   terminosCondiciones: string | null
+  // Foto o PDF del certificado de disposición final (null en los certificados anteriores a esta función)
+  archivoFinalUrl: string | null
   isActive: boolean
   lote?: Lote
   gestorAmbiental?: GestorAmbiental
@@ -17,6 +19,8 @@ export interface CreateCertificadoDisposicionPayload {
   loteId: number
   gestorAmbientalId: number
   terminosCondiciones?: string
+  // URL del archivo ya subido (foto o PDF); obligatorio al crear
+  archivoFinalUrl: string
 }
 
 export interface UpdateCertificadoDisposicionPayload {
