@@ -264,7 +264,8 @@ export default function ConstanciaRetiroPage() {
           >
             <option value="">Seleccionar retiro...</option>
             {retiros
-              .filter((r: Retiro) => !r.fechaRetiro)
+              // solo los retiros sin fecha de retiro, más el de la constancia que se está viendo o editando
+              .filter((r: Retiro) => !r.fechaRetiro || String(r.id) === form.retiroId)
               .map((r: Retiro) => (
                 <option key={r.id} value={r.id}>
                   #{r.id} — Donación #{r.donacionId}
