@@ -46,6 +46,14 @@ export function useAsignarEmpleadoTurno() {
   return { asignarEmpleado: trigger, isLoading: isMutating, error }
 }
 
+export function useConfirmarRecepcionTurno() {
+  const { trigger, isMutating } = useSWRMutation(
+    "/turno",
+    (_key: string, { arg }: { arg: number }) => turnoApi.confirmarRecepcion(arg),
+  )
+  return { confirmarRecepcion: trigger, isLoading: isMutating }
+}
+
 export function useFinalizarTurno() {
   const { trigger, isMutating, error } = useSWRMutation(
     "/turno",
