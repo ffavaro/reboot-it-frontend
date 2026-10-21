@@ -3,8 +3,9 @@ import useSWRMutation from "swr/mutation"
 import { fetcher, loteApi } from "@/lib/api"
 import type { Lote, CreateLotePayload, UpdateLotePayload } from "@/lib/type/lote"
 
-export function useLotes() {
-  const { data, isLoading, error, mutate } = useSWR<Lote[]>("/lote", fetcher)
+// habilitado=false: no consulta (el rol no tiene la pantalla Lotes)
+export function useLotes(habilitado = true) {
+  const { data, isLoading, error, mutate } = useSWR<Lote[]>(habilitado ? "/lote" : null, fetcher)
   return { lotes: data ?? [], isLoading, error, mutate }
 }
 

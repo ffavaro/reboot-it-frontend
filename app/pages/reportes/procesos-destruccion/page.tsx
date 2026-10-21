@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useEstadosProcesoDestruccion } from "@/hooks/use-estado-proceso-destruccion"
 import { useMetodosDestruccion } from "@/hooks/use-metodo-destruccion"
-import { useEmpleadosFull } from "@/hooks/use-employees"
+import { useEmpleadosCombo } from "@/hooks/use-employees"
 import { procesoDestruccionApi } from "@/lib/api"
 import type { ProcesoDestruccion, ReporteProcesoDestruccionQuery } from "@/lib/type/proceso-destruccion"
 import type { EstadoProcesoDestruccion } from "@/lib/type/estado-proceso-destruccion"
@@ -24,7 +24,7 @@ const ESTADO_COLOR: Record<string, string> = {
 export default function ReporteProcesoDestruccionPage() {
   const { estados } = useEstadosProcesoDestruccion()
   const { metodos } = useMetodosDestruccion()
-  const { empleados } = useEmpleadosFull()
+  const { empleados } = useEmpleadosCombo()
 
   const [filters, setFilters] = useState<ReporteProcesoDestruccionQuery>({})
   const [result, setResult] = useState<ProcesoDestruccion[]>([])

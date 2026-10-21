@@ -88,12 +88,6 @@ export function LoginForm({
         <Field>
           <div className="flex items-center">
             <FieldLabel htmlFor="password">Contraseña</FieldLabel>
-            <a
-              href="/forgot-password"
-              className="ml-auto text-sm underline-offset-4 hover:underline"
-            >
-              ¿Olvidaste tu contraseña?
-            </a>
           </div>
           <Input
             id="password"

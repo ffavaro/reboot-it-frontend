@@ -22,6 +22,8 @@ import { useDonantes } from "@/hooks/use-donantes"
 import { useDonaciones } from "@/hooks/use-donacion"
 import { useEstadosTurno } from "@/hooks/use-estado-turno"
 import { useEmpleadosFull } from "@/hooks/use-employees"
+import { useMisPermisos } from "@/hooks/use-permisos"
+import { puedeVerPantalla } from "@/lib/nav"
 import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
 import {
   useRegistrosByTurno,
@@ -105,7 +107,9 @@ export default function TurnoPage() {
   const { donantes } = useDonantes()
   const { donaciones } = useDonaciones()
   const { estadosTurno } = useEstadosTurno()
-  const { empleados } = useEmpleadosFull()
+  // el combo de empleados solo lo piden los roles con acceso a esa pantalla (Donante y Transportista no: evita un 403)
+  const { permisos: misPermisos } = useMisPermisos()
+  const { empleados } = useEmpleadosFull("activos", puedeVerPantalla(misPermisos, "empleados"))
   const { transportistas } = useEmpleadosTransportistas()
   const { createTurno, isLoading: isCreating } = useCreateTurno()
   const { updateTurno, isLoading: isUpdating } = useUpdateTurno()

@@ -27,8 +27,10 @@ export function getTransportistaActual(transportistas: EmpleadoTransportista[]) 
   return { user, isTransportista, myTransportista }
 }
 
+// Las fechas "solo día" (yyyy-MM-dd) se formatean cortando el string: new Date("2026-10-20") es UTC y mostraría el día anterior
 export const formatDate = (iso: string | null) => {
   if (!iso) return null
+  if (/^d{4}-d{2}-d{2}$/.test(iso)) return iso.split("-").reverse().join("/")
   return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
 

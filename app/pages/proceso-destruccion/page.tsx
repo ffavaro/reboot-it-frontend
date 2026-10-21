@@ -16,7 +16,7 @@ import {
   useUpdateProcesoDestruccion,
   useDeleteProcesoDestruccion,
 } from "@/hooks/use-proceso-destruccion"
-import { useEmpleadosFull } from "@/hooks/use-employees"
+import { useEmpleadosCombo } from "@/hooks/use-employees"
 import {
   useMediosAlmacenamiento,
   useCreateMedioAlmacenamiento,
@@ -147,7 +147,7 @@ const columns: TableColumn<ProcesoDestruccion>[] = [
 
 export default function ProcesoDestruccionPage() {
   const { procesos, isLoading, mutate } = useProcesosDestruccion()
-  const { empleados } = useEmpleadosFull()
+  const { empleados } = useEmpleadosCombo()
   const { medios, mutate: mutateMedios } = useMediosAlmacenamiento()
   const { metodos, mutate: mutateMetodos } = useMetodosDestruccion()
   const { estados } = useEstadosProcesoDestruccion()

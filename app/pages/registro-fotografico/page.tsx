@@ -1,4 +1,6 @@
 "use client"
+import { useMisPermisos } from "@/hooks/use-permisos"
+import { puedeVerPantalla } from "@/lib/nav"
 import { Plus } from "lucide-react"
 
 import { useState, useEffect } from "react"
@@ -67,7 +69,8 @@ const columns: TableColumn<RegistroFotografico>[] = [
 
 export default function RegistroFotograficoPage() {
   const { registros, isLoading, mutate } = useRegistrosFotograficos()
-  const { lotes } = useLotes()
+  const { permisos } = useMisPermisos()
+  const { lotes } = useLotes(puedeVerPantalla(permisos, "lotes"))
   const { createRegistro, isLoading: isCreating } = useCreateRegistroFotografico()
   const { updateRegistro, isLoading: isUpdating } = useUpdateRegistroFotografico()
   const { deleteRegistro, isLoading: isDeleting } = useDeleteRegistroFotografico()

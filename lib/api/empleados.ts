@@ -7,6 +7,9 @@ export const empleadosApi = {
   getAll: (estado: EstadoEmpleados = "activos") =>
     request<Empleado[]>(estado === "activos" ? "/empleados" : `/empleados?estado=${estado}`),
 
+  // Solo id, nombre, apellido, cargo y rol: para los combos de otras pantallas (no expone datos personales)
+  getCombo: () => request<Empleado[]>("/empleados/combo"),
+
   create: (data: CreateEmpleadoPayload) =>
     request<Empleado>("/empleados", { method: "POST", body: JSON.stringify(data) }),
 
