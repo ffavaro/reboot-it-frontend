@@ -1,7 +1,7 @@
 "use client"
 import { Plus } from "lucide-react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { CrearButton } from "@/components/ui/crear-button"
@@ -17,6 +17,8 @@ import {
   useDeleteProcesoDestruccion,
 } from "@/hooks/use-proceso-destruccion"
 import { useEmpleadosCombo } from "@/hooks/use-employees"
+import { useMisPermisos } from "@/hooks/use-permisos"
+import { puede } from "@/lib/nav"
 import {
   useMediosAlmacenamiento,
   useCreateMedioAlmacenamiento,
@@ -166,6 +168,11 @@ export default function ProcesoDestruccionPage() {
   const [editing, setEditing] = useState<ProcesoDestruccion | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const { permisos } = useMisPermisos()
+
+  // "Iniciar": define el método y el responsable de un proceso que se registró sin ellos
+  const [iniciando, setIniciando] = useState<ProcesoDestruccion | null>(null)
+  const [iniciarForm, setIniciarForm] = useState({ metodoDestruccionId: "", empleadoId: "" })
 
   const [quickMedioOpen, setQuickMedioOpen] = useState(false)
   const [quickMetodoOpen, setQuickMetodoOpen] = useState(false)
@@ -176,6 +183,18 @@ export default function ProcesoDestruccionPage() {
     const rol = e.rol?.nombre?.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
     return rol === "tecnico"
   })
+
+  // Desde Materiales se llega con ?proceso=ID: se abre el proceso en modo consulta
+  const [procesoAbierto, setProcesoAbierto] = useState(false)
+  useEffect(() => {
+    if (procesoAbierto || !procesos.length) return
+    const id = Number(new URLSearchParams(window.location.search).get("proceso"))
+    if (!id) return
+    setProcesoAbierto(true)
+    const p = procesos.find((x: ProcesoDestruccion) => x.id === id)
+    if (p) openView(p)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [procesos, procesoAbierto])
 
   const filtered = procesos.filter((p: ProcesoDestruccion) => {
     const q = search.toLowerCase()
@@ -265,6 +284,34 @@ export default function ProcesoDestruccionPage() {
     }
   }
 
+  function openIniciar(p: ProcesoDestruccion) {
+    setIniciando(p)
+    setIniciarForm({
+      metodoDestruccionId: p.metodoDestruccionId ? String(p.metodoDestruccionId) : "",
+      empleadoId: p.empleadoId ? String(p.empleadoId) : "",
+    })
+  }
+
+  async function handleIniciar() {
+    if (!iniciando) return
+    if (!iniciarForm.metodoDestruccionId || !iniciarForm.empleadoId) {
+      toast.error("Seleccioná el método y el responsable")
+      return
+    }
+    try {
+      await updateProceso({
+        id: iniciando.id,
+        metodoDestruccionId: Number(iniciarForm.metodoDestruccionId),
+        empleadoId: Number(iniciarForm.empleadoId),
+      })
+      await mutate()
+      toast.success("Proceso iniciado")
+      setIniciando(null)
+    } catch (err: any) {
+      toast.error(err?.message ? String(Array.isArray(err.message) ? err.message[0] : err.message) : "No se pudo iniciar el proceso")
+    }
+  }
+
   async function handleDelete(id: number | string) {
     try {
       await deleteProceso(Number(id))
@@ -318,7 +365,10 @@ export default function ProcesoDestruccionPage() {
         descripcion: quickMetodoForm.descripcion.trim() || undefined,
       })
       await mutateMetodos()
-      if (nuevo) setForm((f) => ({ ...f, metodoDestruccionId: String(nuevo.id) }))
+      if (nuevo) {
+        setForm((f) => ({ ...f, metodoDestruccionId: String(nuevo.id) }))
+        setIniciarForm((f) => ({ ...f, metodoDestruccionId: String(nuevo.id) }))
+      }
       toast.success("Método de destrucción creado")
       setQuickMetodoOpen(false)
     } catch {
@@ -329,6 +379,29 @@ export default function ProcesoDestruccionPage() {
   const canSave = !!form.medioAlmacenamientoId && !!form.metodoDestruccionId && !!form.empleadoId
   const canSaveQuickMedio = !!quickMedioForm.materialId
   const canSaveQuickMetodo = !!quickMetodoForm.nombre.trim()
+
+  // "Iniciar" aparece mientras el proceso no tiene método o responsable y todavía no se cerró
+  const puedeEditar = puede(permisos, "proceso_destruccion", "editar")
+  const columnasProceso: TableColumn<ProcesoDestruccion>[] = puedeEditar
+    ? [
+        ...columns,
+        {
+          key: "iniciar",
+          header: "",
+          cell: (p: ProcesoDestruccion) =>
+            (!p.metodoDestruccionId || !p.empleadoId) && !/finaliz|complet|cancel|anulad/i.test(p.estado?.nombre ?? "") ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-green-700 border-green-300 hover:bg-green-50"
+                onClick={(e) => { e.stopPropagation(); openIniciar(p) }}
+              >
+                Iniciar
+              </Button>
+            ) : null,
+        },
+      ]
+    : columns
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -357,7 +430,7 @@ export default function ProcesoDestruccionPage() {
 
       <DataTable
         data={filtered}
-        columns={columns}
+        columns={columnasProceso}
         isLoading={isLoading}
         loadingText="Cargando procesos de destrucción..."
         emptyText="No hay procesos de destrucción registrados."
@@ -384,102 +457,153 @@ export default function ProcesoDestruccionPage() {
         saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear proceso"}
       >
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Medio de almacenamiento *</label>
-          <div className="flex gap-2">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-2 sm:col-span-2">
+            <label className="text-sm font-medium">Medio de almacenamiento *</label>
+            <div className="flex gap-2">
+              <select
+                value={form.medioAlmacenamientoId}
+                onChange={(e) => setForm((f) => ({ ...f, medioAlmacenamientoId: e.target.value }))}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">Seleccionar medio...</option>
+                {medios.map((m: MedioAlmacenamiento) => (
+                  <option key={m.id} value={m.id}>
+                    {medioLabel(m)}
+                  </option>
+                ))}
+              </select>
+              {!isViewing && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  title="No está en la lista: crear nuevo medio de almacenamiento"
+                  onClick={openQuickMedio}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Método *</label>
+            <div className="flex gap-2">
+              <select
+                value={form.metodoDestruccionId}
+                onChange={(e) => setForm((f) => ({ ...f, metodoDestruccionId: e.target.value }))}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">Seleccionar método...</option>
+                {metodos.map((m: MetodoDestruccion) => (
+                  <option key={m.id} value={m.id}>{m.nombre}</option>
+                ))}
+              </select>
+              {!isViewing && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  title="No está en la lista: crear nuevo método"
+                  onClick={openQuickMetodo}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Empleado responsable *</label>
             <select
-              value={form.medioAlmacenamientoId}
-              onChange={(e) => setForm((f) => ({ ...f, medioAlmacenamientoId: e.target.value }))}
+              value={form.empleadoId}
+              onChange={(e) => setForm((f) => ({ ...f, empleadoId: e.target.value }))}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
-              <option value="">Seleccionar medio...</option>
-              {medios.map((m: MedioAlmacenamiento) => (
-                <option key={m.id} value={m.id}>
-                  {medioLabel(m)}
+              <option value="">Seleccionar empleado...</option>
+              {empleadosTecnicos.map((e: Empleado) => (
+                <option key={e.id} value={e.id}>
+                  {e.nombre} {e.apellido}{e.cargo ? ` — ${e.cargo}` : ""}
                 </option>
               ))}
             </select>
-            {!isViewing && (
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                title="No está en la lista: crear nuevo medio de almacenamiento"
-                onClick={openQuickMedio}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            )}
           </div>
-        </div>
+  
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Método *</label>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Estado</label>
             <select
-              value={form.metodoDestruccionId}
-              onChange={(e) => setForm((f) => ({ ...f, metodoDestruccionId: e.target.value }))}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={form.estadoId}
+              disabled={!editing}
+              onChange={(e) => setForm((f) => ({ ...f, estadoId: e.target.value }))}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <option value="">Seleccionar método...</option>
-              {metodos.map((m: MetodoDestruccion) => (
-                <option key={m.id} value={m.id}>{m.nombre}</option>
+              <option value="">Sin estado especificado</option>
+              {estados.map((e: EstadoProcesoDestruccion) => (
+                <option key={e.id} value={e.id}>{e.nombre}</option>
               ))}
             </select>
-            {!isViewing && (
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                title="No está en la lista: crear nuevo método"
-                onClick={openQuickMetodo}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            )}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Fecha</label>
+            <Input
+              type="date"
+              value={form.fecha}
+              min={todayISO()}
+              disabled={!editing}
+              onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))}
+            />
           </div>
         </div>
+      </FormModal>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Estado</label>
-          <select
-            value={form.estadoId}
-            disabled={!editing}
-            onChange={(e) => setForm((f) => ({ ...f, estadoId: e.target.value }))}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <option value="">Sin estado especificado</option>
-            {estados.map((e: EstadoProcesoDestruccion) => (
-              <option key={e.id} value={e.id}>{e.nombre}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Fecha</label>
-          <Input
-            type="date"
-            value={form.fecha}
-            min={todayISO()}
-            disabled={!editing}
-            onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))}
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Empleado responsable *</label>
-          <select
-            value={form.empleadoId}
-            onChange={(e) => setForm((f) => ({ ...f, empleadoId: e.target.value }))}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            <option value="">Seleccionar empleado...</option>
-            {empleadosTecnicos.map((e: Empleado) => (
-              <option key={e.id} value={e.id}>
-                {e.nombre} {e.apellido}{e.cargo ? ` — ${e.cargo}` : ""}
-              </option>
-            ))}
-          </select>
+      {/* Iniciar: método y responsable del proceso */}
+      <FormModal
+        open={!!iniciando}
+        onOpenChange={(abierto) => { if (!abierto) setIniciando(null) }}
+        title="Iniciar proceso de destrucción"
+        description={iniciando ? `Definí el método y el responsable del proceso #${iniciando.id}.` : undefined}
+        onSave={handleIniciar}
+        isLoading={isUpdating}
+        saveDisabled={!iniciarForm.metodoDestruccionId || !iniciarForm.empleadoId}
+        saveLabel="Iniciar"
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Método *</label>
+            <div className="flex gap-2">
+              <select
+                value={iniciarForm.metodoDestruccionId}
+                onChange={(e) => setIniciarForm((f) => ({ ...f, metodoDestruccionId: e.target.value }))}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">Seleccionar método...</option>
+                {metodos.map((m: MetodoDestruccion) => (
+                  <option key={m.id} value={m.id}>{m.nombre}</option>
+                ))}
+              </select>
+              <Button type="button" variant="outline" size="icon" title="No está en la lista: crear nuevo método" onClick={openQuickMetodo}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Empleado responsable *</label>
+            <select
+              value={iniciarForm.empleadoId}
+              onChange={(e) => setIniciarForm((f) => ({ ...f, empleadoId: e.target.value }))}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="">Seleccionar empleado...</option>
+              {empleadosTecnicos.map((e: Empleado) => (
+                <option key={e.id} value={e.id}>
+                  {e.nombre} {e.apellido}{e.cargo ? ` — ${e.cargo}` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </FormModal>
 

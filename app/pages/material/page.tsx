@@ -2,6 +2,7 @@
 import { Plus } from "lucide-react"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { CrearButton } from "@/components/ui/crear-button"
@@ -22,7 +23,7 @@ import { useTipoMateriales, useCreateTipoMaterial } from "@/hooks/use-tipo-mater
 import { useCondicionesMaterial } from "@/hooks/use-condicion-material"
 import { useTipos, useCreateTipo } from "@/hooks/use-tipo"
 import { useMisPermisos } from "@/hooks/use-permisos"
-import { puede } from "@/lib/nav"
+import { puede, puedeVerPantalla } from "@/lib/nav"
 import { useMarcas, useCreateMarca } from "@/hooks/use-marca"
 import { useModelos, useCreateModelo } from "@/hooks/use-modelo"
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
@@ -85,6 +86,7 @@ export default function MaterialPage() {
   const { materiales, isLoading, mutate } = useMateriales()
   const { lotes } = useLotes()
   const { permisos } = useMisPermisos()
+  const router = useRouter()
   const { tipoMateriales, mutate: mutateTipoMateriales } = useTipoMateriales()
   const { condiciones } = useCondicionesMaterial()
   const { tipos, mutate: mutateTipos } = useTipos()
@@ -121,12 +123,34 @@ export default function MaterialPage() {
     ? modelos.filter((m: Modelo) => String(m.marcaId) === destruccionMarcaId)
     : modelos
 
-  // Botón "Clasificar" en la grilla: abre directo el formulario de los materiales que todavía están "A definir"
   const puedeClasificar = puede(permisos, "materiales", "editar")
-  const columnasConClasificar: TableColumn<Material>[] = puedeClasificar
-    ? [
-        ...columns,
-        {
+  const puedeVerProceso = puedeVerPantalla(permisos, "proceso_destruccion")
+  const verProceso = (id: number) => router.push(`/pages/proceso-destruccion?proceso=${id}`)
+
+  const columnasConClasificar: TableColumn<Material>[] = [
+    ...columns,
+    {
+      key: "procesoDestruccion",
+      header: "Proceso de destrucción",
+      cell: (m: Material) =>
+        m.procesoDestruccion ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800">
+              Sí{m.procesoDestruccion.estado ? ` · ${m.procesoDestruccion.estado}` : ""}
+            </span>
+            {puedeVerProceso && (
+              <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); verProceso(m.procesoDestruccion!.id) }}>
+                Ver proceso
+              </Button>
+            )}
+          </div>
+        ) : (
+          <span className="text-muted-foreground">No</span>
+        ),
+    },
+    // Botón "Clasificar" en la grilla: abre directo el formulario de los materiales que todavía están "A definir"
+    ...(puedeClasificar
+      ? [{
           key: "clasificar",
           header: "",
           cell: (m: Material) =>
@@ -140,9 +164,9 @@ export default function MaterialPage() {
                 Clasificar
               </Button>
             ) : null,
-        },
-      ]
-    : columns
+        }]
+      : []),
+  ]
 
   const filtered = materiales.filter((m: Material) => {
     const q = search.toLowerCase()
@@ -465,8 +489,25 @@ export default function MaterialPage() {
             </select>
           </div>
 
-          {/* Destrucción: solo si el tipo es Almacenamiento y no es vista */}
-          {esAlmacenamiento && !isViewing && (
+          {editing?.procesoDestruccion && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 sm:col-span-2">
+              <div className="text-sm text-amber-900">
+                <p className="font-medium">Proceso de destrucción asociado: #{editing.procesoDestruccion.id}</p>
+                <p className="text-xs text-amber-700">
+                  Estado: {editing.procesoDestruccion.estado ?? "—"}
+                  {editing.procesoDestruccion.metodoDestruccionId ? "" : " · falta definir el método y el responsable"}
+                </p>
+              </div>
+              {puedeVerProceso && (
+                <Button type="button" size="sm" variant="outline" onClick={() => verProceso(editing.procesoDestruccion!.id)}>
+                  Ver proceso
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Destrucción: solo si el tipo es Almacenamiento, no es vista y todavía no tiene un proceso asociado */}
+          {esAlmacenamiento && !isViewing && !editing?.procesoDestruccion && (
             <div className="flex flex-col gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 sm:col-span-2">
               <p className="text-sm font-medium text-amber-900">¿Requiere proceso de destrucción?</p>
               <p className="text-xs text-amber-700">
