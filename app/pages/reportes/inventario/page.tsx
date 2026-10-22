@@ -11,7 +11,7 @@ import { materialApi } from "@/lib/api"
 import type { ReporteInventario, ReporteInventarioQuery } from "@/lib/type/material"
 import type { TipoMaterial } from "@/lib/type/tipo-material"
 import type { CondicionMaterial } from "@/lib/type/condicion-material"
-import { formatDate } from "@/lib/utils/helpers"
+import { formatDate, periodoPorDefecto } from "@/lib/utils/helpers"
 
 const ESTADO_COLOR: Record<string, string> = {
   Iniciado: "bg-blue-100 text-blue-700",
@@ -23,7 +23,7 @@ export default function ReporteInventarioPage() {
   const { tipoMateriales } = useTipoMateriales()
   const { condiciones } = useCondicionesMaterial()
 
-  const [filters, setFilters] = useState<ReporteInventarioQuery>({})
+  const [filters, setFilters] = useState<ReporteInventarioQuery>(periodoPorDefecto)
   const [result, setResult] = useState<ReporteInventario[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [hasGenerated, setHasGenerated] = useState(false)
@@ -42,7 +42,7 @@ export default function ReporteInventarioPage() {
   }
 
   function handleLimpiar() {
-    setFilters({})
+    setFilters(periodoPorDefecto())
     setResult([])
     setHasGenerated(false)
   }
@@ -188,7 +188,7 @@ export default function ReporteInventarioPage() {
 
             {/* Fecha desde */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">Fecha de registro desde</label>
+              <label className="text-sm font-medium">Fecha Desde</label>
               <Input
                 type="date"
                 value={filters.fechaDesde ?? ""}
@@ -198,7 +198,7 @@ export default function ReporteInventarioPage() {
 
             {/* Fecha hasta */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">Fecha de registro hasta</label>
+              <label className="text-sm font-medium">Fecha Hasta</label>
               <Input
                 type="date"
                 value={filters.fechaHasta ?? ""}

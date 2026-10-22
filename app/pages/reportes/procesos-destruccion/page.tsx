@@ -13,7 +13,7 @@ import type { ProcesoDestruccion, ReporteProcesoDestruccionQuery } from "@/lib/t
 import type { EstadoProcesoDestruccion } from "@/lib/type/estado-proceso-destruccion"
 import type { MetodoDestruccion } from "@/lib/type/metodo-destruccion"
 import type { Empleado } from "@/lib/type/user"
-import { formatDate } from "@/lib/utils/helpers"
+import { formatDate, periodoPorDefecto } from "@/lib/utils/helpers"
 
 const ESTADO_COLOR: Record<string, string> = {
   Iniciado: "bg-blue-100 text-blue-700",
@@ -26,7 +26,7 @@ export default function ReporteProcesoDestruccionPage() {
   const { metodos } = useMetodosDestruccion()
   const { empleados } = useEmpleadosCombo()
 
-  const [filters, setFilters] = useState<ReporteProcesoDestruccionQuery>({})
+  const [filters, setFilters] = useState<ReporteProcesoDestruccionQuery>(periodoPorDefecto)
   const [result, setResult] = useState<ProcesoDestruccion[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [hasGenerated, setHasGenerated] = useState(false)
@@ -45,7 +45,7 @@ export default function ReporteProcesoDestruccionPage() {
   }
 
   function handleLimpiar() {
-    setFilters({})
+    setFilters(periodoPorDefecto())
     setResult([])
     setHasGenerated(false)
   }
@@ -173,7 +173,7 @@ export default function ReporteProcesoDestruccionPage() {
 
             {/* Fecha desde */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">Fecha de proceso desde</label>
+              <label className="text-sm font-medium">Fecha Desde</label>
               <Input
                 type="date"
                 value={filters.fechaDesde ?? ""}
@@ -183,7 +183,7 @@ export default function ReporteProcesoDestruccionPage() {
 
             {/* Fecha hasta */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">Fecha de proceso hasta</label>
+              <label className="text-sm font-medium">Fecha Hasta</label>
               <Input
                 type="date"
                 value={filters.fechaHasta ?? ""}

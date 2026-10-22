@@ -58,6 +58,19 @@ export const todayISO = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 }
 
+// Período por defecto de los reportes: desde un mes antes de hoy hasta hoy (yyyy-MM-dd)
+export const periodoPorDefecto = () => {
+  const hasta = new Date()
+  const desde = new Date(hasta)
+  desde.setDate(1)
+  desde.setMonth(desde.getMonth() - 1)
+  // si el mes anterior es más corto (por ejemplo, 31/03 -> 28/02) se usa su último día
+  const ultimoDia = new Date(desde.getFullYear(), desde.getMonth() + 1, 0).getDate()
+  desde.setDate(Math.min(hasta.getDate(), ultimoDia))
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+  return { fechaDesde: iso(desde), fechaHasta: iso(hasta) }
+}
+
 export const formatFechaISO = (iso: string | null | undefined) => {
   if (!iso) return null
   return iso.slice(0, 10).split("-").reverse().join("/")

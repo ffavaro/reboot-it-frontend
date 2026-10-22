@@ -13,14 +13,14 @@ import type { ReporteRetiro, ReporteRetiroQuery } from "@/lib/type/retiro"
 import type { EstadoDonacion } from "@/lib/type/donacion"
 import type { Donante } from "@/lib/type/donante"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
-import { formatDate, formatDateTime } from "@/lib/utils/helpers"
+import { formatDate, formatDateTime, periodoPorDefecto } from "@/lib/utils/helpers"
 
 export default function ReporteRetirosPage() {
   const { donantes } = useDonantes()
   const { estadosDonacion } = useEstadosDonacion()
   const { transportistas } = useEmpleadosTransportistas()
 
-  const [filters, setFilters] = useState<ReporteRetiroQuery>({})
+  const [filters, setFilters] = useState<ReporteRetiroQuery>(periodoPorDefecto)
   const [result, setResult] = useState<ReporteRetiro[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [hasGenerated, setHasGenerated] = useState(false)
@@ -39,7 +39,7 @@ export default function ReporteRetirosPage() {
   }
 
   function handleLimpiar() {
-    setFilters({})
+    setFilters(periodoPorDefecto())
     setResult([])
     setHasGenerated(false)
   }
@@ -183,7 +183,7 @@ export default function ReporteRetirosPage() {
 
             {/* Fecha desde */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">Fecha de inicio desde</label>
+              <label className="text-sm font-medium">Fecha Desde</label>
               <Input
                 type="date"
                 value={filters.fechaDesde ?? ""}
@@ -195,7 +195,7 @@ export default function ReporteRetirosPage() {
 
             {/* Fecha hasta */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">Fecha de inicio hasta</label>
+              <label className="text-sm font-medium">Fecha Hasta</label>
               <Input
                 type="date"
                 value={filters.fechaHasta ?? ""}

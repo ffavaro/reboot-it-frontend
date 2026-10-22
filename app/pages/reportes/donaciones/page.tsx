@@ -10,13 +10,13 @@ import { useEstadosDonacion } from "@/hooks/use-estado-donacion"
 import { donacionApi } from "@/lib/api"
 import type { ReporteDonacion, ReporteDonacionQuery, EstadoDonacion } from "@/lib/type/donacion"
 import type { Donante } from "@/lib/type/donante"
-import { formatDate, formatDateTime } from "@/lib/utils/helpers"
+import { formatDate, formatDateTime, periodoPorDefecto } from "@/lib/utils/helpers"
 
 export default function ReporteDonacionPage() {
   const { donantes } = useDonantes()
   const { estadosDonacion } = useEstadosDonacion()
 
-  const [filters, setFilters] = useState<ReporteDonacionQuery>({})
+  const [filters, setFilters] = useState<ReporteDonacionQuery>(periodoPorDefecto)
   const [result, setResult] = useState<ReporteDonacion[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [hasGenerated, setHasGenerated] = useState(false)
@@ -35,7 +35,7 @@ export default function ReporteDonacionPage() {
   }
 
   function handleLimpiar() {
-    setFilters({})
+    setFilters(periodoPorDefecto())
     setResult([])
     setHasGenerated(false)
   }
@@ -195,7 +195,7 @@ export default function ReporteDonacionPage() {
 
             {/* Fecha desde */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">Fecha de registro desde</label>
+              <label className="text-sm font-medium">Fecha Desde</label>
               <Input
                 type="date"
                 value={filters.fechaDesde ?? ""}
@@ -207,7 +207,7 @@ export default function ReporteDonacionPage() {
 
             {/* Fecha hasta */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">Fecha de registro hasta</label>
+              <label className="text-sm font-medium">Fecha Hasta</label>
               <Input
                 type="date"
                 value={filters.fechaHasta ?? ""}
