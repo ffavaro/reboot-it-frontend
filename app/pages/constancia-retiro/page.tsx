@@ -7,9 +7,9 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { CrearButton } from "@/components/ui/crear-button"
-import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { FormModal } from "@/components/ui/form-modal"
+import { DateInput } from "@/components/ui/date-input"
 import { DataTable, TableColumn } from "@/components/ui/data-table"
 import {
   useConstanciasRetiro,
@@ -277,10 +277,9 @@ export default function ConstanciaRetiroPage() {
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Fecha de emisión</label>
-          <Input
-            type="date"
+          <DateInput
             value={form.fechaEmision}
-            onChange={(e) => setForm((f) => ({ ...f, fechaEmision: e.target.value }))}
+            onChange={(v) => setForm((f) => ({ ...f, fechaEmision: v }))}
             disabled={!editing}
           />
         </div>

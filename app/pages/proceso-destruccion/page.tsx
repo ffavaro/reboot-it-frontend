@@ -10,6 +10,7 @@ import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
+import { DateInput } from "@/components/ui/date-input"
 import {
   useProcesosDestruccion,
   useCreateProcesoDestruccion,
@@ -576,12 +577,10 @@ export default function ProcesoDestruccionPage() {
 
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium">Fecha</label>
-            <Input
-              type="date"
+            <DateInput
               value={form.fecha}
-              min={todayISO()}
+              onChange={(v) => setForm((f) => ({ ...f, fecha: v }))}
               disabled={!editing}
-              onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))}
             />
           </div>
         </div>
