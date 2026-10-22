@@ -1,9 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import { DateInput } from "@/components/ui/date-input"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useDonantes } from "@/hooks/use-donantes"
 import { useEstadosDonacion } from "@/hooks/use-estado-donacion"
@@ -196,24 +196,18 @@ export default function ReporteDonacionPage() {
             {/* Fecha desde */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Fecha Desde</label>
-              <Input
-                type="date"
+              <DateInput
                 value={filters.fechaDesde ?? ""}
-                onChange={(e) =>
-                  setFilters((f) => ({ ...f, fechaDesde: e.target.value || undefined }))
-                }
+                onChange={(v) => setFilters((f) => ({ ...f, fechaDesde: v || undefined }))}
               />
             </div>
 
             {/* Fecha hasta */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Fecha Hasta</label>
-              <Input
-                type="date"
+              <DateInput
                 value={filters.fechaHasta ?? ""}
-                onChange={(e) =>
-                  setFilters((f) => ({ ...f, fechaHasta: e.target.value || undefined }))
-                }
+                onChange={(v) => setFilters((f) => ({ ...f, fechaHasta: v || undefined }))}
               />
             </div>
           </div>
