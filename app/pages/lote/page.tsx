@@ -72,6 +72,11 @@ const baseColumns: TableColumn<Lote>[] = [
     cell: (l) => <span className="font-mono text-xs">#{l.donacionId}</span>,
   },
   {
+    key: "donante",
+    header: "Donante",
+    cell: (l) => l.donacion?.donante?.nombre ?? <span className="italic text-muted-foreground">—</span>,
+  },
+  {
     key: "pesoBrutoKg",
     header: "Peso bruto (kg)",
     cell: (l) => (

@@ -12,6 +12,13 @@ export interface Material {
   lote?: Lote
   tipoMaterial?: TipoMaterial
   condicionMaterial?: CondicionMaterial
+  // Proceso de destrucción asociado (el más reciente) o null si no tiene
+  procesoDestruccion?: {
+    id: number
+    estado: string | null
+    metodoDestruccionId: number | null
+    empleadoId: number | null
+  } | null
 }
 
 export interface CreateMaterialPayload {

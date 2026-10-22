@@ -1,9 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import { DateInput } from "@/components/ui/date-input"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useDonantes } from "@/hooks/use-donantes"
 import { useEstadosDonacion } from "@/hooks/use-estado-donacion"
@@ -13,14 +13,14 @@ import type { ReporteRetiro, ReporteRetiroQuery } from "@/lib/type/retiro"
 import type { EstadoDonacion } from "@/lib/type/donacion"
 import type { Donante } from "@/lib/type/donante"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
-import { formatDate, formatDateTime } from "@/lib/utils/helpers"
+import { formatDate, formatDateTime, periodoPorDefecto } from "@/lib/utils/helpers"
 
 export default function ReporteRetirosPage() {
   const { donantes } = useDonantes()
   const { estadosDonacion } = useEstadosDonacion()
   const { transportistas } = useEmpleadosTransportistas()
 
-  const [filters, setFilters] = useState<ReporteRetiroQuery>({})
+  const [filters, setFilters] = useState<ReporteRetiroQuery>(periodoPorDefecto)
   const [result, setResult] = useState<ReporteRetiro[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [hasGenerated, setHasGenerated] = useState(false)
@@ -39,7 +39,7 @@ export default function ReporteRetirosPage() {
   }
 
   function handleLimpiar() {
-    setFilters({})
+    setFilters(periodoPorDefecto())
     setResult([])
     setHasGenerated(false)
   }
@@ -183,25 +183,19 @@ export default function ReporteRetirosPage() {
 
             {/* Fecha desde */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">Fecha de inicio desde</label>
-              <Input
-                type="date"
+              <label className="text-sm font-medium">Fecha Desde</label>
+              <DateInput
                 value={filters.fechaDesde ?? ""}
-                onChange={(e) =>
-                  setFilters((f) => ({ ...f, fechaDesde: e.target.value || undefined }))
-                }
+                onChange={(v) => setFilters((f) => ({ ...f, fechaDesde: v || undefined }))}
               />
             </div>
 
             {/* Fecha hasta */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">Fecha de inicio hasta</label>
-              <Input
-                type="date"
+              <label className="text-sm font-medium">Fecha Hasta</label>
+              <DateInput
                 value={filters.fechaHasta ?? ""}
-                onChange={(e) =>
-                  setFilters((f) => ({ ...f, fechaHasta: e.target.value || undefined }))
-                }
+                onChange={(v) => setFilters((f) => ({ ...f, fechaHasta: v || undefined }))}
               />
             </div>
           </div>

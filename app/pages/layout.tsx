@@ -31,15 +31,16 @@ export default function RootLayout({
   const pathname = usePathname()
   useEffect(() => { setUser(getUser()); setSesionLeida(true) }, [])
 
-  const { permisos, error: errorPermisos } = useMisPermisos()
+  const { permisos, error: errorPermisos, mutate: reintentarPermisos } = useMisPermisos()
 
   // Protección de pantallas según la matriz de permisos del rol (la misma regla que el menú; el backend valida de nuevo).
   // null = todavía no se leyó la sesión o los permisos · false = el rol no puede ver esta ruta
   const acceso = !sesionLeida ? null : !user ? false : permisos ? puedeAccederARuta(pathname, permisos) : null
 
   useEffect(() => {
-    // sin sesión, o sin poder leer los permisos del usuario: se vuelve a iniciar sesión
-    if (sesionLeida && (!user || errorPermisos)) {
+    // sin sesión, o sesión vencida (401): se vuelve a iniciar sesión. Cualquier otro error al leer los permisos
+    // (red, servidor caído) no cierra la sesión: se muestra el aviso con "Reintentar"
+    if (sesionLeida && (!user || (errorPermisos as { statusCode?: number } | undefined)?.statusCode === 401)) {
       clearSession()
       router.replace("/login")
       return
@@ -104,6 +105,12 @@ export default function RootLayout({
           </header>
           <main className="p-4 md:p-6">
             {/* No se monta la pantalla hasta confirmar el acceso, así no dispara llamadas que el backend rechazaría */}
+            {!permisos && errorPermisos ? (
+              <div className="flex flex-col items-center gap-3 py-16 text-center">
+                <p className="text-sm text-muted-foreground">No pudimos cargar tus permisos. Revisá la conexión e intentá de nuevo.</p>
+                <button type="button" className="rounded-md border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted" onClick={() => reintentarPermisos()}>Reintentar</button>
+              </div>
+            ) : null}
             {acceso ? <PermisosPantallaProvider permisos={permisos} pathname={pathname}>{children}</PermisosPantallaProvider> : null}
           </main>{/*
           <ChatWidget /> ver de poner en el otro layout */}

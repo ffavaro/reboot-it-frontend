@@ -17,11 +17,14 @@ import {
   useDeleteTurno,
   useAsignarEmpleadoTurno,
   useFinalizarTurno,
+  useConfirmarRecepcionTurno,
 } from "@/hooks/use-turno"
 import { useDonantes } from "@/hooks/use-donantes"
 import { useDonaciones } from "@/hooks/use-donacion"
 import { useEstadosTurno } from "@/hooks/use-estado-turno"
 import { useEmpleadosFull } from "@/hooks/use-employees"
+import { useMisPermisos } from "@/hooks/use-permisos"
+import { puedeVerPantalla } from "@/lib/nav"
 import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
 import {
   useRegistrosByTurno,
@@ -105,13 +108,16 @@ export default function TurnoPage() {
   const { donantes } = useDonantes()
   const { donaciones } = useDonaciones()
   const { estadosTurno } = useEstadosTurno()
-  const { empleados } = useEmpleadosFull()
+  // el combo de empleados solo lo piden los roles con acceso a esa pantalla (Donante y Transportista no: evita un 403)
+  const { permisos: misPermisos } = useMisPermisos()
+  const { empleados } = useEmpleadosFull("activos", puedeVerPantalla(misPermisos, "empleados"))
   const { transportistas } = useEmpleadosTransportistas()
   const { createTurno, isLoading: isCreating } = useCreateTurno()
   const { updateTurno, isLoading: isUpdating } = useUpdateTurno()
   const { deleteTurno, isLoading: isDeleting } = useDeleteTurno()
   const { asignarEmpleado, isLoading: isAsignando } = useAsignarEmpleadoTurno()
   const { finalizarTurno, isLoading: isFinalizando } = useFinalizarTurno()
+  const { confirmarRecepcion } = useConfirmarRecepcionTurno()
   const { createRegistro, isLoading: isCreatingFoto } = useCreateRegistroFotografico()
 
   const [search, setSearch] = useState("")
@@ -228,6 +234,8 @@ export default function TurnoPage() {
             const estado = t.estadoTurno?.descripcion?.toLowerCase() ?? ""
             const puedeAsignarse = estado === "pendiente" || estado === "asignado"
             const puedeFinalizarse = estado === ESTADO_RETIRO_CONFIRMADO
+            // sucursal: asignado a un técnico o administrativo, se confirma la recepción y se pasa a clasificar
+            const puedeClasificarSucursal = !t.necesitaRetiro && estado === "asignado" && !!t.empleadoId
             return (
               <div className="flex gap-1">
                 {puedeAsignarse && (
@@ -237,6 +245,16 @@ export default function TurnoPage() {
                     onClick={(e) => { e.stopPropagation(); openAsignar(t) }}
                   >
                     {yaAsignado ? "Reasignar" : "Asignar"}
+                  </Button>
+                )}
+                {puedeClasificarSucursal && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-green-700 border-green-300 hover:bg-green-50"
+                    onClick={(e) => { e.stopPropagation(); handleClasificarSucursal(t) }}
+                  >
+                    Clasificar
                   </Button>
                 )}
                 {puedeFinalizarse && (
@@ -369,6 +387,17 @@ export default function TurnoPage() {
       empleadoTransportistaId: t.empleadoTransportistaId ? String(t.empleadoTransportistaId) : "",
     })
     setAsignarModalOpen(true)
+  }
+
+  // Turno de sucursal: pasa a "Retiro confirmado" y enseguida se piden las fotos para clasificar
+  async function handleClasificarSucursal(t: Turno) {
+    try {
+      await confirmarRecepcion(t.id)
+      await mutate()
+      openFinalizar(t)
+    } catch (err: any) {
+      toast.error(err?.message ?? "No se pudo pasar el turno a Retiro confirmado")
+    }
   }
 
   function openFinalizar(t: Turno) {
@@ -816,7 +845,8 @@ export default function TurnoPage() {
                 {empleados
                 .filter((emp: Empleado) => {
                   const rol = emp.rol?.nombre?.toLowerCase() ?? ""
-                  return rol === "transportista" || rol === "administrativo"
+                  // turno de sucursal: lo recibe un técnico o un administrativo (el SysAdmin también puede)
+                  return ["tecnico", "administrativo", "sysadmin", "admin"].includes(rol.normalize("NFD").replace(/[̀-ͯ]/g, ""))
                 })
                 .map((emp: Empleado) => (
                   <option key={emp.id} value={emp.id}>

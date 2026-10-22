@@ -13,6 +13,10 @@ export const turnoApi = {
   asignar: (id: number, data: AsignarEmpleadoPayload) =>
     request<Turno>(`/turno/${id}/asignar`, { method: "PATCH", body: JSON.stringify(data) }),
 
+  // Turno de sucursal: Asignado -> Retiro confirmado (después se clasifica)
+  confirmarRecepcion: (id: number) =>
+    request<Turno>(`/turno/${id}/confirmar-recepcion`, { method: "PATCH" }),
+
   finalizar: (id: number) =>
     request<Turno>(`/turno/${id}/finalizar`, { method: "PATCH" }),
 

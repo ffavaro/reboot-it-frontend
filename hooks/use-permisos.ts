@@ -7,12 +7,12 @@ import type { GuardarPermisosPayload, MatrizRol, Permisos } from "@/lib/type/per
 // La clave incluye al usuario: al cambiar de sesión en la misma pestaña no se reutilizan los permisos del anterior
 export function useMisPermisos() {
   const userId = typeof window === "undefined" ? null : getUser()?.id ?? null
-  const { data, isLoading, error } = useSWR<Permisos>(
+  const { data, isLoading, error, mutate } = useSWR<Permisos>(
     userId ? ["/permisos/mias", userId] : null,
     () => permisosApi.mias(),
     { revalidateOnFocus: false },
   )
-  return { permisos: data, isLoading, error }
+  return { permisos: data, isLoading, error, mutate }
 }
 
 export function useMatrizRol(rolId: number | null) {

@@ -2,6 +2,7 @@
 import { Plus } from "lucide-react"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { CrearButton } from "@/components/ui/crear-button"
@@ -11,28 +12,21 @@ import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
   useMateriales,
   useCreateMaterial,
   useUpdateMaterial,
   useDeleteMaterial,
   useClasificarMaterial,
 } from "@/hooks/use-material"
-import { useLotes, useCreateLote } from "@/hooks/use-lote"
-import { useDonaciones } from "@/hooks/use-donacion"
+import { useLotes } from "@/hooks/use-lote"
 import { useTipoMateriales, useCreateTipoMaterial } from "@/hooks/use-tipo-material"
 import { useCondicionesMaterial } from "@/hooks/use-condicion-material"
-import { useTipos } from "@/hooks/use-tipo"
-import { useMarcas } from "@/hooks/use-marca"
-import { useModelos } from "@/hooks/use-modelo"
+import { useTipos, useCreateTipo } from "@/hooks/use-tipo"
+import { useMisPermisos } from "@/hooks/use-permisos"
+import { puede, puedeVerPantalla } from "@/lib/nav"
+import { useMarcas, useCreateMarca } from "@/hooks/use-marca"
+import { useModelos, useCreateModelo } from "@/hooks/use-modelo"
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
-import { enforceDecimalInput, DEFAULT_WEIGHT_MAX_DIGITS } from "@/lib/utils/number-limit"
 import type { Material } from "@/lib/type/material"
 import type { Lote } from "@/lib/type/lote"
 import type { TipoMaterial } from "@/lib/type/tipo-material"
@@ -40,11 +34,11 @@ import type { CondicionMaterial } from "@/lib/type/condicion-material"
 import type { Tipo } from "@/lib/type/tipo"
 import type { Marca } from "@/lib/type/marca"
 import type { Modelo } from "@/lib/type/modelo"
-import { CONDICION_MATERIAL, esCondicion } from "@/lib/constants/estados"
+import { CONDICION_MATERIAL, esCondicion, esCondicionSinClasificar } from "@/lib/constants/estados"
 
 const EMPTY_FORM = { loteId: "", tipoMaterialId: "", condicionMaterialId: "", descripcion: "" }
 const EMPTY_QUICK_TIPO = { nombre: "", descripcion: "" }
-const EMPTY_QUICK_LOTE = { donacionId: "", pesoBrutoKg: "", observaciones: "" }
+const EMPTY_QUICK_MODELO = { nombre: "", marcaId: "", tipoId: "" }
 const TIPO_ALMACENAMIENTO = "almacenamiento"
 
 const columns: TableColumn<Material>[] = [
@@ -90,19 +84,22 @@ const columns: TableColumn<Material>[] = [
 
 export default function MaterialPage() {
   const { materiales, isLoading, mutate } = useMateriales()
-  const { lotes, mutate: mutateLotes } = useLotes()
-  const { donaciones } = useDonaciones()
+  const { lotes } = useLotes()
+  const { permisos } = useMisPermisos()
+  const router = useRouter()
   const { tipoMateriales, mutate: mutateTipoMateriales } = useTipoMateriales()
   const { condiciones } = useCondicionesMaterial()
-  const { tipos } = useTipos()
-  const { marcas } = useMarcas()
-  const { modelos } = useModelos()
+  const { tipos, mutate: mutateTipos } = useTipos()
+  const { marcas, mutate: mutateMarcas } = useMarcas()
+  const { modelos, mutate: mutateModelos } = useModelos()
+  const { createTipo, isLoading: isCreatingTipoMedio } = useCreateTipo()
+  const { createMarca, isLoading: isCreatingMarca } = useCreateMarca()
+  const { createModelo, isLoading: isCreatingModelo } = useCreateModelo()
   const { createMaterial, isLoading: isCreating } = useCreateMaterial()
   const { updateMaterial } = useUpdateMaterial()
   const { deleteMaterial, isLoading: isDeleting } = useDeleteMaterial()
   const { clasificarMaterial, isLoading: isClasificando } = useClasificarMaterial()
   const { createTipoMaterial, isLoading: isCreatingTipo } = useCreateTipoMaterial()
-  const { createLote, isLoading: isCreatingLote } = useCreateLote()
 
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
@@ -115,14 +112,61 @@ export default function MaterialPage() {
   const [destruccionModeloId, setDestruccionModeloId] = useState("")
 
   const [quickTipoOpen, setQuickTipoOpen] = useState(false)
-  const [quickLoteOpen, setQuickLoteOpen] = useState(false)
+  // Alta rápida de tipo, marca y modelo del medio de almacenamiento (solo quien tiene permiso de crear en esos catálogos)
+  const [quickMedioOpen, setQuickMedioOpen] = useState<"tipo" | "marca" | "modelo" | null>(null)
+  const [quickNombre, setQuickNombre] = useState("")
+  const [quickModeloForm, setQuickModeloForm] = useState(EMPTY_QUICK_MODELO)
   const [quickTipoForm, setQuickTipoForm] = useState(EMPTY_QUICK_TIPO)
-  const [quickLoteForm, setQuickLoteForm] = useState(EMPTY_QUICK_LOTE)
 
   // Filtra modelos según la marca seleccionada
   const modelosFiltrados = destruccionMarcaId
     ? modelos.filter((m: Modelo) => String(m.marcaId) === destruccionMarcaId)
     : modelos
+
+  const puedeClasificar = puede(permisos, "materiales", "editar")
+  const puedeVerProceso = puedeVerPantalla(permisos, "proceso_destruccion")
+  const verProceso = (id: number) => router.push(`/pages/proceso-destruccion?proceso=${id}`)
+
+  const columnasConClasificar: TableColumn<Material>[] = [
+    ...columns,
+    {
+      key: "procesoDestruccion",
+      header: "Proceso de destrucción",
+      cell: (m: Material) =>
+        m.procesoDestruccion ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800">
+              Sí{m.procesoDestruccion.estado ? ` · ${m.procesoDestruccion.estado}` : ""}
+            </span>
+            {puedeVerProceso && (
+              <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); verProceso(m.procesoDestruccion!.id) }}>
+                Ver proceso
+              </Button>
+            )}
+          </div>
+        ) : (
+          <span className="text-muted-foreground">No</span>
+        ),
+    },
+    // Botón "Clasificar" en la grilla: abre directo el formulario de los materiales que todavía están "A definir"
+    ...(puedeClasificar
+      ? [{
+          key: "clasificar",
+          header: "",
+          cell: (m: Material) =>
+            esCondicionSinClasificar(m.condicionMaterial?.condicion) ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-green-700 border-green-300 hover:bg-green-50"
+                onClick={(e) => { e.stopPropagation(); openEdit(m) }}
+              >
+                Clasificar
+              </Button>
+            ) : null,
+        }]
+      : []),
+  ]
 
   const filtered = materiales.filter((m: Material) => {
     const q = search.toLowerCase()
@@ -273,9 +317,10 @@ export default function MaterialPage() {
     setQuickTipoOpen(true)
   }
 
-  function openQuickLote() {
-    setQuickLoteForm(EMPTY_QUICK_LOTE)
-    setQuickLoteOpen(true)
+  function openQuickMedio(que: "tipo" | "marca" | "modelo") {
+    setQuickNombre("")
+    setQuickModeloForm({ nombre: "", marcaId: destruccionMarcaId, tipoId: destruccionTipoId })
+    setQuickMedioOpen(que)
   }
 
   async function handleSaveQuickTipo() {
@@ -297,28 +342,45 @@ export default function MaterialPage() {
     }
   }
 
-  async function handleSaveQuickLote() {
-    if (!quickLoteForm.donacionId) {
-      toast.error("La donación es obligatoria")
-      return
-    }
+  async function handleSaveQuickMedio() {
     try {
-      const nuevo = await createLote({
-        donacionId: Number(quickLoteForm.donacionId),
-        pesoBrutoKg: quickLoteForm.pesoBrutoKg !== "" ? Number(quickLoteForm.pesoBrutoKg) : undefined,
-        observaciones: quickLoteForm.observaciones.trim() || undefined,
-      })
-      await mutateLotes()
-      if (nuevo) setForm((f) => ({ ...f, loteId: String(nuevo.id) }))
-      toast.success("Lote creado")
-      setQuickLoteOpen(false)
-    } catch {
-      toast.error("Error al crear el lote")
+      if (quickMedioOpen === "tipo") {
+        const nuevo = await createTipo({ nombre: quickNombre.trim() })
+        await mutateTipos()
+        if (nuevo) setDestruccionTipoId(String(nuevo.id))
+        toast.success("Tipo creado")
+      } else if (quickMedioOpen === "marca") {
+        const nuevo = await createMarca({ nombre: quickNombre.trim() })
+        await mutateMarcas()
+        if (nuevo) { setDestruccionMarcaId(String(nuevo.id)); setDestruccionModeloId("") }
+        toast.success("Marca creada")
+      } else if (quickMedioOpen === "modelo") {
+        const nuevo = await createModelo({
+          nombre: quickModeloForm.nombre.trim(),
+          marcaId: Number(quickModeloForm.marcaId),
+          tipoId: Number(quickModeloForm.tipoId),
+        })
+        await mutateModelos()
+        if (nuevo) {
+          setDestruccionMarcaId(String(nuevo.marcaId))
+          setDestruccionModeloId(String(nuevo.id))
+        }
+        toast.success("Modelo creado")
+      }
+      setQuickMedioOpen(null)
+    } catch (err: any) {
+      toast.error(err?.message ? String(Array.isArray(err.message) ? err.message[0] : err.message) : "No se pudo crear el registro")
     }
   }
 
   const canSaveQuickTipo = !!quickTipoForm.nombre.trim()
-  const canSaveQuickLote = !!quickLoteForm.donacionId
+  const canSaveQuickMedio = quickMedioOpen === "modelo"
+    ? !!quickModeloForm.nombre.trim() && !!quickModeloForm.marcaId && !!quickModeloForm.tipoId
+    : !!quickNombre.trim()
+  // El "+" aparece solo para quien puede crear en ese catálogo (Técnico, Administrativo y SysAdmin)
+  const puedeCrearTipo = puede(permisos, "tipos", "crear")
+  const puedeCrearMarca = puede(permisos, "marcas", "crear")
+  const puedeCrearModelo = puede(permisos, "modelos", "crear")
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -347,7 +409,7 @@ export default function MaterialPage() {
 
       <DataTable
         data={filtered}
-        columns={columns}
+        columns={columnasConClasificar}
         isLoading={isLoading}
         loadingText="Cargando materiales..."
         emptyText="No hay materiales registrados."
@@ -369,162 +431,163 @@ export default function MaterialPage() {
         isLoading={isCreating || isClasificando}
         saveLabel={editing ? "Guardar cambios" : "Crear material"}
       >
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Descripción *</label>
-          <Input
-            placeholder="Descripción del material..."
-            value={form.descripcion}
-            disabled={isViewing}
-            onChange={(e) => setForm((f) => ({ ...f, descripcion: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción") }))}
-          />
-        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-2 sm:col-span-2">
+            <label className="text-sm font-medium">Descripción *</label>
+            <Input
+              placeholder="Descripción del material..."
+              value={form.descripcion}
+              disabled={isViewing}
+              onChange={(e) => setForm((f) => ({ ...f, descripcion: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción") }))}
+            />
+          </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Tipo de material *</label>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Tipo de material *</label>
+            <div className="flex gap-2">
+              <select
+                value={form.tipoMaterialId}
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, tipoMaterialId: e.target.value }))
+                  setRequiereDestruccion(false)
+                }}
+                disabled={isViewing}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
+              >
+                <option value="">Seleccionar tipo...</option>
+                {tipoMateriales.map((t: TipoMaterial) => (
+                  <option key={t.id} value={t.id}>{t.nombre}</option>
+                ))}
+              </select>
+              {!isViewing && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  title="No está en la lista: crear nuevo tipo de material"
+                  onClick={openQuickTipo}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">
+              Condición <span className="text-muted-foreground font-normal">("A definir" hasta clasificar)</span>
+            </label>
             <select
-              value={form.tipoMaterialId}
-              onChange={(e) => {
-                setForm((f) => ({ ...f, tipoMaterialId: e.target.value }))
-                setRequiereDestruccion(false)
-              }}
+              value={form.condicionMaterialId}
+              onChange={(e) => setForm((f) => ({ ...f, condicionMaterialId: e.target.value }))}
               disabled={isViewing}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
             >
-              <option value="">Seleccionar tipo...</option>
-              {tipoMateriales.map((t: TipoMaterial) => (
-                <option key={t.id} value={t.id}>{t.nombre}</option>
+              {condiciones.map((c: CondicionMaterial) => (
+                <option key={c.id} value={c.id}>{c.condicion}</option>
               ))}
             </select>
-            {!isViewing && (
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                title="No está en la lista: crear nuevo tipo de material"
-                onClick={openQuickTipo}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            )}
           </div>
-        </div>
 
-        {/* Toggle destrucción — solo visible si tipo es Almacenamiento y no es vista */}
-        {esAlmacenamiento && !isViewing && (
-          <div className="flex flex-col gap-2 rounded-md border border-amber-200 bg-amber-50 p-3">
-            <p className="text-sm font-medium text-amber-900">
-              ¿Requiere proceso de destrucción?
-            </p>
-            <p className="text-xs text-amber-700">
-              Al confirmar se creará un <span className="font-medium">Medio de Almacenamiento</span> y un{" "}
-              <span className="font-medium">Proceso de Destrucción</span> asociados a este material.
-            </p>
-            <div className="flex gap-4 mt-1">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="requiereDestruccion"
-                  checked={requiereDestruccion === true}
-                  onChange={() => setRequiereDestruccion(true)}
-                  className="accent-primary"
-                />
-                <span className="text-sm font-medium">Sí</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="requiereDestruccion"
-                  checked={requiereDestruccion === false}
-                  onChange={() => { setRequiereDestruccion(false); resetDestruccion() }}
-                  className="accent-primary"
-                />
-                <span className="text-sm font-medium">No</span>
-              </label>
-            </div>
-
-            {requiereDestruccion && (
-              <div className="flex flex-col gap-3 border-t border-amber-200 pt-3 mt-1">
-                <p className="text-xs font-medium text-amber-800">Datos del medio de almacenamiento</p>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium text-amber-800">
-                    Tipo <span className="text-red-600">*</span>
-                  </label>
-                  <select
-                    value={destruccionTipoId}
-                    onChange={(e) => setDestruccionTipoId(e.target.value)}
-                    className="flex h-9 w-full rounded-md border border-amber-300 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400"
-                  >
-                    <option value="">Sin tipo...</option>
-                    {tipos.map((t: Tipo) => (
-                      <option key={t.id} value={t.id}>{t.nombre}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium text-amber-800">
-                    Marca <span className="text-red-600">*</span>
-                  </label>
-                  <select
-                    value={destruccionMarcaId}
-                    onChange={(e) => { setDestruccionMarcaId(e.target.value); setDestruccionModeloId("") }}
-                    className="flex h-9 w-full rounded-md border border-amber-300 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400"
-                  >
-                    <option value="">Sin marca...</option>
-                    {marcas.map((m: Marca) => (
-                      <option key={m.id} value={m.id}>{m.nombre}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium text-amber-800">
-                    Modelo <span className="text-red-600">*</span>
-                  </label>
-                  <select
-                    value={destruccionModeloId}
-                    onChange={(e) => setDestruccionModeloId(e.target.value)}
-                    className="flex h-9 w-full rounded-md border border-amber-300 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400"
-                  >
-                    <option value="">Sin modelo...</option>
-                    {modelosFiltrados.map((m: Modelo) => (
-                      <option key={m.id} value={m.id}>{m.nombre}</option>
-                    ))}
-                  </select>
-                </div>
+          {editing?.procesoDestruccion && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 sm:col-span-2">
+              <div className="text-sm text-amber-900">
+                <p className="font-medium">Proceso de destrucción asociado: #{editing.procesoDestruccion.id}</p>
+                <p className="text-xs text-amber-700">
+                  Estado: {editing.procesoDestruccion.estado ?? "—"}
+                  {editing.procesoDestruccion.metodoDestruccionId ? "" : " · falta definir el método y el responsable"}
+                </p>
               </div>
-            )}
-          </div>
-        )}
+              {puedeVerProceso && (
+                <Button type="button" size="sm" variant="outline" onClick={() => verProceso(editing.procesoDestruccion!.id)}>
+                  Ver proceso
+                </Button>
+              )}
+            </div>
+          )}
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
-            Condición <span className="text-muted-foreground font-normal">("A definir" hasta clasificar el material)</span>
-          </label>
-          <select
-            value={form.condicionMaterialId}
-            onChange={(e) => setForm((f) => ({ ...f, condicionMaterialId: e.target.value }))}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            {condiciones.map((c: CondicionMaterial) => (
-              <option key={c.id} value={c.id}>{c.condicion}</option>
-            ))}
-          </select>
-        </div>
+          {/* Destrucción: solo si el tipo es Almacenamiento, no es vista y todavía no tiene un proceso asociado */}
+          {esAlmacenamiento && !isViewing && !editing?.procesoDestruccion && (
+            <div className="flex flex-col gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 sm:col-span-2">
+              <p className="text-sm font-medium text-amber-900">¿Requiere proceso de destrucción?</p>
+              <p className="text-xs text-amber-700">
+                Al confirmar se creará un <span className="font-medium">Medio de Almacenamiento</span> y un{" "}
+                <span className="font-medium">Proceso de Destrucción</span> asociados a este material.
+              </p>
+              <div className="flex gap-4 mt-1">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="requiereDestruccion" checked={requiereDestruccion === true} onChange={() => setRequiereDestruccion(true)} className="accent-primary" />
+                  <span className="text-sm font-medium">Sí</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="requiereDestruccion" checked={requiereDestruccion === false} onChange={() => { setRequiereDestruccion(false); resetDestruccion() }} className="accent-primary" />
+                  <span className="text-sm font-medium">No</span>
+                </label>
+              </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
-            Donación <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
-          <div className="flex gap-2">
-            <select
-              value={form.loteId}
-              onChange={(e) => setForm((f) => ({ ...f, loteId: e.target.value }))}
-              disabled={isViewing}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
-            >
+              {requiereDestruccion && (
+                <div className="mt-1 grid gap-3 border-t border-amber-200 pt-3 sm:grid-cols-3">
+                  <p className="text-xs font-medium text-amber-800 sm:col-span-3">Datos del medio de almacenamiento</p>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-amber-800">Tipo <span className="text-red-600">*</span></label>
+                    <div className="flex gap-2">
+                      <select value={destruccionTipoId} onChange={(e) => setDestruccionTipoId(e.target.value)} className="flex h-9 w-full rounded-md border border-amber-300 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400">
+                        <option value="">Sin tipo...</option>
+                        {tipos.map((t: Tipo) => (
+                          <option key={t.id} value={t.id}>{t.nombre}</option>
+                        ))}
+                      </select>
+                      {puedeCrearTipo && (
+                        <Button type="button" variant="outline" size="icon" title="No está en la lista: crear un tipo" onClick={() => openQuickMedio("tipo")}>
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-amber-800">Marca <span className="text-red-600">*</span></label>
+                    <div className="flex gap-2">
+                      <select value={destruccionMarcaId} onChange={(e) => { setDestruccionMarcaId(e.target.value); setDestruccionModeloId("") }} className="flex h-9 w-full rounded-md border border-amber-300 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400">
+                        <option value="">Sin marca...</option>
+                        {marcas.map((m: Marca) => (
+                          <option key={m.id} value={m.id}>{m.nombre}</option>
+                        ))}
+                      </select>
+                      {puedeCrearMarca && (
+                        <Button type="button" variant="outline" size="icon" title="No está en la lista: crear una marca" onClick={() => openQuickMedio("marca")}>
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-amber-800">Modelo <span className="text-red-600">*</span></label>
+                    <div className="flex gap-2">
+                      <select value={destruccionModeloId} onChange={(e) => setDestruccionModeloId(e.target.value)} className="flex h-9 w-full rounded-md border border-amber-300 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400">
+                        <option value="">Sin modelo...</option>
+                        {modelosFiltrados.map((m: Modelo) => (
+                          <option key={m.id} value={m.id}>{m.nombre}</option>
+                        ))}
+                      </select>
+                      {puedeCrearModelo && (
+                        <Button type="button" variant="outline" size="icon" title="No está en la lista: crear un modelo" onClick={() => openQuickMedio("modelo")}>
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* La donación se muestra solo para consulta: no se cambia desde acá */}
+          <div className="flex flex-col gap-2 sm:col-span-2">
+            <label className="text-sm font-medium">Donación</label>
+            <select value={form.loteId} disabled className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60">
               <option value="">Sin donación asignada</option>
               {lotes.map((l: Lote) => (
                 <option key={l.id} value={l.id}>
@@ -533,17 +596,6 @@ export default function MaterialPage() {
                 </option>
               ))}
             </select>
-            {!isViewing && (
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                title="No está en la lista: asociar una donación nueva"
-                onClick={openQuickLote}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            )}
           </div>
         </div>
       </FormModal>
@@ -580,64 +632,44 @@ export default function MaterialPage() {
         </div>
       </FormModal>
 
-      {/* Alta rápida de lote */}
+      {/* Alta rápida de tipo, marca o modelo del medio de almacenamiento */}
       <FormModal
-        open={quickLoteOpen}
-        onOpenChange={setQuickLoteOpen}
-        title="Gestionar lote"
-        description="Cargá los datos del lote para asociarlo al material."
-        onSave={handleSaveQuickLote}
-        isLoading={isCreatingLote}
-        saveDisabled={!canSaveQuickLote}
-        saveLabel="Crear lote"
+        open={quickMedioOpen !== null}
+        onOpenChange={(abierto) => { if (!abierto) setQuickMedioOpen(null) }}
+        title={quickMedioOpen === "tipo" ? "Nuevo tipo" : quickMedioOpen === "marca" ? "Nueva marca" : "Nuevo modelo"}
+        description="Se carga en el catálogo y queda seleccionado en el medio de almacenamiento."
+        onSave={handleSaveQuickMedio}
+        isLoading={isCreatingTipoMedio || isCreatingMarca || isCreatingModelo}
+        saveDisabled={!canSaveQuickMedio}
+        saveLabel="Crear"
       >
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Donación *</label>
-          <Select
-            value={quickLoteForm.donacionId}
-            onValueChange={(v) => setQuickLoteForm((f) => ({ ...f, donacionId: v ?? "" }))}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Seleccioná una donación" />
-            </SelectTrigger>
-            <SelectContent>
-              {donaciones.map((d) => (
-                <SelectItem key={d.id} value={String(d.id)}>
-                  <span className="font-mono text-xs text-muted-foreground w-8 shrink-0">#{d.id}</span>
-                  <span className="font-medium truncate">{d.donante?.nombre ?? `Donante #${d.donanteId}`}</span>
-                  {d.descripcion && (
-                    <span className="text-xs text-muted-foreground truncate">· {d.descripcion}</span>
-                  )}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
-            Peso bruto (kg) <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
-          <Input
-            inputMode="decimal"
-            placeholder="Ej: 120.50"
-            value={quickLoteForm.pesoBrutoKg}
-            onChange={(e) => setQuickLoteForm((f) => ({ ...f, pesoBrutoKg: enforceDecimalInput(e.target.value, DEFAULT_WEIGHT_MAX_DIGITS, "El peso bruto") }))}
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
-            Observaciones <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
-          <textarea
-            rows={3}
-            placeholder="Observaciones sobre el lote..."
-            value={quickLoteForm.observaciones}
-            onChange={(e) => setQuickLoteForm((f) => ({ ...f, observaciones: e.target.value }))}
-            className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
-          />
-        </div>
+        {quickMedioOpen === "modelo" ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2 sm:col-span-2">
+              <label className="text-sm font-medium">Nombre *</label>
+              <Input value={quickModeloForm.nombre} onChange={(e) => setQuickModeloForm((f) => ({ ...f, nombre: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre") }))} placeholder="Ej: Barracuda 500GB" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Marca *</label>
+              <select value={quickModeloForm.marcaId} onChange={(e) => setQuickModeloForm((f) => ({ ...f, marcaId: e.target.value }))} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                <option value="">Seleccionar marca...</option>
+                {marcas.map((m: Marca) => (<option key={m.id} value={m.id}>{m.nombre}</option>))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Tipo *</label>
+              <select value={quickModeloForm.tipoId} onChange={(e) => setQuickModeloForm((f) => ({ ...f, tipoId: e.target.value }))} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                <option value="">Seleccionar tipo...</option>
+                {tipos.map((t: Tipo) => (<option key={t.id} value={t.id}>{t.nombre}</option>))}
+              </select>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Nombre *</label>
+            <Input value={quickNombre} onChange={(e) => setQuickNombre(enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"))} placeholder={quickMedioOpen === "marca" ? "Ej: Seagate" : "Ej: HDD"} />
+          </div>
+        )}
       </FormModal>
     </div>
   )

@@ -1,15 +1,17 @@
 "use client"
+import { useMisPermisos } from "@/hooks/use-permisos"
+import { puedeVerPantalla } from "@/lib/nav"
 import { Plus } from "lucide-react"
 
 import { useState, useEffect } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { CrearButton } from "@/components/ui/crear-button"
-import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
+import { DateInput } from "@/components/ui/date-input"
 import {
   useRegistrosFotograficos,
   useCreateRegistroFotografico,
@@ -67,7 +69,8 @@ const columns: TableColumn<RegistroFotografico>[] = [
 
 export default function RegistroFotograficoPage() {
   const { registros, isLoading, mutate } = useRegistrosFotograficos()
-  const { lotes } = useLotes()
+  const { permisos } = useMisPermisos()
+  const { lotes } = useLotes(puedeVerPantalla(permisos, "lotes"))
   const { createRegistro, isLoading: isCreating } = useCreateRegistroFotografico()
   const { updateRegistro, isLoading: isUpdating } = useUpdateRegistroFotografico()
   const { deleteRegistro, isLoading: isDeleting } = useDeleteRegistroFotografico()
@@ -308,10 +311,9 @@ export default function RegistroFotograficoPage() {
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Fecha</label>
-          <Input
-            type="date"
+          <DateInput
             value={form.fecha}
-            onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))}
+            onChange={(v) => setForm((f) => ({ ...f, fecha: v }))}
             disabled={isViewing || !editing}
           />
         </div>

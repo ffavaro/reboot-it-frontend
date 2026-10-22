@@ -29,9 +29,10 @@ import type { TipoMaterial } from "@/lib/type/tipo-material"
 import type { CondicionMaterial } from "@/lib/type/condicion-material"
 import type { Turno } from "@/lib/type/turno"
 import { getUser } from "@/lib/auth-utils"
+import { GenerarCertificadoModal } from "@/components/generar-certificado-modal"
 import { enforceDecimalInput } from "@/lib/utils/number-limit"
 import { formatPeso, getErrorMessage } from "@/lib/utils/helpers"
-import { CONDICION_MATERIAL, esCondicion } from "@/lib/constants/estados"
+import { CONDICION_MATERIAL, ESTADO_DONACION, esCondicion } from "@/lib/constants/estados"
 
 const EMPTY_FORM = { donanteId: "", fechaHora: "", estadoDonacionId: "", descripcion: "" }
 const EMPTY_DETALLE = { tipoMaterialId: "", condicionMaterialId: "", cantidadEstimada: "" }
@@ -175,6 +176,9 @@ export default function DonacionPage() {
     ? donantes.find((d: Donante) => d.usuarioId === user.id) ?? null
     : null
   const isDonante = user?.rol?.nombre?.toLowerCase() === "donante" || myDonante !== null
+  // "Generar Certificado": solo lo ve el Administrativo
+  const esAdministrativo = user?.rol?.nombre?.trim().toLowerCase() === "administrativo"
+  const [certDonacion, setCertDonacion] = useState<Donacion | null>(null)
 
   // Condición por defecto de todo material cargado: se define recién al clasificarlo
   const condicionADefinir = condiciones.find(
@@ -560,6 +564,23 @@ export default function DonacionPage() {
         d.descripcion ?? <span className="italic text-muted-foreground">—</span>,
       className: "max-w-[220px] truncate text-muted-foreground",
     },
+    ...(esAdministrativo
+      ? [{
+          key: "certificado",
+          header: "",
+          cell: (d: Donacion) =>
+            d.estadoDonacion?.descripcion?.toLowerCase() === ESTADO_DONACION.PENDIENTE_CERTIFICADO.toLowerCase() ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-green-700 border-green-300 hover:bg-green-50"
+                onClick={(e) => { e.stopPropagation(); setCertDonacion(d) }}
+              >
+                Generar Certificado
+              </Button>
+            ) : null,
+        }]
+      : []),
   ]
 
   const calDays = getCalendarDays(calYear, calMonth)
@@ -604,6 +625,8 @@ export default function DonacionPage() {
         onDelete={isDonante ? undefined : handleDelete}
         isDeleting={isDeleting}
       />
+
+      <GenerarCertificadoModal donacion={certDonacion} onClose={() => setCertDonacion(null)} onGenerado={async () => { await mutate() }} />
 
       <FormModal
         open={sheetOpen}

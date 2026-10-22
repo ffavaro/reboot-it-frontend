@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
+import { DateInput } from "@/components/ui/date-input"
 import { FieldError } from "@/components/ui/field"
 import { DatePicker } from "@/components/ui/date-picker"
 import { VigenciaBadge } from "@/components/ui/vigencia-badge"
@@ -492,11 +493,10 @@ export default function EmpleadoTransportistaPage() {
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Fecha de asignación</label>
-          <Input
-            type="date"
+          <DateInput
             value={form.fechaAsignacion}
+            onChange={(v) => setForm((f) => ({ ...f, fechaAsignacion: v }))}
             disabled={!editing}
-            onChange={(e) => setForm((f) => ({ ...f, fechaAsignacion: e.target.value }))}
           />
         </div>
       </FormModal>

@@ -1,19 +1,19 @@
 "use client"
 
 import { useState } from "react"
+import { DateInput } from "@/components/ui/date-input"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useEstadosProcesoDestruccion } from "@/hooks/use-estado-proceso-destruccion"
 import { useMetodosDestruccion } from "@/hooks/use-metodo-destruccion"
-import { useEmpleadosFull } from "@/hooks/use-employees"
+import { useEmpleadosCombo } from "@/hooks/use-employees"
 import { procesoDestruccionApi } from "@/lib/api"
 import type { ProcesoDestruccion, ReporteProcesoDestruccionQuery } from "@/lib/type/proceso-destruccion"
 import type { EstadoProcesoDestruccion } from "@/lib/type/estado-proceso-destruccion"
 import type { MetodoDestruccion } from "@/lib/type/metodo-destruccion"
 import type { Empleado } from "@/lib/type/user"
-import { formatDate } from "@/lib/utils/helpers"
+import { formatDate, periodoPorDefecto } from "@/lib/utils/helpers"
 
 const ESTADO_COLOR: Record<string, string> = {
   Iniciado: "bg-blue-100 text-blue-700",
@@ -24,9 +24,9 @@ const ESTADO_COLOR: Record<string, string> = {
 export default function ReporteProcesoDestruccionPage() {
   const { estados } = useEstadosProcesoDestruccion()
   const { metodos } = useMetodosDestruccion()
-  const { empleados } = useEmpleadosFull()
+  const { empleados } = useEmpleadosCombo()
 
-  const [filters, setFilters] = useState<ReporteProcesoDestruccionQuery>({})
+  const [filters, setFilters] = useState<ReporteProcesoDestruccionQuery>(periodoPorDefecto)
   const [result, setResult] = useState<ProcesoDestruccion[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [hasGenerated, setHasGenerated] = useState(false)
@@ -45,7 +45,7 @@ export default function ReporteProcesoDestruccionPage() {
   }
 
   function handleLimpiar() {
-    setFilters({})
+    setFilters(periodoPorDefecto())
     setResult([])
     setHasGenerated(false)
   }
@@ -173,21 +173,19 @@ export default function ReporteProcesoDestruccionPage() {
 
             {/* Fecha desde */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">Fecha de proceso desde</label>
-              <Input
-                type="date"
+              <label className="text-sm font-medium">Fecha Desde</label>
+              <DateInput
                 value={filters.fechaDesde ?? ""}
-                onChange={(e) => setFilters((f) => ({ ...f, fechaDesde: e.target.value || undefined }))}
+                onChange={(v) => setFilters((f) => ({ ...f, fechaDesde: v || undefined }))}
               />
             </div>
 
             {/* Fecha hasta */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">Fecha de proceso hasta</label>
-              <Input
-                type="date"
+              <label className="text-sm font-medium">Fecha Hasta</label>
+              <DateInput
                 value={filters.fechaHasta ?? ""}
-                onChange={(e) => setFilters((f) => ({ ...f, fechaHasta: e.target.value || undefined }))}
+                onChange={(v) => setFilters((f) => ({ ...f, fechaHasta: v || undefined }))}
               />
             </div>
           </div>

@@ -27,8 +27,10 @@ export function getTransportistaActual(transportistas: EmpleadoTransportista[]) 
   return { user, isTransportista, myTransportista }
 }
 
+// Las fechas "solo día" (yyyy-MM-dd) se formatean cortando el string: new Date("2026-10-20") es UTC y mostraría el día anterior
 export const formatDate = (iso: string | null) => {
   if (!iso) return null
+  if (/^d{4}-d{2}-d{2}$/.test(iso)) return iso.split("-").reverse().join("/")
   return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
 
@@ -54,6 +56,19 @@ export const validateCuitDni = (v: string) => {
 export const todayISO = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+
+// Período por defecto de los reportes: desde un mes antes de hoy hasta hoy (yyyy-MM-dd)
+export const periodoPorDefecto = () => {
+  const hasta = new Date()
+  const desde = new Date(hasta)
+  desde.setDate(1)
+  desde.setMonth(desde.getMonth() - 1)
+  // si el mes anterior es más corto (por ejemplo, 31/03 -> 28/02) se usa su último día
+  const ultimoDia = new Date(desde.getFullYear(), desde.getMonth() + 1, 0).getDate()
+  desde.setDate(Math.min(hasta.getDate(), ultimoDia))
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+  return { fechaDesde: iso(desde), fechaHasta: iso(hasta) }
 }
 
 export const formatFechaISO = (iso: string | null | undefined) => {

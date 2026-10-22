@@ -24,6 +24,10 @@ export const procesoDestruccionApi = {
   update: (id: number, data: UpdateProcesoDestruccionPayload) =>
     request<ProcesoDestruccion>(`/proceso-destruccion/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
 
+  // Cierra el proceso (estado Finalizado): lo hace el Técnico o el Administrativo
+  finalizar: (id: number) =>
+    request<ProcesoDestruccion>(`/proceso-destruccion/${id}/finalizar`, { method: "PATCH" }),
+
   remove: (id: number) =>
     request<void>(`/proceso-destruccion/${id}`, { method: "DELETE" }),
 }
