@@ -14,6 +14,7 @@ import {
   useProcesosDestruccion,
   useCreateProcesoDestruccion,
   useUpdateProcesoDestruccion,
+  useFinalizarProcesoDestruccion,
   useDeleteProcesoDestruccion,
 } from "@/hooks/use-proceso-destruccion"
 import { useEmpleadosCombo } from "@/hooks/use-employees"
@@ -160,6 +161,7 @@ export default function ProcesoDestruccionPage() {
   const { createProceso, isLoading: isCreating } = useCreateProcesoDestruccion()
   const { updateProceso, isLoading: isUpdating } = useUpdateProcesoDestruccion()
   const { deleteProceso, isLoading: isDeleting } = useDeleteProcesoDestruccion()
+  const { finalizarProceso, isLoading: isFinalizando } = useFinalizarProcesoDestruccion()
   const { createMedio, isLoading: isCreatingMedio } = useCreateMedioAlmacenamiento()
   const { createMetodo, isLoading: isCreatingMetodo } = useCreateMetodoDestruccion()
 
@@ -172,6 +174,8 @@ export default function ProcesoDestruccionPage() {
 
   // "Iniciar": define el método y el responsable de un proceso que se registró sin ellos
   const [iniciando, setIniciando] = useState<ProcesoDestruccion | null>(null)
+  // Finalizar: confirmación antes de cerrar el proceso
+  const [finalizando, setFinalizando] = useState<ProcesoDestruccion | null>(null)
   const [iniciarForm, setIniciarForm] = useState({ metodoDestruccionId: "", empleadoId: "" })
 
   const [quickMedioOpen, setQuickMedioOpen] = useState(false)
@@ -312,6 +316,18 @@ export default function ProcesoDestruccionPage() {
     }
   }
 
+  async function handleFinalizar() {
+    if (!finalizando) return
+    try {
+      await finalizarProceso(finalizando.id)
+      await mutate()
+      toast.success("Proceso finalizado")
+      setFinalizando(null)
+    } catch (err: any) {
+      toast.error(err?.message ? String(Array.isArray(err.message) ? err.message[0] : err.message) : "No se pudo finalizar el proceso")
+    }
+  }
+
   async function handleDelete(id: number | string) {
     try {
       await deleteProceso(Number(id))
@@ -388,8 +404,19 @@ export default function ProcesoDestruccionPage() {
         {
           key: "iniciar",
           header: "",
-          cell: (p: ProcesoDestruccion) =>
-            (!p.metodoDestruccionId || !p.empleadoId) && !/finaliz|complet|cancel|anulad/i.test(p.estado?.nombre ?? "") ? (
+          cell: (p: ProcesoDestruccion) => {
+            if (/finaliz|complet|cancel|anulad/i.test(p.estado?.nombre ?? "")) return null
+            const iniciado = !!p.metodoDestruccionId && !!p.empleadoId
+            return iniciado ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-green-700 border-green-300 hover:bg-green-50"
+                onClick={(e) => { e.stopPropagation(); setFinalizando(p) }}
+              >
+                Finalizar
+              </Button>
+            ) : (
               <Button
                 size="sm"
                 variant="outline"
@@ -398,7 +425,8 @@ export default function ProcesoDestruccionPage() {
               >
                 Iniciar
               </Button>
-            ) : null,
+            )
+          },
         },
       ]
     : columns
@@ -605,6 +633,22 @@ export default function ProcesoDestruccionPage() {
             </select>
           </div>
         </div>
+      </FormModal>
+
+      {/* Finalizar: confirmación */}
+      <FormModal
+        open={!!finalizando}
+        onOpenChange={(abierto) => { if (!abierto) setFinalizando(null) }}
+        title="Finalizar proceso de destrucción"
+        description={finalizando ? `Proceso #${finalizando.id}` : undefined}
+        onSave={handleFinalizar}
+        isLoading={isFinalizando}
+        saveLabel="Finalizar proceso"
+      >
+        <p className="text-sm text-muted-foreground">
+          El proceso pasa a <span className="font-medium text-foreground">Finalizado</span>. Cuando todos los procesos del lote estén
+          finalizados se puede emitir el certificado de disposición.
+        </p>
       </FormModal>
 
       {/* Alta rápida de medio de almacenamiento */}

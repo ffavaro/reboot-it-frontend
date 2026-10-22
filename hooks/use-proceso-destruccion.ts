@@ -32,6 +32,14 @@ export function useUpdateProcesoDestruccion() {
   return { updateProceso: trigger, isLoading: isMutating, error }
 }
 
+export function useFinalizarProcesoDestruccion() {
+  const { trigger, isMutating } = useSWRMutation(
+    "/proceso-destruccion",
+    (_key: string, { arg }: { arg: number }) => procesoDestruccionApi.finalizar(arg),
+  )
+  return { finalizarProceso: trigger, isLoading: isMutating }
+}
+
 export function useDeleteProcesoDestruccion() {
   const { trigger, isMutating, error } = useSWRMutation(
     "/proceso-destruccion",
