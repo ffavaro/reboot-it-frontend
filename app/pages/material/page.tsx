@@ -33,7 +33,7 @@ import type { CondicionMaterial } from "@/lib/type/condicion-material"
 import type { Tipo } from "@/lib/type/tipo"
 import type { Marca } from "@/lib/type/marca"
 import type { Modelo } from "@/lib/type/modelo"
-import { CONDICION_MATERIAL, esCondicion } from "@/lib/constants/estados"
+import { CONDICION_MATERIAL, esCondicion, esCondicionSinClasificar } from "@/lib/constants/estados"
 
 const EMPTY_FORM = { loteId: "", tipoMaterialId: "", condicionMaterialId: "", descripcion: "" }
 const EMPTY_QUICK_TIPO = { nombre: "", descripcion: "" }
@@ -120,6 +120,29 @@ export default function MaterialPage() {
   const modelosFiltrados = destruccionMarcaId
     ? modelos.filter((m: Modelo) => String(m.marcaId) === destruccionMarcaId)
     : modelos
+
+  // Botón "Clasificar" en la grilla: abre directo el formulario de los materiales que todavía están "A definir"
+  const puedeClasificar = puede(permisos, "materiales", "editar")
+  const columnasConClasificar: TableColumn<Material>[] = puedeClasificar
+    ? [
+        ...columns,
+        {
+          key: "clasificar",
+          header: "",
+          cell: (m: Material) =>
+            esCondicionSinClasificar(m.condicionMaterial?.condicion) ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-green-700 border-green-300 hover:bg-green-50"
+                onClick={(e) => { e.stopPropagation(); openEdit(m) }}
+              >
+                Clasificar
+              </Button>
+            ) : null,
+        },
+      ]
+    : columns
 
   const filtered = materiales.filter((m: Material) => {
     const q = search.toLowerCase()
@@ -362,7 +385,7 @@ export default function MaterialPage() {
 
       <DataTable
         data={filtered}
-        columns={columns}
+        columns={columnasConClasificar}
         isLoading={isLoading}
         loadingText="Cargando materiales..."
         emptyText="No hay materiales registrados."
