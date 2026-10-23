@@ -68,7 +68,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       className={BOTON_ITEM}
                       render={<a href={item.url} />}
                     >
-                      {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
+                      {item.icon && <item.icon className="h-4 w-4 shrink-0 text-[#4ade80]" />}
                       <span>{item.title}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -95,7 +95,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           />
                         }
                       >
-                        {section.icon && <section.icon className="h-4 w-4 shrink-0" />}
+                        {section.icon && <section.icon className="h-4 w-4 shrink-0 text-[#4ade80]" />}
                         <span>{section.title}</span>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent side="right" align="start" sideOffset={12} className="min-w-60">
@@ -107,7 +107,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                               className={pathname === subItem.url ? "bg-accent font-medium" : undefined}
                               render={<a href={subItem.url} />}
                             >
-                              {subItem.icon && <subItem.icon className="h-4 w-4 shrink-0" />}
+                              {subItem.icon && <subItem.icon className="h-4 w-4 shrink-0 text-[#4ade80]" />}
                               {subItem.title}
                             </DropdownMenuItem>
                           ))}
@@ -132,7 +132,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   className="group/label text-sm text-white/70 hover:bg-white/5 hover:text-white"
                   render={<CollapsibleTrigger />}
                 >
-                  {item.icon && <item.icon className="mr-2 h-4 w-4 shrink-0" />}
+                  {item.icon && <item.icon className="mr-2 h-4 w-4 shrink-0 text-[#4ade80]" />}
                   {item.title}{" "}
                   <HugeiconsIcon
                     icon={ArrowRight01Icon}
@@ -150,7 +150,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                             className="border-l-2 border-transparent text-white/80 hover:border-red-500/50 hover:bg-white/5 hover:text-white data-[active=true]:border-red-500 data-[active=true]:bg-white/5 data-[active=true]:text-white data-[active=true]:font-medium"
                             render={<a href={subItem.url} />}
                           >
-                            {subItem.icon && <subItem.icon className="h-4 w-4 shrink-0" />}
+                            {subItem.icon && <subItem.icon className="h-4 w-4 shrink-0 text-[#4ade80]" />}
                             {subItem.title}
                           </SidebarMenuButton>
                         </SidebarMenuItem>
