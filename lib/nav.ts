@@ -27,7 +27,7 @@ export const navMain: NavSection[] = [
     ],
   },
   {
-    title: "Logistica y Distribucion",
+    title: "Gestion de Logistica",
     url: "#",
     icon: Route,
     items: [
@@ -49,7 +49,7 @@ export const navMain: NavSection[] = [
     ],
   },
   {
-    title: "Inventario y almacenamiento",
+    title: "Gestion de Inventario",
     url: "#",
     icon: Warehouse,
     items: [
