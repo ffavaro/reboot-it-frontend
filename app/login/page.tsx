@@ -3,6 +3,7 @@
 import { LoginForm } from "@/components/login-form"
 import { Recycle } from "lucide-react"
 import Link from "next/link"
+import { Suspense } from "react"
 
 export default function LoginPages() {
   return (
@@ -25,7 +26,10 @@ export default function LoginPages() {
         </div>
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">
-            <LoginForm />
+            {/* useSearchParams (aviso de contraseña actualizada) pide un límite Suspense */}
+            <Suspense fallback={null}>
+              <LoginForm />
+            </Suspense>
           </div>
         </div>
       </div>

@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { useLogin } from "@/hooks/use-auth"
 import { toast } from "react-toastify"
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { saveSession } from "@/lib/auth-utils"
 import { homeDePermisos } from "@/lib/nav"
 import { permisosApi } from "@/lib/api/permisos"
@@ -24,6 +24,8 @@ export function LoginForm({
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const router = useRouter()
+  // Al volver de recuperar la contraseña (/login?reset=success) se avisa que ya puede iniciar sesión
+  const contrasenaActualizada = useSearchParams().get("reset") === "success"
 
   const onHandleLogin = async (e: React.BaseSyntheticEvent) => {
     e.preventDefault()
@@ -71,6 +73,11 @@ export function LoginForm({
             Ingrese tu correo electrónico y contraseña para acceder a tu cuenta. Si no tienes una cuenta, puedes registrarte haciendo clic en el enlace de abajo.
           </p>
         </div>
+        {contrasenaActualizada && (
+          <div role="status" aria-live="polite" className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+            Contraseña actualizada. Ya podés iniciar sesión.
+          </div>
+        )}
         <Field>
           <FieldLabel htmlFor="email">Email</FieldLabel>
           <Input
@@ -88,6 +95,9 @@ export function LoginForm({
         <Field>
           <div className="flex items-center">
             <FieldLabel htmlFor="password">Contraseña</FieldLabel>
+            <a href="/forgot-password" className="ml-auto text-sm underline-offset-4 hover:underline">
+              ¿Olvidaste la contraseña?
+            </a>
           </div>
           <Input
             id="password"
