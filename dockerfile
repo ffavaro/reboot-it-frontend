@@ -1,31 +1,21 @@
-FROM node:20-alpine
-
+FROM node:20-alpine AS build
 WORKDIR /app
 
-COPY package*.json ./
 
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci
 
 COPY . .
 
+ARG NEXT_PUBLIC_URL_BACKEND=http://localhost:3001
+ENV NEXT_PUBLIC_URL_BACKEND=${NEXT_PUBLIC_URL_BACKEND} \
+    NEXT_TELEMETRY_DISABLED=1
+
 RUN npm run build
 
-EXPOSE 3000
+FROM nginx:1.27-alpine
 
-CMD ["npm", "run", "start"]
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/out /usr/share/nginx/html
 
-# Solo si hace falta debuggear el proyecto, se puede usar este dockerfile para levantar el proyecto en modo desarrollo
-
-# FROM node:20-alpine
-
-#WORKDIR /app
-
-#COPY package*.json ./
-
-#RUN npm install
-
-#COPY . .
-
-#EXPOSE 3000
-
-#CMD ["npm", "run", "dev"]
+EXPOSE 80
