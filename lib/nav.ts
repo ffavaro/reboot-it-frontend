@@ -1,5 +1,5 @@
 import {
-  BarChart2, Bookmark, Box, Boxes, CalendarCheck, CalendarDays, Camera, Car, Circle, Clock, FileBarChart, FileCheck, FileText, HardDrive, Heart, HeartHandshake, History, LayoutList, Layers, Leaf, List, ListChecks, MapPin, Package, PackageOpen, Route, Server, Settings, Shield, Tag, Trash2, Truck, User, UserCog, Users, Warehouse,
+  BarChart2, Bookmark, Box, Boxes, CalendarCheck, CalendarDays, Camera, Car, Circle, Clock, FileBarChart, FileCheck, FileText, HardDrive, Heart, Recycle, History, LayoutList, Layers, Leaf, List, ListChecks, MapPin, Package, PackageOpen, Route, Server, Settings, Shield, Tag, Trash2, Truck, User, UserCog, Users, Warehouse,
 } from "lucide-react"
 import type { NavItem, NavSection } from "@/lib/type/sidebar"
 import type { AccionPermiso, Permisos } from "@/lib/type/permisos"
@@ -16,7 +16,7 @@ export const navMain: NavSection[] = [
   {
     title: "Gestion de Donantes",
     url: "#",
-    icon: HeartHandshake,
+    icon: Recycle,
     items: [
       { title: "Donaciones", url: "/pages/donacion", clave: "donaciones", icon: Heart },
       { title: "Turnos", url: "/pages/turno", clave: "turnos", icon: Clock },
