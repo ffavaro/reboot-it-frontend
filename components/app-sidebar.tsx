@@ -75,6 +75,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 className="group/label text-sm text-white/70 hover:bg-white/5 hover:text-white"
                 render={<CollapsibleTrigger />}
               >
+                {item.icon && <item.icon className="mr-2 h-4 w-4 shrink-0" />}
                 {item.title}{" "}
                 <HugeiconsIcon
                   icon={ArrowRight01Icon}
