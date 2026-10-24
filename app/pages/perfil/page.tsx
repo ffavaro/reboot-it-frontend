@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { donantesApi } from "@/lib/api"
 import { getUser } from "@/lib/auth-utils"
+import { useMisPermisos } from "@/hooks/use-permisos"
+import { puedeVerPantalla } from "@/lib/nav"
 import type { Donante } from "@/lib/type/donante"
 
 type FormErrors = Partial<{ nombre: string; razonSocial: string; direccion: string }>
@@ -18,6 +20,8 @@ function isLegalEntity(descripcion: string | undefined): boolean {
 
 export default function PerfilPage() {
   const user = getUser()
+  const { permisos } = useMisPermisos()
+  const fichaTransportista = puedeVerPantalla(permisos, "empleado_transportista") && !puedeVerPantalla(permisos, "empleados")
   const [donante, setDonante] = useState<Donante | null>(null)
   const [notFound, setNotFound] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -141,6 +145,17 @@ export default function PerfilPage() {
           )}
         </div>
       </div>
+
+      {/* El Transportista no tiene la pantalla Empleados: su ficha (vehículo y carnet) se abre desde acá */}
+      {fichaTransportista && (
+        <div className="rounded-2xl bg-card shadow-sm ring-1 ring-foreground/5 p-5 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold">Mi ficha de transportista</h2>
+            <p className="text-xs text-muted-foreground">Tu vehículo asignado y el vencimiento de tu carnet.</p>
+          </div>
+          <a href="/pages/empleado-transportista" className="inline-flex h-8 items-center rounded-md border border-input px-3 text-sm font-medium hover:bg-muted">Ver mi ficha</a>
+        </div>
+      )}
 
       {/* Datos editables */}
       {notFound ? (

@@ -29,8 +29,7 @@ import {
 } from "@/components/ui/sidebar"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
-import { NavItem } from "@/lib/type/sidebar"
-import { navMain, navTop, puedeVerPantalla } from "@/lib/nav"
+import { navTop, itemActivo, itemVisible, puedeVerPantalla, seccionesVisibles, urlDeItem } from "@/lib/nav"
 import { useMisPermisos } from "@/hooks/use-permisos"
 
 const BOTON_ITEM = "border-l-2 border-transparent text-white/90 hover:border-red-500/50 hover:bg-white/5 hover:text-white data-[active=true]:border-red-500 data-[active=true]:bg-white/5 data-[active=true]:text-white data-[active=true]:font-medium"
@@ -43,15 +42,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const soloIconos = state === "collapsed" && !isMobile
 
   // El menú muestra solo lo que el rol puede ver según la matriz de permisos
-  const canSeeItem = (item: NavItem): boolean => puedeVerPantalla(permisos, item.clave)
-
-  const itemsTop = navTop.filter(canSeeItem)
-  const visibleSections = navMain
-    .map((section) => ({
-      ...section,
-      items: section.items.filter(canSeeItem),
-    }))
-    .filter((section) => section.items.length > 0)
+  const itemsTop = navTop.filter((i) => puedeVerPantalla(permisos, i.clave))
+  const visibleSections = seccionesVisibles(permisos)
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -79,7 +71,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         )}
 
         {soloIconos ? (
-          // Menú cerrado: un icono por menú principal; al hacerle clic se abre la lista de sus pantallas
+          // Menú cerrado: un icono por menú principal; al hacerle clic se abre la lista de sus opciones
           <SidebarGroup>
             <SidebarGroupContent>
               <SidebarMenu>
@@ -90,7 +82,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         render={
                           <SidebarMenuButton
                             tooltip={section.title}
-                            isActive={section.items.some((i) => i.url === pathname)}
+                            isActive={section.items.some((i) => itemActivo(i, pathname))}
                             className={BOTON_ITEM}
                           />
                         }
@@ -104,8 +96,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           {section.items.map((subItem) => (
                             <DropdownMenuItem
                               key={subItem.title}
-                              className={pathname === subItem.url ? "bg-accent font-medium" : undefined}
-                              render={<a href={subItem.url} />}
+                              className={itemActivo(subItem, pathname) ? "bg-accent font-medium" : undefined}
+                              render={<a href={urlDeItem(subItem, permisos)} />}
                             >
                               {subItem.icon && <subItem.icon className="h-4 w-4 shrink-0" />}
                               {subItem.title}
@@ -120,11 +112,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarGroupContent>
           </SidebarGroup>
         ) : (
-          visibleSections.map((item) => (
+          visibleSections.map((section) => (
             <Collapsible
-              key={item.title}
-              title={item.title}
-              defaultOpen={item.items.some((subItem) => subItem.url === pathname)}
+              key={section.title}
+              title={section.title}
+              defaultOpen={section.items.some((i) => itemActivo(i, pathname))}
               className="group/collapsible"
             >
               <SidebarGroup>
@@ -132,8 +124,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   className="group/label text-sm text-white/70 hover:bg-white/5 hover:text-white"
                   render={<CollapsibleTrigger />}
                 >
-                  {item.icon && <item.icon className="mr-2 h-4 w-4 shrink-0" />}
-                  {item.title}{" "}
+                  {section.icon && <section.icon className="mr-2 h-4 w-4 shrink-0" />}
+                  {section.title}{" "}
                   <HugeiconsIcon
                     icon={ArrowRight01Icon}
                     strokeWidth={2}
@@ -143,12 +135,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <CollapsibleContent>
                   <SidebarGroupContent>
                     <SidebarMenu>
-                      {item.items.map((subItem) => (
+                      {section.items.filter((i) => itemVisible(i, permisos)).map((subItem) => (
                         <SidebarMenuItem key={subItem.title}>
                           <SidebarMenuButton
-                            isActive={pathname === subItem.url}
+                            isActive={itemActivo(subItem, pathname)}
                             className="border-l-2 border-transparent text-white/80 hover:border-red-500/50 hover:bg-white/5 hover:text-white data-[active=true]:border-red-500 data-[active=true]:bg-white/5 data-[active=true]:text-white data-[active=true]:font-medium"
-                            render={<a href={subItem.url} />}
+                            render={<a href={urlDeItem(subItem, permisos)} />}
                           >
                             {subItem.icon && <subItem.icon className="h-4 w-4 shrink-0" />}
                             {subItem.title}
