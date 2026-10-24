@@ -5,6 +5,9 @@ import { SearchInput } from "@/components/ui/search-input"
 import { DatePicker } from "@/components/ui/date-picker"
 import { MultiSelect } from "@/components/ui/multi-select"
 import { VehiculosUsoChart } from "@/components/vehiculos-uso-chart"
+import { TrabajoPendiente, IndicadoresCircuito } from "@/components/dashboard/resumen-circuito"
+import { GraficosCircuito } from "@/components/dashboard/graficos-circuito"
+import { useDashboardResumen } from "@/hooks/use-dashboard"
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, ComposedChart, Line, Area
@@ -146,6 +149,9 @@ export default function DashboardPage() {
     () => activePreset ? getRangoAnterior(activePreset) : getRangoAnteriorCustom(customDesde, customHasta),
     [activePreset, customDesde, customHasta],
   )
+
+  // Indicadores y gráficos del circuito (trabajo pendiente, tiempos y gráficos de tres variables): se calculan en el servidor
+  const { resumen, isLoading: cargandoResumen } = useDashboardResumen({ fechaDesde: rango.fechaDesde, fechaHasta: rango.fechaHasta, donanteIds })
 
   // ── Datos base ────────────────────────────────────────────────────────
   const { lotes, isLoading: loadingLotes } = useLotes()
@@ -469,6 +475,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Trabajo pendiente e indicadores del circuito */}
+      <TrabajoPendiente resumen={resumen} />
+      <IndicadoresCircuito resumen={resumen} />
+
       {/* Nivel 1 — KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KpiCard
@@ -478,8 +488,8 @@ export default function DashboardPage() {
         />
         <KpiCard
           label="Hardware en laboratorio"
-          value={isLoading ? "…" : labCount}
-          sub="lotes activos pendientes de clasificación"
+          value={cargandoResumen && !resumen ? "…" : resumen?.pendiente.lotesPorClasificar ?? labCount}
+          sub="lotes con materiales sin clasificar"
         />
         <KpiCard
           label="Efectividad de recuperación"
@@ -850,6 +860,9 @@ export default function DashboardPage() {
         )}
       </div>
 
+
+      {/* Análisis del circuito: gráficos que cruzan tres o más variables */}
+      <GraficosCircuito resumen={resumen} />
     </div>
   )
 }
