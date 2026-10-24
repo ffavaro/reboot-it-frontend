@@ -30,6 +30,7 @@ import type { CondicionMaterial } from "@/lib/type/condicion-material"
 import type { Turno } from "@/lib/type/turno"
 import { getUser } from "@/lib/auth-utils"
 import { GenerarCertificadoModal } from "@/components/generar-certificado-modal"
+import { DetalleDonacionDialog } from "@/components/detalle-donacion-dialog"
 import { enforceDecimalInput } from "@/lib/utils/number-limit"
 import { formatPeso, getErrorMessage } from "@/lib/utils/helpers"
 import { CONDICION_MATERIAL, ESTADO_DONACION, esCondicion } from "@/lib/constants/estados"
@@ -179,6 +180,8 @@ export default function DonacionPage() {
   // "Generar Certificado": solo lo ve el Administrativo
   const esAdministrativo = user?.rol?.nombre?.trim().toLowerCase() === "administrativo"
   const [certDonacion, setCertDonacion] = useState<Donacion | null>(null)
+  // Detalle de trazabilidad (el ojo de la grilla)
+  const [detalleId, setDetalleId] = useState<number | null>(null)
 
   // Condición por defecto de todo material cargado: se define recién al clasificarlo
   const condicionADefinir = condiciones.find(
@@ -309,31 +312,6 @@ export default function DonacionPage() {
 
   function openEdit(d: Donacion) {
     setIsViewing(false)
-    setEditing(d)
-    setSelectedDate(null)
-    setSelectedTime(null)
-    setNecesitaRetiro(d.necesitaRetiro ?? false)
-    setUsarOtraDireccion(!!d.direccionRetiro)
-    setDireccionRetiro(d.direccionRetiro ?? "")
-    setPesoEstimadoKg(formatPeso(d.pesoEstimadoKg))
-    setForm({
-      donanteId: String(d.donanteId),
-      fechaHora: "",
-      estadoDonacionId: d.estadoDonacionId != null ? String(d.estadoDonacionId) : "",
-      descripcion: d.descripcion ?? "",
-    })
-    setDetalles(
-      (d.detalles ?? []).map((det) => ({
-        tipoMaterialId: String(det.tipoMaterialId),
-        condicionMaterialId: det.condicionMaterialId != null ? String(det.condicionMaterialId) : "",
-        cantidadEstimada: det.cantidadEstimada != null ? String(det.cantidadEstimada) : "",
-      })),
-    )
-    setSheetOpen(true)
-  }
-
-  function openView(d: Donacion) {
-    setIsViewing(true)
     setEditing(d)
     setSelectedDate(null)
     setSelectedTime(null)
@@ -620,12 +598,13 @@ export default function DonacionPage() {
         emptyText="No hay donaciones registradas."
         emptySearchText="No se encontraron donaciones con ese criterio."
         search={search}
-        onView={openView}
+        onView={(d) => setDetalleId(d.id)}
         onEdit={isDonante ? undefined : openEdit}
         onDelete={isDonante ? undefined : handleDelete}
         isDeleting={isDeleting}
       />
 
+      <DetalleDonacionDialog donacionId={detalleId} onClose={() => setDetalleId(null)} />
       <GenerarCertificadoModal donacion={certDonacion} onClose={() => setCertDonacion(null)} onGenerado={async () => { await mutate() }} />
 
       <FormModal

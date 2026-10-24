@@ -101,3 +101,27 @@ export interface ReporteDonacion extends Donacion {
   turno: ReporteTurno | null
   retiro: ReporteRetiro | null
 }
+// Trazabilidad de una donación (GET /donacion/:id/detalle)
+export interface DetalleDonacion {
+  id: number
+  descripcion: string | null
+  createdAt: string
+  necesitaRetiro: boolean
+  direccionRetiro: string | null
+  pesoEstimadoKg: number | string | null
+  estado: string | null
+  donante: { id: number; nombre: string | null; razonSocial: string | null }
+  materiales: { id: number; tipo: string | null; condicion: string | null; cantidad: number | null }[]
+  turno: {
+    id: number
+    fechaHora: string
+    estado: string | null
+    empleado: { id: number; nombre: string; apellido: string } | null
+    transportista: { id: number; nombre: string; apellido: string } | null
+  } | null
+  retiro: { id: number; fechaRetiro: string | null; direccion: string | null } | null
+  constancia: { id: number; fechaEmision: string } | null
+  lote: { id: number; pesoBrutoKg: number | string | null } | null
+  certificado: { id: number; numero: string | null; fechaEmision: string; gestor: string | null; archivoFinalUrl: string | null } | null
+  fotos: { id: number; url: string; fecha: string }[]
+}
