@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
+import { CartesianGrid, LabelList, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from "recharts"
 import { DatePicker } from "@/components/ui/date-picker"
 import { useUsoVehiculos } from "@/hooks/use-historial-km"
 import { formatKm } from "@/lib/utils/helpers"
@@ -33,6 +33,11 @@ function UsoTooltip({ active, payload }: { active?: boolean; payload?: { payload
       <p className="text-muted-foreground">
         Recorridos: <span className="font-medium text-foreground">{v.cantidadRecorridos}</span>
       </p>
+      {v.cantidadRecorridos > 0 && (
+        <p className="text-muted-foreground">
+          Km por recorrido: <span className="font-medium text-foreground">{formatKm(v.kmTotales / v.cantidadRecorridos)}</span>
+        </p>
+      )}
     </div>
   )
 }
@@ -52,6 +57,11 @@ export function VehiculosUsoChart() {
 
   const fueraDelMes = desde !== inicial.desde || hasta !== inicial.hasta
   const totalKm = uso.reduce((acc, v) => acc + v.kmTotales, 0)
+  // Burbujas: cada vehículo es un punto (recorridos × km totales) y el tamaño es cuántos km hace en cada recorrido
+  const puntos = useMemo(
+    () => uso.map((v) => ({ ...v, kmPorRecorrido: v.cantidadRecorridos > 0 ? v.kmTotales / v.cantidadRecorridos : 0 })),
+    [uso],
+  )
 
   return (
     <div className="rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
@@ -59,7 +69,7 @@ export function VehiculosUsoChart() {
         <div>
           <p className="text-sm font-medium text-foreground mb-1">Vehículos más utilizados</p>
           <p className="text-xs text-muted-foreground">
-            Km recorridos por vehículo en hojas de ruta finalizadas
+            Cada burbuja es un vehículo: más a la derecha, más recorridos; más arriba, más km; más grande, más km por recorrido. Hojas de ruta finalizadas
             {uso.length > 0 && <> — {formatKm(totalKm)} en total</>}
           </p>
         </div>
@@ -112,21 +122,36 @@ export function VehiculosUsoChart() {
           No hay hojas de ruta finalizadas en este período.
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={260}>
-          <BarChart data={uso} barCategoryGap="25%">
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.15)" vertical={false} />
-            <XAxis dataKey="patente" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} interval={0} />
+        <ResponsiveContainer width="100%" height={300}>
+          <ScatterChart margin={{ top: 16, right: 24, left: 0, bottom: 24 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.15)" />
+            <XAxis
+              type="number"
+              dataKey="cantidadRecorridos"
+              name="Recorridos"
+              allowDecimals={false}
+              tick={{ fontSize: 11 }}
+              tickLine={false}
+              domain={[0, (max: number) => Math.max(2, Math.ceil(max * 1.15))]}
+              label={{ value: "Recorridos", position: "insideBottom", offset: -12, fontSize: 11 }}
+            />
             <YAxis
+              type="number"
+              dataKey="kmTotales"
+              name="Km recorridos"
               tick={{ fontSize: 11 }}
               tickLine={false}
               axisLine={false}
-              allowDecimals={false}
               unit=" km"
               width={64}
+              domain={[0, (max: number) => Math.ceil(max * 1.15)]}
             />
-            <Tooltip content={<UsoTooltip />} cursor={{ fill: "rgba(128,128,128,0.07)" }} />
-            <Bar dataKey="kmTotales" name="Km recorridos" fill="#378ADD" radius={[4, 4, 0, 0]} />
-          </BarChart>
+            <ZAxis type="number" dataKey="kmPorRecorrido" range={[90, 600]} />
+            <Tooltip content={<UsoTooltip />} cursor={{ strokeDasharray: "3 3" }} />
+            <Scatter data={puntos} fill="#378ADD" fillOpacity={0.55} stroke="#378ADD">
+              <LabelList dataKey="patente" position="top" style={{ fontSize: 11, fill: "currentColor" }} />
+            </Scatter>
+          </ScatterChart>
         </ResponsiveContainer>
       )}
     </div>
