@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/input"
 import { useLogin } from "@/hooks/use-auth"
 import { toast } from "react-toastify"
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { Eye, EyeOff } from "lucide-react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { saveSession } from "@/lib/auth-utils"
 import { homeDePermisos } from "@/lib/nav"
 import { permisosApi } from "@/lib/api/permisos"
@@ -23,7 +24,10 @@ export function LoginForm({
   const { login, isLoading } = useLogin()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [verPassword, setVerPassword] = useState(false)
   const router = useRouter()
+  // Al volver de recuperar la contraseña (/login?reset=success) se avisa que ya puede iniciar sesión
+  const contrasenaActualizada = useSearchParams().get("reset") === "success"
 
   const onHandleLogin = async (e: React.BaseSyntheticEvent) => {
     e.preventDefault()
@@ -71,6 +75,11 @@ export function LoginForm({
             Ingrese tu correo electrónico y contraseña para acceder a tu cuenta. Si no tienes una cuenta, puedes registrarte haciendo clic en el enlace de abajo.
           </p>
         </div>
+        {contrasenaActualizada && (
+          <div role="status" aria-live="polite" className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+            Contraseña actualizada. Ya podés iniciar sesión.
+          </div>
+        )}
         <Field>
           <FieldLabel htmlFor="email">Email</FieldLabel>
           <Input
@@ -88,17 +97,31 @@ export function LoginForm({
         <Field>
           <div className="flex items-center">
             <FieldLabel htmlFor="password">Contraseña</FieldLabel>
+            <a href="/forgot-password" className="ml-auto text-sm underline-offset-4 hover:underline">
+              ¿Olvidaste la contraseña?
+            </a>
           </div>
-          <Input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            suppressHydrationWarning
-            value={password}
-            onChange={(e) => { setPassword(e.target.value); e.currentTarget.setCustomValidity("") }}
-            onInvalid={(e) => e.currentTarget.setCustomValidity("Por favor, completá este campo.")}
-          />
+          <div className="relative">
+            <Input
+              id="password"
+              className="pr-10"
+              type={verPassword ? "text" : "password"}
+              autoComplete="current-password"
+              required
+              suppressHydrationWarning
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); e.currentTarget.setCustomValidity("") }}
+              onInvalid={(e) => e.currentTarget.setCustomValidity("Por favor, completá este campo.")}
+            />
+            <button
+              type="button"
+              onClick={() => setVerPassword((v) => !v)}
+              aria-label={verPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
+            >
+              {verPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
         </Field>
         <Field>
           <Button type="submit">Iniciar Sesión</Button>

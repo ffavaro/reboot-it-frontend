@@ -11,5 +11,7 @@ export interface NavItem {
 export interface NavSection {
   title: string
   url: string
+  // Icono del menú principal (a la izquierda del título)
+  icon?: LucideIcon
   items: NavItem[]
 }

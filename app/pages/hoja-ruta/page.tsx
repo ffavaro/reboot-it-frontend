@@ -168,8 +168,12 @@ function TransportistaView() {
   const { transportistas, isLoading: loadingTransportistas } = useEmpleadosTransportistas()
   const { myTransportista } = getTransportistaActual(transportistas)
 
+  // Filtro por fecha: vacío = el rango habitual; con una fecha se ven solo las hojas de ese día
+  const [fecha, setFecha] = useState("")
   const { hojas, isLoading, mutate } = useHojasRutaDia(
-    { empleadoTransportistaId: myTransportista?.id, fechaDesde: sumarDias(-DIAS_ATRAS), fechaHasta: sumarDias(DIAS_ADELANTE) },
+    fecha
+      ? { empleadoTransportistaId: myTransportista?.id, fechaDesde: fecha, fechaHasta: fecha }
+      : { empleadoTransportistaId: myTransportista?.id, fechaDesde: sumarDias(-DIAS_ATRAS), fechaHasta: sumarDias(DIAS_ADELANTE) },
     !!myTransportista,
   )
   const { generarHojaRuta } = useGenerarHojaRuta()
@@ -286,19 +290,43 @@ function TransportistaView() {
         <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           Todavía no tenés un vehículo asignado. Pedile a un administrador que te asigne uno en &quot;Empleado Transportista&quot;.
         </div>
-      ) : pendientes.length === 0 && finalizadas.length === 0 ? (
-        <p className="py-4 text-sm italic text-muted-foreground">No tenés turnos pendientes de retiro.</p>
       ) : (
         <>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium">Fecha</span>
+            <div className="flex items-center gap-0.5 rounded-lg border border-border bg-background px-1 py-0.5">
+              <DatePicker
+                value={fecha}
+                onChange={setFecha}
+                clearable
+                placeholder="Todas las fechas"
+                aria-label="Ver la hoja de ruta de una fecha"
+              />
+            </div>
+            {fecha && (
+              <Button variant="ghost" size="sm" onClick={() => setFecha("")}>
+                Ver todas
+              </Button>
+            )}
+          </div>
+
+          {pendientes.length === 0 && finalizadas.length === 0 ? (
+            <p className="py-4 text-sm italic text-muted-foreground">
+              {fecha ? `No tenés hojas de ruta para el ${formatFechaISO(fecha)}.` : "No tenés turnos pendientes de retiro."}
+            </p>
+          ) : (
+        <>
           <div className="flex flex-col gap-4">
-            {pendientes.length === 0 && <p className="text-sm italic text-muted-foreground">No tenés turnos pendientes de retiro.</p>}
+            {pendientes.length === 0 && !fecha && <p className="text-sm italic text-muted-foreground">No tenés turnos pendientes de retiro.</p>}
             {pendientes.map(tarjeta)}
           </div>
           {finalizadas.length > 0 && (
             <div className="flex flex-col gap-4">
-              <h2 className="text-sm font-semibold text-muted-foreground">Hojas de ruta finalizadas recientemente</h2>
+              <h2 className="text-sm font-semibold text-muted-foreground">{fecha ? "Hojas de ruta finalizadas" : "Hojas de ruta finalizadas recientemente"}</h2>
               {finalizadas.map(tarjeta)}
             </div>
+          )}
+        </>
           )}
         </>
       )}

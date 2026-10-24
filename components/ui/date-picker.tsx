@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils"
 
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
 const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
-// La semana arranca el lunes, como se usa en Argentina
-const DIAS = ["Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do"]
+// Solo se pueden elegir días hábiles: la semana va de lunes a viernes
+const DIAS = ["Lu", "Ma", "Mi", "Ju", "Vi"]
 
 function pad(n: number) {
   return String(n).padStart(2, "0")
@@ -26,6 +26,14 @@ function todayISO() {
 function parseISO(iso: string): { year: number; month: number; day: number } | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
   return m ? { year: Number(m[1]), month: Number(m[2]) - 1, day: Number(m[3]) } : null
+}
+
+// Sábado y domingo no se pueden elegir
+function esFinDeSemana(iso: string) {
+  const p = parseISO(iso)
+  if (!p) return false
+  const dia = new Date(p.year, p.month, p.day).getDay()
+  return dia === 0 || dia === 6
 }
 
 function formatLabel(iso: string) {
@@ -69,7 +77,7 @@ export function DatePicker({
     })
   }
 
-  const isDisabled = (iso: string) => (!!min && iso < min) || (!!max && iso > max)
+  const isDisabled = (iso: string) => (!!min && iso < min) || (!!max && iso > max) || esFinDeSemana(iso)
 
   function elegir(iso: string) {
     if (isDisabled(iso)) return
@@ -77,16 +85,17 @@ export function DatePicker({
     setOpen(false)
   }
 
-  // Celdas del mes: huecos iniciales hasta el primer lunes + días del mes
-  const offset = (new Date(view.year, view.month, 1).getDay() + 6) % 7
+  // Celdas del mes: solo lunes a viernes, con huecos iniciales hasta el primer día hábil
   const diasMes = new Date(view.year, view.month + 1, 0).getDate()
-  const celdas: (number | null)[] = [
-    ...Array.from({ length: offset }, () => null),
-    ...Array.from({ length: diasMes }, (_, i) => i + 1),
-  ]
+  const habiles = Array.from({ length: diasMes }, (_, i) => i + 1).filter((d) => {
+    const dow = new Date(view.year, view.month, d).getDay()
+    return dow !== 0 && dow !== 6
+  })
+  const offset = habiles.length ? new Date(view.year, view.month, habiles[0]).getDay() - 1 : 0
+  const celdas: (number | null)[] = [...Array.from({ length: offset }, () => null), ...habiles]
 
   // Siempre 6 filas de días: el calendario no cambia de alto al pasar de mes
-  while (celdas.length < 42) celdas.push(null)
+  while (celdas.length < 30) celdas.push(null)
 
   const hoy = todayISO()
   const anioActual = new Date().getFullYear()
@@ -152,7 +161,7 @@ export function DatePicker({
           </button>
         </div>
 
-        <div className="grid grid-cols-7 gap-0.5 text-center">
+        <div className="grid grid-cols-5 gap-0.5 text-center">
           {DIAS.map(d => (
             <span key={d} className="text-[11px] font-medium text-muted-foreground py-1">{d}</span>
           ))}

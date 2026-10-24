@@ -1,5 +1,5 @@
 import {
-  BarChart2, Bookmark, Box, Boxes, CalendarCheck, CalendarDays, Camera, Car, Circle, Clock, FileCheck, FileText, HardDrive, Heart, History, LayoutList, Layers, Leaf, List, MapPin, Package, PackageOpen, Server, Shield, Tag, Trash2, Truck, User, UserCog, Users,
+  BarChart2, Bookmark, Box, Boxes, CalendarCheck, CalendarDays, Camera, Car, Circle, Clock, FileBarChart, FileCheck, FileText, HardDrive, Heart, Recycle, History, LayoutList, Layers, Leaf, List, ListChecks, MapPin, Package, PackageOpen, Route, Server, Settings, Shield, Tag, Trash2, Truck, User, UserCog, Users, Warehouse,
 } from "lucide-react"
 import type { NavItem, NavSection } from "@/lib/type/sidebar"
 import type { AccionPermiso, Permisos } from "@/lib/type/permisos"
@@ -16,18 +16,20 @@ export const navMain: NavSection[] = [
   {
     title: "Gestion de Donantes",
     url: "#",
+    icon: Recycle,
     items: [
-      { title: "Agenda", url: "/pages/agenda", clave: "agenda", icon: CalendarDays },
-      { title: "Certificado de disposicion", url: "/pages/certificado-disposicion", clave: "certificado_disposicion", icon: FileCheck },
-      { title: "Constancia de retiro", url: "/pages/constancia-retiro", clave: "constancia_retiro", icon: FileText },
       { title: "Donaciones", url: "/pages/donacion", clave: "donaciones", icon: Heart },
-      { title: "Registro fotográfico", url: "/pages/registro-fotografico", clave: "registro_fotografico", icon: Camera },
       { title: "Turnos", url: "/pages/turno", clave: "turnos", icon: Clock },
+      { title: "Constancia de retiro", url: "/pages/constancia-retiro", clave: "constancia_retiro", icon: FileText },
+      { title: "Certificado de disposicion", url: "/pages/certificado-disposicion", clave: "certificado_disposicion", icon: FileCheck },
+      { title: "Agenda", url: "/pages/agenda", clave: "agenda", icon: CalendarDays },
+      { title: "Registro fotográfico", url: "/pages/registro-fotografico", clave: "registro_fotografico", icon: Camera },
     ],
   },
   {
-    title: "Logistica y Distribucion",
+    title: "Gestion de Logistica",
     url: "#",
+    icon: Route,
     items: [
       { title: "Vehiculos", url: "/pages/vehicles", clave: "vehiculos", icon: Truck },
       { title: "Retiros", url: "/pages/retiro", clave: "retiros", icon: PackageOpen },
@@ -38,6 +40,7 @@ export const navMain: NavSection[] = [
   {
     title: "Gestion de Clasificacion",
     url: "#",
+    icon: ListChecks,
     items: [
       { title: "Materiales", url: "/pages/material", clave: "materiales", icon: Layers },
       { title: "Condicion de Material", url: "/pages/material/material-condition", clave: "condicion_material", icon: Circle },
@@ -46,8 +49,9 @@ export const navMain: NavSection[] = [
     ],
   },
   {
-    title: "Inventario y almacenamiento",
+    title: "Gestion de Inventario",
     url: "#",
+    icon: Warehouse,
     items: [
       { title: "Medio de Almacenamiento", url: "/pages/medio-almacenamiento", clave: "medio_almacenamiento", icon: HardDrive },
       { title: "Tipos", url: "/pages/medio-almacenamiento/types", clave: "tipos", icon: List },
@@ -61,6 +65,7 @@ export const navMain: NavSection[] = [
   {
     title: "Reportes y Analitica",
     url: "#",
+    icon: FileBarChart,
     items: [
       { title: "Reporte de Donaciones", url: "/pages/reportes/donaciones", clave: "reporte_donaciones", icon: BarChart2 },
       { title: "Reporte de Retiros", url: "/pages/reportes/retiros", clave: "reporte_retiros", icon: BarChart2 },
@@ -71,6 +76,7 @@ export const navMain: NavSection[] = [
   {
     title: "Configuracion",
     url: "#",
+    icon: Settings,
     items: [
       { title: "Auditoría", url: "/pages/auditoria", clave: "auditoria", icon: History },
       { title: "Donantes", url: "/pages/donante", clave: "donantes", icon: Users },
