@@ -277,6 +277,12 @@ export default function CertificadoDisposicionPage() {
         </p>
       </div>
 
+      {isDonante && (
+        <div role="status" className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          Tus certificados de disposición van a estar disponibles cuando tu donación se encuentre finalizada.
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput
           placeholder="Buscar por número, gestor o lote..."
@@ -301,7 +307,7 @@ export default function CertificadoDisposicionPage() {
         onDownload={(c) => descargarPdf(c.id)}
         isLoading={isLoading}
         loadingText="Cargando certificados..."
-        emptyText="No hay certificados de disposición registrados."
+        emptyText={isDonante ? "Todavía no tenés certificados disponibles." : "No hay certificados de disposición registrados."}
         emptySearchText="No se encontraron certificados con ese criterio."
         search={search}
         onView={openView}
