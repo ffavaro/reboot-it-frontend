@@ -1,25 +1,27 @@
 "use client"
 
 import { useState } from "react"
-import { MapPin, MessageCircle, Send, CheckCircle2, FileText, FileDown } from "lucide-react"
+import { MapPin, MessageCircle, CheckCircle2, FileText, FileDown } from "lucide-react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { DatePicker } from "@/components/ui/date-picker"
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
-import { useHojasRutaDia, useGenerarHojaRuta } from "@/hooks/use-hoja-ruta"
+import { useHojasRutaDia } from "@/hooks/use-hoja-ruta"
+import { useMisPermisos } from "@/hooks/use-permisos"
+import { puede } from "@/lib/nav"
 import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
 import { getUser } from "@/lib/auth-utils"
 import { getErrorMessage, getTransportistaActual, formatFechaISO, todayISO } from "@/lib/utils/helpers"
 import { hojaRutaApi } from "@/lib/api/hoja-ruta"
 import { descargarConstanciaPdf } from "@/lib/utils/constancia-pdf"
 import { ESTADOS_HOJA_RUTA } from "@/lib/type/hoja-ruta"
-import type { EstadoHojaRuta, HojaIniciadaPendiente, HojaRutaDia, ParadaHojaRuta } from "@/lib/type/hoja-ruta"
+import type { EstadoHojaRuta, HojaRutaDia, ParadaHojaRuta } from "@/lib/type/hoja-ruta"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import { HojaRutaCard, buildWhatsAppUrl } from "./hoja-ruta-card"
 import { ConfirmarRetiroDialog } from "./confirmar-retiro-dialog"
 import { ConstanciaDialog } from "./constancia-dialog"
 import { HistoricoTab } from "./historico-tab"
+import { GenerarHojaButton } from "./generar-hoja-button"
 
 // Estos roles no tienen vehículo propio: ven las hojas de ruta de todos los transportistas
 const ROLES_VEN_TODAS_LAS_HOJAS = ["admin", "administrativo"]
@@ -41,7 +43,9 @@ function AdminView() {
   const [estado, setEstado] = useState<EstadoHojaRuta | "">("")
 
   const { transportistas } = useEmpleadosTransportistas()
-  const { hojas, isLoading } = useHojasRutaDia({
+  const { permisos } = useMisPermisos()
+  const puedeGenerar = puede(permisos, "hoja_ruta", "crear")
+  const { hojas, isLoading, mutate } = useHojasRutaDia({
     fechaDesde: desde,
     fechaHasta: hasta,
     empleadoTransportistaId: transportistaId ? Number(transportistaId) : undefined,
@@ -128,16 +132,20 @@ function AdminView() {
                   key={`${h.empleadoTransportistaId}-${h.fecha}`}
                   hoja={h}
                   actions={
-                    <>
-                      <Button variant="outline" disabled={!h.mapsUrl} onClick={() => window.open(h.mapsUrl!, "_blank", "noopener,noreferrer")}>
-                        <MapPin className="h-4 w-4" />
-                        Abrir en Google Maps
-                      </Button>
-                      <Button disabled={h.paradas.length === 0} onClick={() => window.open(buildWhatsAppUrl(h), "_blank", "noopener,noreferrer")}>
-                        <MessageCircle className="h-4 w-4" />
-                        Compartir por WhatsApp
-                      </Button>
-                    </>
+                    h.estado === "Pendiente" && puedeGenerar ? (
+                      <GenerarHojaButton hoja={h} onGenerada={() => mutate()} />
+                    ) : (
+                      <>
+                        <Button variant="outline" disabled={!h.mapsUrl} onClick={() => window.open(h.mapsUrl!, "_blank", "noopener,noreferrer")}>
+                          <MapPin className="h-4 w-4" />
+                          Abrir en Google Maps
+                        </Button>
+                        <Button disabled={h.paradas.length === 0} onClick={() => window.open(buildWhatsAppUrl(h), "_blank", "noopener,noreferrer")}>
+                          <MessageCircle className="h-4 w-4" />
+                          Compartir por WhatsApp
+                        </Button>
+                      </>
+                    )
                   }
                 />
               ))}
@@ -176,42 +184,11 @@ function TransportistaView() {
       : { empleadoTransportistaId: myTransportista?.id, fechaDesde: sumarDias(-DIAS_ATRAS), fechaHasta: sumarDias(DIAS_ADELANTE) },
     !!myTransportista,
   )
-  const { generarHojaRuta } = useGenerarHojaRuta()
-  const [generando, setGenerando] = useState<string | null>(null)
-  // Aviso cuando ya hay otra hoja iniciada con turnos pendientes de retiro
-  const [alerta, setAlerta] = useState<{ hoja: HojaRutaDia; otras: HojaIniciadaPendiente[] } | null>(null)
   const [paradaAConfirmar, setParadaAConfirmar] = useState<ParadaHojaRuta | null>(null)
   const [constanciaDeTurno, setConstanciaDeTurno] = useState<number | null>(null)
 
   const pendientes = hojas.filter((h) => h.estado !== "Finalizada" && h.paradas.length > 0).sort((a, b) => a.fecha.localeCompare(b.fecha))
   const finalizadas = hojas.filter((h) => h.estado === "Finalizada").sort((a, b) => b.fecha.localeCompare(a.fecha))
-
-  // Genera la hoja de esa fecha y abre WhatsApp con el detalle. La pestaña se abre en el gesto del usuario
-  // (si no, el navegador bloquea el popup) y se redirige cuando la hoja ya está generada.
-  async function generarYCompartir(hoja: HojaRutaDia, confirmar = false) {
-    const win = window.open("about:blank", "_blank")
-    setGenerando(hoja.fecha)
-    try {
-      const generada = await generarHojaRuta({ empleadoTransportistaId: hoja.empleadoTransportistaId, fecha: hoja.fecha, confirmar })
-      await mutate()
-      setAlerta(null)
-      const url = buildWhatsAppUrl(generada)
-      if (win) {
-        win.opener = null
-        win.location.href = url
-      } else {
-        window.open(url, "_blank", "noopener,noreferrer")
-      }
-      toast.success("Hoja de ruta generada")
-    } catch (error) {
-      win?.close()
-      const e = error as { code?: string; hojas?: HojaIniciadaPendiente[] }
-      if (e?.code === "HOJA_INICIADA_PENDIENTE") setAlerta({ hoja, otras: e.hojas ?? [] })
-      else toast.error(getErrorMessage(error, "No se pudo generar la hoja de ruta"))
-    } finally {
-      setGenerando(null)
-    }
-  }
 
   async function descargarPdf(turnoId: number) {
     try {
@@ -242,10 +219,7 @@ function TransportistaView() {
               </Button>
             </>
           ) : (
-            <Button disabled={generando !== null || h.paradas.length === 0 || !h.vehiculo} onClick={() => generarYCompartir(h)}>
-              <Send className="h-4 w-4" />
-              {generando === h.fecha ? "Generando..." : "Generar y compartir hoja de ruta"}
-            </Button>
+            <p className="text-sm italic text-muted-foreground">El Administrativo todavía no generó esta hoja de ruta.</p>
           )
         }
         accionesParada={(p) =>
@@ -280,7 +254,7 @@ function TransportistaView() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold tracking-tight">Hoja de Ruta</h1>
         <p className="text-sm text-muted-foreground">
-          Tus turnos pendientes de retiro, agrupados por fecha. Generá la hoja de ruta de cada día, compartila y confirmá cada retiro al hacerlo.
+          Tus turnos pendientes de retiro, agrupados por fecha. El Administrativo genera la hoja de ruta de cada día y te la comparte; confirmá cada retiro al hacerlo.
         </p>
       </div>
 
@@ -343,35 +317,6 @@ function TransportistaView() {
       />
 
       <ConstanciaDialog turnoId={constanciaDeTurno} onClose={() => setConstanciaDeTurno(null)} />
-
-      {/* Aviso: ya hay otra hoja iniciada con turnos pendientes de retiro */}
-      <Dialog open={!!alerta} onOpenChange={(v) => { if (!v) setAlerta(null) }}>
-        <DialogContent className="max-w-md gap-0 p-0">
-          <div className="rounded-t-2xl bg-amber-50 px-6 py-4 pr-12 dark:bg-amber-900/20">
-            <DialogTitle className="text-lg font-semibold">Tenés otra hoja de ruta iniciada</DialogTitle>
-            <DialogDescription className="mt-1 text-sm text-muted-foreground">
-              Todavía tiene turnos pendientes de retiro.
-            </DialogDescription>
-          </div>
-          <div className="flex flex-col gap-3 px-6 py-5 text-sm">
-            <ul className="flex flex-col gap-1">
-              {alerta?.otras.map((o) => (
-                <li key={o.id} className="flex justify-between rounded-md bg-muted/50 px-3 py-2">
-                  <span className="font-medium">Hoja del {formatFechaISO(o.fecha)}</span>
-                  <span className="text-muted-foreground">{o.pendientes} turno{o.pendientes !== 1 ? "s" : ""} pendiente{o.pendientes !== 1 ? "s" : ""}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="text-muted-foreground">
-              ¿Querés generar igual la hoja de ruta del {alerta ? formatFechaISO(alerta.hoja.fecha) : ""}?
-            </p>
-          </div>
-          <div className="flex items-center justify-end gap-2 rounded-b-2xl px-6 py-4">
-            <Button variant="outline" onClick={() => setAlerta(null)}>Cancelar</Button>
-            <Button onClick={() => alerta && generarYCompartir(alerta.hoja, true)}>Generar igual</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
