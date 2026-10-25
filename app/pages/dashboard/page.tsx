@@ -21,6 +21,8 @@ import { useCondicionesMaterial } from "@/hooks/use-condicion-material"
 import { exportToPdf, exportToExcel, type ExportColumn } from "@/lib/utils/export"
 import { formatDate } from "@/lib/utils/helpers"
 import { esCondicionSinClasificar } from "@/lib/constants/estados"
+import { EstadoBadge } from "@/components/ui/estado-badge"
+import { ESTADO_LOTE_COLORS, colorPorEstado } from "@/lib/estado-colores"
 import {
   type Periodo, PERIODO_LABELS, getRangoFechas, getRangoAnterior,
   getRangoCustom, getRangoAnteriorCustom, getBucketOrder, getBucketKey,
@@ -55,23 +57,15 @@ function KpiCard({ label, value, sub, trend }: {
 
 // ── Componente Badge de estado ─────────────────────────────────────────────
 const ESTADOS_LOTE = ["En proceso", "Clasificado", "Desechado"] as const
+// Colores hex (no Tailwind) porque recharts los necesita como `fill`/`background`, no como className
 const ESTADO_COLORS: Record<string, string> = {
   "En proceso":  "#F5A623",
   "Clasificado": "#639922",
   "Desechado":   "#E24B4A",
 }
 
-function EstadoBadge({ estado }: { estado: string }) {
-  const styles: Record<string, string> = {
-    "En proceso":  "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
-    "Clasificado": "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-    "Desechado":   "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  }
-  return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[estado] ?? "bg-muted text-muted-foreground"}`}>
-      {estado}
-    </span>
-  )
+function EstadoLoteBadge({ estado }: { estado: string }) {
+  return <EstadoBadge texto={estado} colorClass={colorPorEstado(ESTADO_LOTE_COLORS, estado, "bg-muted text-muted-foreground")} />
 }
 
 // Ventana por defecto al entrar al dashboard: últimos 3 meses hasta hoy
@@ -151,7 +145,7 @@ export default function DashboardPage() {
   )
 
   // Indicadores y gráficos del circuito (trabajo pendiente, tiempos y gráficos de tres variables): se calculan en el servidor
-  const { resumen, isLoading: cargandoResumen } = useDashboardResumen({ fechaDesde: rango.fechaDesde, fechaHasta: rango.fechaHasta, donanteIds })
+  const { resumen } = useDashboardResumen({ fechaDesde: rango.fechaDesde, fechaHasta: rango.fechaHasta, donanteIds })
 
   // ── Datos base ────────────────────────────────────────────────────────
   const { lotes, isLoading: loadingLotes } = useLotes()
@@ -229,7 +223,6 @@ export default function DashboardPage() {
     : undefined
 
   // Lotes activos "en laboratorio" es una foto del presente, no depende del rango de fechas
-  const labCount = useMemo(() => lotes.filter(l => l.isActive && incluyeDonante(l.donacion?.donanteId)).length, [lotes, donanteSeleccionado]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const lotesFiltrados = useMemo(() => lotes.filter(l => {
     const matchDonante = incluyeDonante(l.donacion?.donanteId)
@@ -480,16 +473,11 @@ export default function DashboardPage() {
       <IndicadoresCircuito resumen={resumen} />
 
       {/* Nivel 1 — KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <KpiCard
           label="Total donaciones recibidas"
           value={isLoading ? "…" : donacionesActuales.length}
           trend={isLoading ? undefined : trendDonaciones}
-        />
-        <KpiCard
-          label="Hardware en laboratorio"
-          value={cargandoResumen && !resumen ? "…" : resumen?.pendiente.lotesPorClasificar ?? labCount}
-          sub="lotes con materiales sin clasificar"
         />
         <KpiCard
           label="Efectividad de recuperación"
@@ -844,7 +832,7 @@ export default function DashboardPage() {
                         <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{l.id}</td>
                         <td className="px-4 py-3 text-foreground">{l.donante}</td>
                         <td className="px-4 py-3 text-muted-foreground">{l.pesoKg.toFixed(1)}</td>
-                        <td className="px-4 py-3"><EstadoBadge estado={l.estado} /></td>
+                        <td className="px-4 py-3"><EstadoLoteBadge estado={l.estado} /></td>
                       </tr>
                     ))
                   )}

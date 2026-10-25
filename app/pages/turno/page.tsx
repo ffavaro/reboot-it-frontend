@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { CrearButton } from "@/components/ui/crear-button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
@@ -40,7 +41,7 @@ import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import { getUser } from "@/lib/auth-utils"
 import type { TokenPayload } from "@/lib/auth-utils"
 import { formatDateTime, getTransportistaActual } from "@/lib/utils/helpers"
-import { ESTADO_TURNO } from "@/lib/constants/estados"
+import { ESTADO_TURNO, puedeClasificarTurno } from "@/lib/constants/estados"
 
 const EMPTY_FORM = { donanteId: "", estadoTurnoId: "", fechaHora: "", descripcion: "" }
 const EMPTY_ASIGNAR = { empleadoId: "", empleadoTransportistaId: "" }
@@ -121,6 +122,9 @@ export default function TurnoPage() {
   const { createRegistro, isLoading: isCreatingFoto } = useCreateRegistroFotografico()
 
   const [search, setSearch] = useState("")
+  const [soloParaClasificar, setSoloParaClasificar] = useState(false)
+  const [fechaDesde, setFechaDesde] = useState("")
+  const [fechaHasta, setFechaHasta] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [asignarModalOpen, setAsignarModalOpen] = useState(false)
   const [finalizarModalOpen, setFinalizarModalOpen] = useState(false)
@@ -275,6 +279,10 @@ export default function TurnoPage() {
   ]
 
   const filtered = visibleTurnos.filter((t: Turno) => {
+    if (soloParaClasificar && !puedeClasificarTurno(t)) return false
+    const fecha = t.fechaHora.slice(0, 10)
+    if (fechaDesde && fecha < fechaDesde) return false
+    if (fechaHasta && fecha > fechaHasta) return false
     const q = search.toLowerCase()
     const donante = t.donante?.nombre?.toLowerCase() ?? ""
     const estado = t.estadoTurno?.descripcion?.toLowerCase() ?? ""
@@ -563,9 +571,34 @@ export default function TurnoPage() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
         />
+        <div className="flex items-center gap-0.5 rounded-lg border border-border bg-background px-1 py-0.5">
+          <DatePicker value={fechaDesde} onChange={setFechaDesde} max={fechaHasta || undefined} placeholder="Desde" clearable aria-label="Fecha desde" />
+          <span className="text-xs text-muted-foreground">→</span>
+          <DatePicker value={fechaHasta} onChange={setFechaHasta} min={fechaDesde || undefined} placeholder="Hasta" clearable aria-label="Fecha hasta" />
+        </div>
+        {(fechaDesde || fechaHasta) && (
+          <button
+            type="button"
+            onClick={() => { setFechaDesde(""); setFechaHasta("") }}
+            className="px-1 text-xs text-muted-foreground hover:text-foreground"
+          >
+            ✕ Limpiar fechas
+          </button>
+        )}
         <span className="text-sm text-muted-foreground">
           {filtered.length} turno{filtered.length !== 1 ? "s" : ""}
         </span>
+        {!isReadOnly && (
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={soloParaClasificar}
+              onChange={(e) => setSoloParaClasificar(e.target.checked)}
+              className="h-4 w-4 rounded border-input"
+            />
+            Listos para clasificar
+          </label>
+        )}
         {!isReadOnly && (
           <CrearButton className="ml-auto" onClick={openCreate}>
             <Plus className="h-4 w-4" />

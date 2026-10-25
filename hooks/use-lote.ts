@@ -1,37 +1,26 @@
-import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, loteApi } from "@/lib/api"
+import { createCrudHooks } from "@/lib/hooks/create-crud-hooks"
+import { loteApi } from "@/lib/api"
 import type { Lote, CreateLotePayload, UpdateLotePayload } from "@/lib/type/lote"
+
+const crud = createCrudHooks<Lote, CreateLotePayload, UpdateLotePayload>("/lote", loteApi)
 
 // habilitado=false: no consulta (el rol no tiene la pantalla Lotes)
 export function useLotes(habilitado = true) {
-  const { data, isLoading, error, mutate } = useSWR<Lote[]>(habilitado ? "/lote" : null, fetcher)
-  return { lotes: data ?? [], isLoading, error, mutate }
+  const { data, isLoading, error, mutate } = crud.useList(habilitado)
+  return { lotes: data, isLoading, error, mutate }
 }
 
 export function useCreateLote() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/lote",
-    (_key: string, { arg }: { arg: CreateLotePayload }) => loteApi.create(arg),
-  )
-  return { createLote: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useCreate()
+  return { createLote: trigger, isLoading, error }
 }
 
 export function useUpdateLote() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/lote",
-    (_key: string, { arg }: { arg: { id: number } & UpdateLotePayload }) => {
-      const { id, ...payload } = arg
-      return loteApi.update(id, payload)
-    },
-  )
-  return { updateLote: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useUpdate()
+  return { updateLote: trigger, isLoading, error }
 }
 
 export function useDeleteLote() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/lote",
-    (_key: string, { arg }: { arg: number }) => loteApi.remove(arg),
-  )
-  return { deleteLote: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useDelete()
+  return { deleteLote: trigger, isLoading, error }
 }

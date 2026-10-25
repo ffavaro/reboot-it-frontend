@@ -34,6 +34,7 @@ import { useRegistrosFotograficos } from "@/hooks/use-registro-fotografico"
 import { useFormErrors } from "@/hooks/use-form-errors"
 import { requiredSelect, positiveNumber, maxDigits } from "@/lib/form-validators"
 import { enforceDecimalInput, DEFAULT_WEIGHT_MAX_DIGITS } from "@/lib/utils/number-limit"
+import { formatPeso } from "@/lib/utils/helpers"
 import type { Lote } from "@/lib/type/lote"
 import type { RegistroFotografico } from "@/lib/type/registro-fotografico"
 
@@ -63,7 +64,7 @@ function FotosDelLote({ fotos, max }: { fotos: RegistroFotografico[]; max?: numb
 const baseColumns: TableColumn<Lote>[] = [
   {
     key: "id",
-    header: "N°",
+    header: "Lote",
     cell: (l) => <span className="font-mono text-xs">#{l.id}</span>,
   },
   {
@@ -75,6 +76,20 @@ const baseColumns: TableColumn<Lote>[] = [
     key: "donante",
     header: "Donante",
     cell: (l) => l.donacion?.donante?.nombre ?? <span className="italic text-muted-foreground">—</span>,
+  },
+  {
+    key: "pesoEstimadoKg",
+    header: "Peso estimado (kg)",
+    cell: (l) => {
+      const peso = l.donacion?.pesoEstimadoKg
+      return (
+        <span className="text-muted-foreground">
+          {peso !== null && peso !== undefined
+            ? `${formatPeso(peso)} kg`
+            : <span className="italic">—</span>}
+        </span>
+      )
+    },
   },
   {
     key: "pesoBrutoKg",
@@ -289,7 +304,8 @@ export default function LotePage() {
               <SelectValue placeholder="Seleccioná una donación" />
             </SelectTrigger>
             <SelectContent>
-              {donaciones.map((d) => (
+              {/* una donación tiene un solo lote: no se ofrecen las que ya lo tienen */}
+              {donaciones.filter((d) => !lotes.some((l) => l.donacionId === d.id && l.id !== editing?.id)).map((d) => (
                 <SelectItem key={d.id} value={String(d.id)}>
                   <span className="font-mono text-xs text-muted-foreground w-8 shrink-0">#{d.id}</span>
                   <span className="font-medium truncate">{d.donante?.nombre ?? `Donante #${d.donanteId}`}</span>

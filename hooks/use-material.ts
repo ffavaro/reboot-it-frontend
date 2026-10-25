@@ -1,11 +1,14 @@
 import useSWR from "swr"
 import useSWRMutation from "swr/mutation"
-import { fetcher, materialApi } from "@/lib/api"
+import { materialApi } from "@/lib/api"
+import { createCrudHooks } from "@/lib/hooks/create-crud-hooks"
 import type { Material, CreateMaterialPayload, UpdateMaterialPayload, ClasificarMaterialPayload, ReporteInventario, ReporteInventarioQuery } from "@/lib/type/material"
 
+const crud = createCrudHooks<Material, CreateMaterialPayload, UpdateMaterialPayload>("/material", materialApi)
+
 export function useMateriales() {
-  const { data, isLoading, error, mutate } = useSWR<Material[]>("/material", fetcher)
-  return { materiales: data ?? [], isLoading, error, mutate }
+  const { data, isLoading, error, mutate } = crud.useList()
+  return { materiales: data, isLoading, error, mutate }
 }
 
 export function useMaterialReporte(params: ReporteInventarioQuery) {
@@ -17,30 +20,18 @@ export function useMaterialReporte(params: ReporteInventarioQuery) {
 }
 
 export function useCreateMaterial() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/material",
-    (_key: string, { arg }: { arg: CreateMaterialPayload }) => materialApi.create(arg),
-  )
-  return { createMaterial: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useCreate()
+  return { createMaterial: trigger, isLoading, error }
 }
 
 export function useUpdateMaterial() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/material",
-    (_key: string, { arg }: { arg: { id: number } & UpdateMaterialPayload }) => {
-      const { id, ...payload } = arg
-      return materialApi.update(id, payload)
-    },
-  )
-  return { updateMaterial: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useUpdate()
+  return { updateMaterial: trigger, isLoading, error }
 }
 
 export function useDeleteMaterial() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/material",
-    (_key: string, { arg }: { arg: number }) => materialApi.remove(arg),
-  )
-  return { deleteMaterial: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useDelete()
+  return { deleteMaterial: trigger, isLoading, error }
 }
 
 export function useClasificarMaterial() {
@@ -53,4 +44,3 @@ export function useClasificarMaterial() {
   )
   return { clasificarMaterial: trigger, isLoading: isMutating, error }
 }
-

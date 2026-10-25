@@ -124,7 +124,7 @@ export default function RetiroPage() {
       patente.includes(q) ||
       (r.direccion ?? "").toLowerCase().includes(q)
     )
-  })
+  }).sort((a: Retiro, b: Retiro) => new Date(b.fechaInicio ?? 0).getTime() - new Date(a.fechaInicio ?? 0).getTime() || b.id - a.id) // los más recientes primero
 
   function openCreate() {
     setIsViewing(false)

@@ -8,7 +8,7 @@ import { EstadoHojaBadge } from "@/components/ui/estado-hoja-badge"
 import { useHojasRutaHistorico } from "@/hooks/use-hoja-ruta"
 import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
 import { useVehiculos } from "@/hooks/use-vehicles"
-import { formatFechaISO, formatKm } from "@/lib/utils/helpers"
+import { formatDateTime, formatFechaISO, formatKm } from "@/lib/utils/helpers"
 import type { HojaRutaHistorico } from "@/lib/type/hoja-ruta"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import type { Vehiculo } from "@/lib/type/vehicle"
@@ -18,9 +18,14 @@ const SELECT_CLASS =
 
 const COLUMNS: TableColumn<HojaRutaHistorico>[] = [
   {
+    key: "cierre",
+    header: "Fecha de cierre",
+    cell: (h) => <span className="tabular-nums">{h.fechaFin ? formatDateTime(h.fechaFin) : formatFechaISO(h.fecha)}</span>,
+  },
+  {
     key: "fecha",
-    header: "Fecha",
-    cell: (h) => <span className="tabular-nums">{formatFechaISO(h.fecha)}</span>,
+    header: "Fecha pactada",
+    cell: (h) => <span className="tabular-nums text-muted-foreground">{formatFechaISO(h.fecha)}</span>,
   },
   {
     key: "transportista",

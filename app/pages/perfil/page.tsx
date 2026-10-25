@@ -20,6 +20,7 @@ function isLegalEntity(descripcion: string | undefined): boolean {
 
 export default function PerfilPage() {
   const user = getUser()
+  const esDonante = user?.rol?.nombre?.trim().toLowerCase() === "donante"
   const { permisos } = useMisPermisos()
   const fichaTransportista = puedeVerPantalla(permisos, "empleado_transportista") && !puedeVerPantalla(permisos, "empleados")
   const [donante, setDonante] = useState<Donante | null>(null)
@@ -30,7 +31,7 @@ export default function PerfilPage() {
   const [touched, setTouched] = useState<Partial<Record<keyof typeof form, boolean>>>({})
 
   useEffect(() => {
-    if (!user?.id) return
+    if (!user?.id || !esDonante) return
     donantesApi.getAll().then((lista) => {
       const found = lista.find((d) => d.usuarioId === user.id)
       if (found) {
@@ -45,7 +46,7 @@ export default function PerfilPage() {
         setNotFound(true)
       }
     }).catch(() => setNotFound(true))
-  }, [user?.id])
+  }, [user?.id, esDonante])
 
   const usesRazonSocial = isLegalEntity(donante?.tipoDonante?.descripcion)
 
@@ -119,7 +120,7 @@ export default function PerfilPage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold tracking-tight">Mi Perfil</h1>
         <p className="text-sm text-muted-foreground">
-          Editá tu información de donante.
+          {esDonante ? "Editá tu información de donante." : "Los datos de tu cuenta."}
         </p>
       </div>
 
@@ -157,8 +158,8 @@ export default function PerfilPage() {
         </div>
       )}
 
-      {/* Datos editables */}
-      {notFound ? (
+      {/* Datos editables: solo el Donante tiene un perfil de donante */}
+      {!esDonante ? null : notFound ? (
         <div className="rounded-2xl bg-card shadow-sm ring-1 ring-foreground/5 p-5 text-sm text-muted-foreground">
           No se encontró un perfil de donante asociado a tu cuenta.
         </div>

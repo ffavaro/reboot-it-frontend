@@ -1,41 +1,32 @@
-import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, estadoProcesoDestruccionApi } from "@/lib/api"
+import { createCrudHooks } from "@/lib/hooks/create-crud-hooks"
+import { estadoProcesoDestruccionApi } from "@/lib/api"
 import type {
   CreateEstadoProcesoDestruccionPayload,
   UpdateEstadoProcesoDestruccionPayload,
 } from "@/lib/api/estado-proceso-destruccion"
 import type { EstadoProcesoDestruccion } from "@/lib/type/estado-proceso-destruccion"
 
+const crud = createCrudHooks<EstadoProcesoDestruccion, CreateEstadoProcesoDestruccionPayload, UpdateEstadoProcesoDestruccionPayload>(
+  "/estado-proceso-destruccion",
+  estadoProcesoDestruccionApi,
+)
+
 export function useEstadosProcesoDestruccion() {
-  const { data, isLoading, error, mutate } = useSWR<EstadoProcesoDestruccion[]>("/estado-proceso-destruccion", fetcher)
-  return { estados: data ?? [], isLoading, error, mutate }
+  const { data, isLoading, error, mutate } = crud.useList()
+  return { estados: data, isLoading, error, mutate }
 }
 
 export function useCreateEstadoProcesoDestruccion() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/estado-proceso-destruccion",
-    (_key: string, { arg }: { arg: CreateEstadoProcesoDestruccionPayload }) =>
-      estadoProcesoDestruccionApi.create(arg),
-  )
-  return { createEstado: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useCreate()
+  return { createEstado: trigger, isLoading, error }
 }
 
 export function useUpdateEstadoProcesoDestruccion() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/estado-proceso-destruccion",
-    (_key: string, { arg }: { arg: { id: number } & UpdateEstadoProcesoDestruccionPayload }) => {
-      const { id, ...payload } = arg
-      return estadoProcesoDestruccionApi.update(id, payload)
-    },
-  )
-  return { updateEstado: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useUpdate()
+  return { updateEstado: trigger, isLoading, error }
 }
 
 export function useDeleteEstadoProcesoDestruccion() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/estado-proceso-destruccion",
-    (_key: string, { arg }: { arg: number }) => estadoProcesoDestruccionApi.remove(arg),
-  )
-  return { deleteEstado: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useDelete()
+  return { deleteEstado: trigger, isLoading, error }
 }

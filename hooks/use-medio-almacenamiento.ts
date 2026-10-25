@@ -1,41 +1,32 @@
-import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, medioAlmacenamientoApi } from "@/lib/api"
+import { createCrudHooks } from "@/lib/hooks/create-crud-hooks"
+import { medioAlmacenamientoApi } from "@/lib/api"
 import type {
   MedioAlmacenamiento,
   CreateMedioAlmacenamientoPayload,
   UpdateMedioAlmacenamientoPayload,
 } from "@/lib/type/medio-almacenamiento"
 
+const crud = createCrudHooks<MedioAlmacenamiento, CreateMedioAlmacenamientoPayload, UpdateMedioAlmacenamientoPayload>(
+  "/medio-almacenamiento",
+  medioAlmacenamientoApi,
+)
+
 export function useMediosAlmacenamiento() {
-  const { data, isLoading, error, mutate } = useSWR<MedioAlmacenamiento[]>("/medio-almacenamiento", fetcher)
-  return { medios: data ?? [], isLoading, error, mutate }
+  const { data, isLoading, error, mutate } = crud.useList()
+  return { medios: data, isLoading, error, mutate }
 }
 
 export function useCreateMedioAlmacenamiento() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/medio-almacenamiento",
-    (_key: string, { arg }: { arg: CreateMedioAlmacenamientoPayload }) =>
-      medioAlmacenamientoApi.create(arg),
-  )
-  return { createMedio: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useCreate()
+  return { createMedio: trigger, isLoading, error }
 }
 
 export function useUpdateMedioAlmacenamiento() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/medio-almacenamiento",
-    (_key: string, { arg }: { arg: { id: number } & UpdateMedioAlmacenamientoPayload }) => {
-      const { id, ...payload } = arg
-      return medioAlmacenamientoApi.update(id, payload)
-    },
-  )
-  return { updateMedio: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useUpdate()
+  return { updateMedio: trigger, isLoading, error }
 }
 
 export function useDeleteMedioAlmacenamiento() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/medio-almacenamiento",
-    (_key: string, { arg }: { arg: number }) => medioAlmacenamientoApi.remove(arg),
-  )
-  return { deleteMedio: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useDelete()
+  return { deleteMedio: trigger, isLoading, error }
 }

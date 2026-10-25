@@ -31,12 +31,15 @@ function generateRackCodigo(racks: Rack[]): string {
   return `RACK-${String(maxNumero + 1).padStart(3, "0")}`
 }
 
+// Máximo de lotes y pallets que se listan por rack: con más, la grilla y el detalle se vuelven inmanejables
+const MAX_LOTES_POR_RACK = 25
+
 // Pallets activos del rack, con el lote que contiene cada uno
 function PalletsDelRack({ pallets }: { pallets: Pallet[] }) {
   if (pallets.length === 0) return <span className="italic text-muted-foreground">Vacío</span>
   return (
     <ul className="flex flex-col gap-1">
-      {pallets.map((p) => (
+      {pallets.slice(0, MAX_LOTES_POR_RACK).map((p) => (
         <li key={p.id} className="flex items-center gap-2 rounded-md bg-muted/50 px-2.5 py-1.5 text-xs">
           <span className="font-mono font-medium">{p.codigo || `Pallet #${p.id}`}</span>
           <span className="text-muted-foreground">
@@ -44,6 +47,11 @@ function PalletsDelRack({ pallets }: { pallets: Pallet[] }) {
           </span>
         </li>
       ))}
+      {pallets.length > MAX_LOTES_POR_RACK && (
+        <li className="px-2.5 py-1 text-xs italic text-muted-foreground">
+          y {pallets.length - MAX_LOTES_POR_RACK} más (se muestran los primeros {MAX_LOTES_POR_RACK})
+        </li>
+      )}
     </ul>
   )
 }
@@ -68,7 +76,12 @@ function buildColumns(palletsPorRack: Map<number, Pallet[]>): TableColumn<Rack>[
         const ids = (palletsPorRack.get(r.id) ?? []).map((p) => p.loteId).filter((id): id is number => !!id)
         return ids.length === 0
           ? <span className="italic text-muted-foreground">—</span>
-          : <span className="font-mono text-xs">{ids.map((id) => `#${id}`).join(", ")}</span>
+          : (
+            <span className="font-mono text-xs">
+              {ids.slice(0, MAX_LOTES_POR_RACK).map((id) => `#${id}`).join(", ")}
+              {ids.length > MAX_LOTES_POR_RACK && <span className="font-sans italic text-muted-foreground"> y {ids.length - MAX_LOTES_POR_RACK} más</span>}
+            </span>
+          )
       },
     },
   ]

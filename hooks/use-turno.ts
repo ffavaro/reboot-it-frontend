@@ -1,38 +1,28 @@
-import useSWR from "swr"
 import useSWRMutation from "swr/mutation"
-import { fetcher, turnoApi } from "@/lib/api"
+import { turnoApi } from "@/lib/api"
+import { createCrudHooks } from "@/lib/hooks/create-crud-hooks"
 import type { Turno, CreateTurnoPayload, UpdateTurnoPayload, AsignarEmpleadoPayload } from "@/lib/type/turno"
 
+const crud = createCrudHooks<Turno, CreateTurnoPayload, UpdateTurnoPayload>("/turno", turnoApi)
+
 export function useTurnos() {
-  const { data, isLoading, error, mutate } = useSWR<Turno[]>("/turno", fetcher)
-  return { turnos: data ?? [], isLoading, error, mutate }
+  const { data, isLoading, error, mutate } = crud.useList()
+  return { turnos: data, isLoading, error, mutate }
 }
 
 export function useCreateTurno() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/turno",
-    (_key: string, { arg }: { arg: CreateTurnoPayload }) => turnoApi.create(arg),
-  )
-  return { createTurno: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useCreate()
+  return { createTurno: trigger, isLoading, error }
 }
 
 export function useUpdateTurno() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/turno",
-    (_key: string, { arg }: { arg: { id: number } & UpdateTurnoPayload }) => {
-      const { id, ...payload } = arg
-      return turnoApi.update(id, payload)
-    },
-  )
-  return { updateTurno: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useUpdate()
+  return { updateTurno: trigger, isLoading, error }
 }
 
 export function useDeleteTurno() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/turno",
-    (_key: string, { arg }: { arg: number }) => turnoApi.remove(arg),
-  )
-  return { deleteTurno: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useDelete()
+  return { deleteTurno: trigger, isLoading, error }
 }
 
 export function useAsignarEmpleadoTurno() {

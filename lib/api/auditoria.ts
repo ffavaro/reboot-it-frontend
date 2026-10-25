@@ -1,6 +1,9 @@
 import type { AuditoriaPagina, AuditoriaQuery } from "@/lib/type/auditoria"
 import { request } from "./client"
 
+// Acciones distintas registradas (para el filtro por acción)
+export const accionesDeAuditoria = () => request<string[]>("/auditoria/acciones")
+
 export const auditoriaApi = {
   listar: (params: AuditoriaQuery) => {
     const query = new URLSearchParams()

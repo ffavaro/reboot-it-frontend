@@ -1,11 +1,13 @@
 import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"
 import type { ConstanciaRetiroDatos } from "@/lib/type/hoja-ruta"
+import { dibujarEncabezadoEmpresa } from "@/lib/utils/pdf-empresa"
 
 function fecha(iso: string | null): string {
   if (!iso) return "—"
   // fecha "solo día" (yyyy-MM-dd): se corta el string para no restar un día por la zona horaria
-  if (/^d{4}-d{2}-d{2}$/.test(iso)) return iso.split("-").reverse().join("/")
+  const dia = /^(\d{4})-(\d{2})-(\d{2})(?:T00:00:00(?:\.0+)?Z?)?$/.exec(iso)
+  if (dia) return `${dia[3]}/${dia[2]}/${dia[1]}`
   return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
 
@@ -18,18 +20,19 @@ function fechaHora(iso: string | null): string {
 export function descargarConstanciaPdf(c: ConstanciaRetiroDatos) {
   const doc = new jsPDF()
   const ancho = doc.internal.pageSize.getWidth()
+  const dy = dibujarEncabezadoEmpresa(doc) // logo y datos fiscales de la empresa arriba; el resto baja
   const nroConstancia = String(c.constanciaId).padStart(6, "0")
 
   doc.setFont("helvetica", "bold")
   doc.setFontSize(18)
-  doc.text("Constancia de retiro", ancho / 2, 22, { align: "center" })
+  doc.text("Constancia de retiro", ancho / 2, 22 + dy, { align: "center" })
   doc.setFontSize(10)
   doc.setFont("helvetica", "normal")
   doc.setTextColor(100)
-  doc.text("Reboot IT", ancho / 2, 29, { align: "center" })
+  doc.text("Reboot IT", ancho / 2, 29 + dy, { align: "center" })
   doc.setTextColor(0)
-  doc.text(`N° ${nroConstancia}`, 14, 40)
-  doc.text(`Fecha de emisión: ${fecha(c.fechaEmision)}`, ancho - 14, 40, { align: "right" })
+  doc.text(`N° ${nroConstancia}`, 14, 40 + dy)
+  doc.text(`Fecha de emisión: ${fecha(c.fechaEmision)}`, ancho - 14, 40 + dy, { align: "right" })
 
   const transportista = c.transportista ? `${c.transportista.nombre} ${c.transportista.apellido}` : "—"
   const filas: [string, string][] = [
@@ -45,7 +48,7 @@ export function descargarConstanciaPdf(c: ConstanciaRetiroDatos) {
     ["Peso estimado", c.pesoEstimadoKg != null ? `${Number(c.pesoEstimadoKg)} kg` : "—"],
   ]
   autoTable(doc, {
-    startY: 46,
+    startY: 46 + dy,
     body: filas,
     theme: "grid",
     styles: { fontSize: 10, cellPadding: 2.5 },

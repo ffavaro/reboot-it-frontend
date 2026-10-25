@@ -1,40 +1,32 @@
-import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, tipoMaterialApi } from "@/lib/api"
+import { createCrudHooks } from "@/lib/hooks/create-crud-hooks"
+import { tipoMaterialApi } from "@/lib/api"
 import type {
   TipoMaterial,
   CreateTipoMaterialPayload,
   UpdateTipoMaterialPayload,
 } from "@/lib/type/tipo-material"
 
+const crud = createCrudHooks<TipoMaterial, CreateTipoMaterialPayload, UpdateTipoMaterialPayload>(
+  "/tipo-material",
+  tipoMaterialApi,
+)
+
 export function useTipoMateriales() {
-  const { data, isLoading, error, mutate } = useSWR<TipoMaterial[]>("/tipo-material", fetcher)
-  return { tipoMateriales: data ?? [], isLoading, error, mutate }
+  const { data, isLoading, error, mutate } = crud.useList()
+  return { tipoMateriales: data, isLoading, error, mutate }
 }
 
 export function useCreateTipoMaterial() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/tipo-material",
-    (_key: string, { arg }: { arg: CreateTipoMaterialPayload }) => tipoMaterialApi.create(arg),
-  )
-  return { createTipoMaterial: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useCreate()
+  return { createTipoMaterial: trigger, isLoading, error }
 }
 
 export function useUpdateTipoMaterial() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/tipo-material",
-    (_key: string, { arg }: { arg: { id: number } & UpdateTipoMaterialPayload }) => {
-      const { id, ...payload } = arg
-      return tipoMaterialApi.update(id, payload)
-    },
-  )
-  return { updateTipoMaterial: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useUpdate()
+  return { updateTipoMaterial: trigger, isLoading, error }
 }
 
 export function useDeleteTipoMaterial() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/tipo-material",
-    (_key: string, { arg }: { arg: number }) => tipoMaterialApi.remove(arg),
-  )
-  return { deleteTipoMaterial: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useDelete()
+  return { deleteTipoMaterial: trigger, isLoading, error }
 }

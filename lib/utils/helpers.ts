@@ -30,8 +30,21 @@ export function getTransportistaActual(transportistas: EmpleadoTransportista[]) 
 // Las fechas "solo día" (yyyy-MM-dd) se formatean cortando el string: new Date("2026-10-20") es UTC y mostraría el día anterior
 export const formatDate = (iso: string | null) => {
   if (!iso) return null
-  if (/^d{4}-d{2}-d{2}$/.test(iso)) return iso.split("-").reverse().join("/")
+  const dia = /^(\d{4})-(\d{2})-(\d{2})(?:T00:00:00(?:\.0+)?Z?)?$/.exec(iso)
+  if (dia) return `${dia[3]}/${dia[2]}/${dia[1]}`
   return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
+}
+
+// Fecha de "hoy" en dd/mm/aaaa, para el encabezado de los reportes imprimibles
+export const formatFechaHoy = () =>
+  new Date().toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
+
+// Hora HH:mm a partir de un datetime ISO, con padding manual (sin Intl/toLocaleTimeString)
+// para no depender de los datos ICU de es-AR del entorno
+export const formatHora = (iso: string): string => {
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 export const formatDateTime = (iso: string | null) => {

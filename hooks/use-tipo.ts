@@ -1,36 +1,25 @@
-import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, tipoApi } from "@/lib/api"
+import { createCrudHooks } from "@/lib/hooks/create-crud-hooks"
+import { tipoApi } from "@/lib/api"
 import type { Tipo, CreateTipoPayload, UpdateTipoPayload } from "@/lib/type/tipo"
 
+const crud = createCrudHooks<Tipo, CreateTipoPayload, UpdateTipoPayload>("/tipo", tipoApi)
+
 export function useTipos() {
-  const { data, isLoading, error, mutate } = useSWR<Tipo[]>("/tipo", fetcher)
-  return { tipos: data ?? [], isLoading, error, mutate }
+  const { data, isLoading, error, mutate } = crud.useList()
+  return { tipos: data, isLoading, error, mutate }
 }
 
 export function useCreateTipo() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/tipo",
-    (_key: string, { arg }: { arg: CreateTipoPayload }) => tipoApi.create(arg),
-  )
-  return { createTipo: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useCreate()
+  return { createTipo: trigger, isLoading, error }
 }
 
 export function useUpdateTipo() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/tipo",
-    (_key: string, { arg }: { arg: { id: number } & UpdateTipoPayload }) => {
-      const { id, ...payload } = arg
-      return tipoApi.update(id, payload)
-    },
-  )
-  return { updateTipo: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useUpdate()
+  return { updateTipo: trigger, isLoading, error }
 }
 
 export function useDeleteTipo() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/tipo",
-    (_key: string, { arg }: { arg: number }) => tipoApi.remove(arg),
-  )
-  return { deleteTipo: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useDelete()
+  return { deleteTipo: trigger, isLoading, error }
 }

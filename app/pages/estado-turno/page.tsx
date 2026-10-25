@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
+import { EstadoBadge } from "@/components/ui/estado-badge"
 import {
   useEstadosTurno,
   useCreateEstadoTurno,
@@ -16,25 +17,9 @@ import {
   useDeleteEstadoTurno,
 } from "@/hooks/use-estado-turno"
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
+import { ESTADO_TURNO_COLORS, colorPorEstadoInsensible } from "@/lib/estado-colores"
 import type { EstadoTurno } from "@/lib/type/estado-turno"
 import type { TableColumn } from "@/components/ui/data-table"
-
-const ESTADO_COLORS: Record<string, string> = {
-  pendiente: "bg-yellow-100 text-yellow-800",
-  confirmado: "bg-blue-100 text-blue-800",
-  completado: "bg-green-100 text-green-800",
-  cancelado: "bg-red-100 text-red-800",
-}
-
-function EstadoBadge({ descripcion }: { descripcion: string }) {
-  const key = descripcion.toLowerCase()
-  const color = ESTADO_COLORS[key] ?? "bg-muted text-muted-foreground"
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}>
-      {descripcion}
-    </span>
-  )
-}
 
 const EMPTY_FORM = { descripcion: "" }
 
@@ -42,7 +27,12 @@ const COLUMNS: TableColumn<EstadoTurno>[] = [
   {
     key: "descripcion",
     header: "Descripción",
-    cell: (e) => <EstadoBadge descripcion={e.descripcion} />,
+    cell: (e) => (
+      <EstadoBadge
+        texto={e.descripcion}
+        colorClass={colorPorEstadoInsensible(ESTADO_TURNO_COLORS, e.descripcion, "bg-muted text-muted-foreground")}
+      />
+    ),
   },
 ]
 

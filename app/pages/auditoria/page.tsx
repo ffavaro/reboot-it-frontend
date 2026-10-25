@@ -1,16 +1,19 @@
 "use client"
 
+import useSWR from "swr"
 import { useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DatePicker } from "@/components/ui/date-picker"
 import { MultiSelect } from "@/components/ui/multi-select"
-import { SearchInput } from "@/components/ui/search-input"
+import { accionesDeAuditoria } from "@/lib/api/auditoria"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useAuditoria } from "@/hooks/use-auditoria"
 import { useUsuarios } from "@/hooks/use-users"
 import { formatDateTime } from "@/lib/utils/helpers"
 import { cn } from "@/lib/utils"
+import { EstadoBadge } from "@/components/ui/estado-badge"
+import { RESULTADO_AUDITORIA_COLORS, colorPorEstado } from "@/lib/estado-colores"
 import type { AuditoriaQuery, RegistroAuditoria } from "@/lib/type/auditoria"
 
 const POR_PAGINA = 20
@@ -29,6 +32,8 @@ export default function AuditoriaPage() {
   const [usuarioIds, setUsuarioIds] = useState<number[]>([])
   const [resultado, setResultado] = useState<"" | (typeof RESULTADOS)[number]>("")
   const [accion, setAccion] = useState("")
+  // acciones registradas: alimentan el filtro por acción
+  const { data: acciones = [] } = useSWR("/auditoria/acciones", accionesDeAuditoria)
   const [page, setPage] = useState(1)
 
   const params: AuditoriaQuery = useMemo(() => ({
@@ -123,12 +128,15 @@ export default function AuditoriaPage() {
           {RESULTADOS.map((r) => <option key={r} value={r}>{r}</option>)}
         </select>
 
-        <SearchInput
-          placeholder="Buscar en la acción…"
+        <select
           value={accion}
           onChange={(e) => filtrar(setAccion)(e.target.value)}
-          className="w-52"
-        />
+          className="max-w-[260px] text-xs px-3 py-1.5 rounded-lg border border-border bg-background text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          aria-label="Filtrar por acción"
+        >
+          <option value="">Todas las acciones</option>
+          {acciones.map((a) => <option key={a} value={a}>{a}</option>)}
+        </select>
 
         {hayFiltros && (
           <button
@@ -180,7 +188,6 @@ export default function AuditoriaPage() {
               </TableRow>
             ) : registros.map((r) => {
               const u = nombreUsuario(r)
-              const ok = r.resultado === "Éxito"
               return (
                 <TableRow key={r.id}>
                   <TableCell className="whitespace-nowrap tabular-nums">{formatDateTime(r.fechaHora)}</TableCell>
@@ -193,14 +200,10 @@ export default function AuditoriaPage() {
                   <TableCell className="text-muted-foreground">{r.rol ?? "—"}</TableCell>
                   <TableCell className="font-medium">{r.accion}</TableCell>
                   <TableCell>
-                    <span className={cn(
-                      "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-                      ok
-                        ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                        : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
-                    )}>
-                      {r.resultado}{r.codigoHttp ? ` · ${r.codigoHttp}` : ""}
-                    </span>
+                    <EstadoBadge
+                      texto={`${r.resultado}${r.codigoHttp ? ` · ${r.codigoHttp}` : ""}`}
+                      colorClass={colorPorEstado(RESULTADO_AUDITORIA_COLORS, r.resultado, "bg-gray-100 text-gray-800")}
+                    />
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {r.entidad ? `${r.entidad}${r.entidadId ? ` #${r.entidadId}` : ""}` : "—"}

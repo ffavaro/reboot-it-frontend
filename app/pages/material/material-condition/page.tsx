@@ -11,6 +11,8 @@ import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { FieldError } from "@/components/ui/field"
+import { EstadoBadge } from "@/components/ui/estado-badge"
+import { CONDICION_FISICA_COLORS, colorPorEstadoInsensible } from "@/lib/estado-colores"
 import {
   useCondicionesMaterial,
   useCreateCondicionMaterial,
@@ -25,19 +27,12 @@ import type { TableColumn } from "@/components/ui/data-table"
 
 const EMPTY_FORM = { condicion: "", descripcion: "" }
 
-const BADGE_COLORS: Record<string, string> = {
-  funcional:   "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  reparable:   "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-  obsoleto:    "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
-  irreparable: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-}
-
 function CondicionBadge({ condicion }: { condicion: string }) {
-  const cls = BADGE_COLORS[condicion.toLowerCase()] ?? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${cls}`}>
-      {condicion}
-    </span>
+    <EstadoBadge
+      texto={condicion}
+      colorClass={colorPorEstadoInsensible(CONDICION_FISICA_COLORS, condicion, "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400")}
+    />
   )
 }
 

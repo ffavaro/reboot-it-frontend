@@ -10,7 +10,23 @@ import { useEstadosDonacion } from "@/hooks/use-estado-donacion"
 import { donacionApi } from "@/lib/api"
 import type { ReporteDonacion, ReporteDonacionQuery, EstadoDonacion } from "@/lib/type/donacion"
 import type { Donante } from "@/lib/type/donante"
-import { formatDate, formatDateTime, periodoPorDefecto } from "@/lib/utils/helpers"
+import { formatDate, formatDateTime, formatFechaHoy, periodoPorDefecto } from "@/lib/utils/helpers"
+import { ExportarReporte, periodoTexto } from "@/components/exportar-reporte"
+import { ReportePrintStyles } from "@/components/reporte-print-styles"
+import type { ExportColumn } from "@/lib/utils/export"
+
+// Columnas de los archivos PDF y Excel (las mismas que la tabla)
+const COLUMNAS_EXPORT: ExportColumn<ReporteDonacion>[] = [
+  { header: "N°", accessor: (d) => `#${d.id}` },
+  { header: "Donante", accessor: (d) => d.donante?.nombre ?? `Donante #${d.donanteId}` },
+  { header: "Estado", accessor: (d) => d.estadoDonacion?.descripcion ?? "" },
+  { header: "Turno", accessor: (d) => (d.turno ? formatDateTime(d.turno.fechaHora) ?? "" : "") },
+  { header: "Estado del turno", accessor: (d) => d.turno?.estadoTurno?.descripcion ?? "" },
+  { header: "Entrega", accessor: (d) => (d.necesitaRetiro ? "Retiro a domicilio" : "Sucursal") },
+  { header: "Materiales", accessor: (d) => (d.detalles ?? []).map((x) => `${x.tipoMaterial?.nombre ?? "Material"} x${x.cantidadEstimada ?? 1}`).join(", ") },
+  { header: "Transportista", accessor: (d) => (d.retiro?.empleadoTransportista?.empleado ? `${d.retiro.empleadoTransportista.empleado.nombre} ${d.retiro.empleadoTransportista.empleado.apellido}` : "") },
+  { header: "Retirado", accessor: (d) => (d.retiro?.fechaRetiro ? formatDate(d.retiro.fechaRetiro) ?? "" : "") },
+]
 
 export default function ReporteDonacionPage() {
   const { donantes } = useDonantes()
@@ -42,34 +58,14 @@ export default function ReporteDonacionPage() {
 
   return (
     <>
-      <style>{`
-        @media print {
-          .no-print { display: none !important; }
-          .print-show { display: block !important; }
-          body { font-size: 11px; color: #000; }
-          .report-table { width: 100%; border-collapse: collapse; }
-          .report-table th,
-          .report-table td { border: 1px solid #aaa; padding: 4px 6px; text-align: left; }
-          .report-table th { background-color: #eee !important; font-weight: 600; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .report-table tr:nth-child(even) td { background-color: #f9f9f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .badge { border: 1px solid #ccc; padding: 1px 4px; border-radius: 4px; font-size: 10px; }
-          .tag-retiro { color: #b45309 !important; }
-          .tag-sucursal { color: #15803d !important; }
-        }
-        .print-show { display: none; }
-      `}</style>
+      <ReportePrintStyles extra=".badge { border: 1px solid #ccc; padding: 1px 4px; border-radius: 4px; font-size: 10px; } .tag-retiro { color: #b45309 !important; } .tag-sucursal { color: #15803d !important; }" />
 
       <div className="flex flex-col gap-6 p-6">
         {/* Encabezado solo visible al imprimir */}
         <div className="print-show flex flex-col gap-1 mb-2">
           <h1 className="text-xl font-bold">Reporte de Donaciones</h1>
           <p className="text-sm">
-            Generado el{" "}
-            {new Date().toLocaleDateString("es-AR", {
-              day: "2-digit",
-              month: "2-digit",
-              year: "numeric",
-            })}
+            Generado el {formatFechaHoy()}
             {filters.donanteId && donantes.find((d: Donante) => d.id === filters.donanteId)
               ? ` · Donante: ${donantes.find((d: Donante) => d.id === filters.donanteId)!.nombre}`
               : ""}
@@ -230,13 +226,7 @@ export default function ReporteDonacionPage() {
                 {result.length} donación{result.length !== 1 ? "es" : ""} encontrada
                 {result.length !== 1 ? "s" : ""}
               </span>
-              <Button
-                variant="outline"
-                onClick={() => window.print()}
-                disabled={result.length === 0}
-              >
-                Imprimir / Exportar PDF
-              </Button>
+              <ExportarReporte filas={result} columnas={COLUMNAS_EXPORT} nombreArchivo="reporte-donaciones" titulo="Reporte de donaciones" periodo={periodoTexto(filters.fechaDesde, filters.fechaHasta)} />
             </div>
 
             {result.length === 0 ? (

@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"
 import type { CertificadoDisposicionDatos } from "@/lib/type/certificado-disposicion"
+import { dibujarEncabezadoEmpresa } from "@/lib/utils/pdf-empresa"
 
 function fecha(iso: string | null): string {
   if (!iso) return "—"
@@ -13,25 +14,26 @@ function fecha(iso: string | null): string {
 export function descargarCertificadoPdf(c: CertificadoDisposicionDatos) {
   const doc = new jsPDF()
   const ancho = doc.internal.pageSize.getWidth()
+  const dy = dibujarEncabezadoEmpresa(doc) // logo y datos fiscales de la empresa arriba; el resto baja
   const numero = c.numeroCertificado ?? String(c.certificadoId).padStart(6, "0")
 
   doc.setFont("helvetica", "bold")
   doc.setFontSize(18)
-  doc.text("Certificado de disposición final", ancho / 2, 22, { align: "center" })
+  doc.text("Certificado de disposición final", ancho / 2, 22 + dy, { align: "center" })
   doc.setFontSize(10)
   doc.setFont("helvetica", "normal")
   doc.setTextColor(100)
-  doc.text("Reboot IT", ancho / 2, 29, { align: "center" })
+  doc.text("Reboot IT", ancho / 2, 29 + dy, { align: "center" })
   doc.setTextColor(0)
-  doc.text(`N° ${numero}`, 14, 40)
-  doc.text(`Fecha de emisión: ${fecha(c.fechaEmision)}`, ancho - 14, 40, { align: "right" })
+  doc.text(`N° ${numero}`, 14, 40 + dy)
+  doc.text(`Fecha de emisión: ${fecha(c.fechaEmision)}`, ancho - 14, 40 + dy, { align: "right" })
 
   const donante = c.donante.razonSocial ? `${c.donante.nombre} (${c.donante.razonSocial})` : c.donante.nombre
   const texto = doc.splitTextToSize(
     `Reboot IT certifica que los materiales detallados a continuación, recibidos del donante ${donante || "—"} en el marco de la donación N° ${c.donacionId ?? "—"}, fueron clasificados y entregados para su disposición final al gestor ambiental indicado.`,
     ancho - 28,
   )
-  doc.text(texto, 14, 50)
+  doc.text(texto, 14, 50 + dy)
 
   const filas: [string, string][] = [
     ["Donante", donante || "—"],
@@ -46,7 +48,7 @@ export function descargarCertificadoPdf(c: CertificadoDisposicionDatos) {
     ["Contacto del gestor", c.gestor?.contacto || "—"],
   ]
   autoTable(doc, {
-    startY: 50 + texto.length * 5 + 4,
+    startY: 50 + dy + texto.length * 5 + 4,
     body: filas,
     theme: "grid",
     styles: { fontSize: 10, cellPadding: 2.5 },

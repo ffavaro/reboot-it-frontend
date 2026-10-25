@@ -1,11 +1,14 @@
 import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, donacionApi } from "@/lib/api"
-import type { Donacion, CreateDonacionPayload, UpdateDonacionPayload, ReporteDonacion, ReporteDonacionQuery } from "@/lib/type/donacion"
+import { donacionApi } from "@/lib/api"
+import { createCrudHooks } from "@/lib/hooks/create-crud-hooks"
+import type { Donacion, DonacionCreada, CreateDonacionPayload, UpdateDonacionPayload, ReporteDonacion, ReporteDonacionQuery } from "@/lib/type/donacion"
+
+// TCreateResult se pasa explícito porque donacionApi.create devuelve DonacionCreada (incluye el turno generado), no solo Donacion
+const crud = createCrudHooks<Donacion, CreateDonacionPayload, UpdateDonacionPayload, number, DonacionCreada>("/donacion", donacionApi)
 
 export function useDonaciones() {
-  const { data, isLoading, error, mutate } = useSWR<Donacion[]>("/donacion", fetcher)
-  return { donaciones: data ?? [], isLoading, error, mutate }
+  const { data, isLoading, error, mutate } = crud.useList()
+  return { donaciones: data, isLoading, error, mutate }
 }
 
 export function useDonacionReporte(params: ReporteDonacionQuery) {
@@ -17,28 +20,16 @@ export function useDonacionReporte(params: ReporteDonacionQuery) {
 }
 
 export function useCreateDonacion() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/donacion",
-    (_key: string, { arg }: { arg: CreateDonacionPayload }) => donacionApi.create(arg),
-  )
-  return { createDonacion: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useCreate()
+  return { createDonacion: trigger, isLoading, error }
 }
 
 export function useUpdateDonacion() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/donacion",
-    (_key: string, { arg }: { arg: { id: number } & UpdateDonacionPayload }) => {
-      const { id, ...payload } = arg
-      return donacionApi.update(id, payload)
-    },
-  )
-  return { updateDonacion: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useUpdate()
+  return { updateDonacion: trigger, isLoading, error }
 }
 
 export function useDeleteDonacion() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/donacion",
-    (_key: string, { arg }: { arg: number }) => donacionApi.remove(arg),
-  )
-  return { deleteDonacion: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useDelete()
+  return { deleteDonacion: trigger, isLoading, error }
 }

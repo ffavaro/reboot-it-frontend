@@ -1,35 +1,30 @@
-import useSWR from "swr"
 import useSWRMutation from "swr/mutation"
-import { fetcher, procesoDestruccionApi } from "@/lib/api"
+import { procesoDestruccionApi } from "@/lib/api"
+import { createCrudHooks } from "@/lib/hooks/create-crud-hooks"
 import type {
   ProcesoDestruccion,
   CreateProcesoDestruccionPayload,
   UpdateProcesoDestruccionPayload,
 } from "@/lib/type/proceso-destruccion"
 
+const crud = createCrudHooks<ProcesoDestruccion, CreateProcesoDestruccionPayload, UpdateProcesoDestruccionPayload>(
+  "/proceso-destruccion",
+  procesoDestruccionApi,
+)
+
 export function useProcesosDestruccion() {
-  const { data, isLoading, error, mutate } = useSWR<ProcesoDestruccion[]>("/proceso-destruccion", fetcher)
-  return { procesos: data ?? [], isLoading, error, mutate }
+  const { data, isLoading, error, mutate } = crud.useList()
+  return { procesos: data, isLoading, error, mutate }
 }
 
 export function useCreateProcesoDestruccion() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/proceso-destruccion",
-    (_key: string, { arg }: { arg: CreateProcesoDestruccionPayload }) =>
-      procesoDestruccionApi.create(arg),
-  )
-  return { createProceso: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useCreate()
+  return { createProceso: trigger, isLoading, error }
 }
 
 export function useUpdateProcesoDestruccion() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/proceso-destruccion",
-    (_key: string, { arg }: { arg: { id: number } & UpdateProcesoDestruccionPayload }) => {
-      const { id, ...payload } = arg
-      return procesoDestruccionApi.update(id, payload)
-    },
-  )
-  return { updateProceso: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useUpdate()
+  return { updateProceso: trigger, isLoading, error }
 }
 
 export function useFinalizarProcesoDestruccion() {
@@ -41,9 +36,6 @@ export function useFinalizarProcesoDestruccion() {
 }
 
 export function useDeleteProcesoDestruccion() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/proceso-destruccion",
-    (_key: string, { arg }: { arg: number }) => procesoDestruccionApi.remove(arg),
-  )
-  return { deleteProceso: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useDelete()
+  return { deleteProceso: trigger, isLoading, error }
 }
