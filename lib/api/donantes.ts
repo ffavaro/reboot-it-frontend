@@ -13,4 +13,9 @@ export const donantesApi = {
 
   remove: (id: number) =>
     request<void>(`/donantes/${id}`, { method: "DELETE" }),
+
+
+  // Genera una contraseña temporal para el usuario del donante (se muestra una sola vez)
+  restablecerContrasena: (id: number) =>
+    request<{ password: string; email: string | null; avisoEnviado: boolean }>(`/donantes/${id}/restablecer-contrasena`, { method: "POST" }),
 }

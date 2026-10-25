@@ -11,6 +11,21 @@ import { donacionApi } from "@/lib/api"
 import type { ReporteDonacion, ReporteDonacionQuery, EstadoDonacion } from "@/lib/type/donacion"
 import type { Donante } from "@/lib/type/donante"
 import { formatDate, formatDateTime, periodoPorDefecto } from "@/lib/utils/helpers"
+import { ExportarReporte, periodoTexto } from "@/components/exportar-reporte"
+import type { ExportColumn } from "@/lib/utils/export"
+
+// Columnas de los archivos PDF y Excel (las mismas que la tabla)
+const COLUMNAS_EXPORT: ExportColumn<ReporteDonacion>[] = [
+  { header: "N°", accessor: (d) => `#${d.id}` },
+  { header: "Donante", accessor: (d) => d.donante?.nombre ?? `Donante #${d.donanteId}` },
+  { header: "Estado", accessor: (d) => d.estadoDonacion?.descripcion ?? "" },
+  { header: "Turno", accessor: (d) => (d.turno ? formatDateTime(d.turno.fechaHora) ?? "" : "") },
+  { header: "Estado del turno", accessor: (d) => d.turno?.estadoTurno?.descripcion ?? "" },
+  { header: "Entrega", accessor: (d) => (d.necesitaRetiro ? "Retiro a domicilio" : "Sucursal") },
+  { header: "Materiales", accessor: (d) => (d.detalles ?? []).map((x) => `${x.tipoMaterial?.nombre ?? "Material"} x${x.cantidadEstimada ?? 1}`).join(", ") },
+  { header: "Transportista", accessor: (d) => (d.retiro?.empleadoTransportista?.empleado ? `${d.retiro.empleadoTransportista.empleado.nombre} ${d.retiro.empleadoTransportista.empleado.apellido}` : "") },
+  { header: "Retirado", accessor: (d) => (d.retiro?.fechaRetiro ? formatDate(d.retiro.fechaRetiro) ?? "" : "") },
+]
 
 export default function ReporteDonacionPage() {
   const { donantes } = useDonantes()
@@ -230,13 +245,7 @@ export default function ReporteDonacionPage() {
                 {result.length} donación{result.length !== 1 ? "es" : ""} encontrada
                 {result.length !== 1 ? "s" : ""}
               </span>
-              <Button
-                variant="outline"
-                onClick={() => window.print()}
-                disabled={result.length === 0}
-              >
-                Imprimir / Exportar PDF
-              </Button>
+              <ExportarReporte filas={result} columnas={COLUMNAS_EXPORT} nombreArchivo="reporte-donaciones" titulo="Reporte de donaciones" periodo={periodoTexto(filters.fechaDesde, filters.fechaHasta)} />
             </div>
 
             {result.length === 0 ? (

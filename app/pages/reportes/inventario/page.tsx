@@ -13,12 +13,32 @@ import type { ReporteInventario, ReporteInventarioQuery } from "@/lib/type/mater
 import type { TipoMaterial } from "@/lib/type/tipo-material"
 import type { CondicionMaterial } from "@/lib/type/condicion-material"
 import { formatDate, periodoPorDefecto } from "@/lib/utils/helpers"
+import { ExportarReporte, periodoTexto } from "@/components/exportar-reporte"
+import type { ExportColumn } from "@/lib/utils/export"
 
 const ESTADO_COLOR: Record<string, string> = {
   Iniciado: "bg-blue-100 text-blue-700",
   Pendiente: "bg-yellow-100 text-yellow-700",
   Finalizado: "bg-green-100 text-green-700",
 }
+
+// Columnas de los archivos PDF y Excel (las mismas que la tabla)
+const COLUMNAS_EXPORT: ExportColumn<ReporteInventario>[] = [
+  { header: "N° material", accessor: (m) => `#${m.id}` },
+  { header: "Lote", accessor: (m) => (m.lote ? `#${m.lote.id}` : "Sin lote") },
+  { header: "Donación", accessor: (m) => (m.lote ? `#${m.lote.donacionId}` : "") },
+  { header: "Tipo", accessor: (m) => m.tipoMaterial?.nombre ?? "" },
+  { header: "Condición", accessor: (m) => m.condicionMaterial?.condicion ?? "" },
+  { header: "Descripción", accessor: (m) => m.descripcion ?? "" },
+  {
+    header: "Proceso de destrucción",
+    accessor: (m) => {
+      if (!m.medioAlmacenamiento) return "No requiere destrucción"
+      const p = m.medioAlmacenamiento.procesoDestruccion
+      return p ? ["Requiere destrucción", p.estado?.nombre, p.metodoDestruccion?.nombre].filter(Boolean).join(" · ") : "Requiere destrucción · sin proceso aún"
+    },
+  },
+]
 
 export default function ReporteInventarioPage() {
   const { tipoMateriales } = useTipoMateriales()
@@ -223,9 +243,7 @@ export default function ReporteInventarioPage() {
               <span className="text-sm text-muted-foreground">
                 {result.length} material{result.length !== 1 ? "es" : ""} encontrado{result.length !== 1 ? "s" : ""}
               </span>
-              <Button variant="outline" onClick={() => window.print()} disabled={result.length === 0}>
-                Imprimir / Exportar PDF
-              </Button>
+              <ExportarReporte filas={result} columnas={COLUMNAS_EXPORT} nombreArchivo="reporte-inventario" titulo="Reporte de inventario" periodo={periodoTexto(filters.fechaDesde, filters.fechaHasta)} />
             </div>
 
             {result.length === 0 ? (

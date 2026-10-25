@@ -14,12 +14,25 @@ import type { EstadoProcesoDestruccion } from "@/lib/type/estado-proceso-destruc
 import type { MetodoDestruccion } from "@/lib/type/metodo-destruccion"
 import type { Empleado } from "@/lib/type/user"
 import { formatDate, periodoPorDefecto } from "@/lib/utils/helpers"
+import { ExportarReporte, periodoTexto } from "@/components/exportar-reporte"
+import type { ExportColumn } from "@/lib/utils/export"
 
 const ESTADO_COLOR: Record<string, string> = {
   Iniciado: "bg-blue-100 text-blue-700",
   Pendiente: "bg-yellow-100 text-yellow-700",
   Finalizado: "bg-green-100 text-green-700",
 }
+
+// Columnas de los archivos PDF y Excel (las mismas que la tabla)
+const COLUMNAS_EXPORT: ExportColumn<ProcesoDestruccion>[] = [
+  { header: "N°", accessor: (p) => `#${p.id}` },
+  { header: "Medio de almacenamiento", accessor: (p) => [`#${p.medioAlmacenamientoId}`, p.medioAlmacenamiento?.material?.descripcion].filter(Boolean).join(" · ") },
+  { header: "Tipo de material", accessor: (p) => p.medioAlmacenamiento?.material?.tipoMaterial?.nombre ?? "" },
+  { header: "Método", accessor: (p) => p.metodoDestruccion?.nombre ?? "Sin método" },
+  { header: "Estado", accessor: (p) => p.estado?.nombre ?? "" },
+  { header: "Empleado responsable", accessor: (p) => (p.empleado ? `${p.empleado.nombre} ${p.empleado.apellido}` : "Sin asignar") },
+  { header: "Fecha", accessor: (p) => (p.fecha ? formatDate(p.fecha) ?? "" : "") },
+]
 
 export default function ReporteProcesoDestruccionPage() {
   const { estados } = useEstadosProcesoDestruccion()
@@ -207,9 +220,7 @@ export default function ReporteProcesoDestruccionPage() {
               <span className="text-sm text-muted-foreground">
                 {result.length} proceso{result.length !== 1 ? "s" : ""} encontrado{result.length !== 1 ? "s" : ""}
               </span>
-              <Button variant="outline" onClick={() => window.print()} disabled={result.length === 0}>
-                Imprimir / Exportar PDF
-              </Button>
+              <ExportarReporte filas={result} columnas={COLUMNAS_EXPORT} nombreArchivo="reporte-procesos-destruccion" titulo="Reporte de procesos de destrucción" periodo={periodoTexto(filters.fechaDesde, filters.fechaHasta)} />
             </div>
 
             {result.length === 0 ? (

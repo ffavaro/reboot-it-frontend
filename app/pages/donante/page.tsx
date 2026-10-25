@@ -27,6 +27,7 @@ import { useUsuarios } from "@/hooks/use-users"
 import { useFormErrors } from "@/hooks/use-form-errors"
 import { required, requiredSelect, maxLength as maxLengthValidator, emailFormat, minLength, dniOCuit } from "@/lib/form-validators"
 import { CuitDniField } from "@/components/empleado-fields"
+import { RestablecerContrasenaDonante } from "@/components/restablecer-contrasena-donante"
 import { getErrorMessage } from "@/lib/utils/helpers"
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { Donante, TipoDonante } from "@/lib/type/donante"
@@ -268,6 +269,7 @@ function DonantesTab() {
         onOpenChange={setModalOpen}
         title={isViewing ? "Ver donante" : "Gestionar donante"}
         readOnly={isViewing}
+        footerActions={editing && !isViewing ? <RestablecerContrasenaDonante donanteId={editing.id} nombre={editing.nombre} /> : undefined}
         description={
           editing
             ? `Modificá los datos de ${editing.nombre}.`
