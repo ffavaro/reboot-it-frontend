@@ -1,8 +1,11 @@
-import type { Donacion, DonacionCreada, CreateDonacionPayload, UpdateDonacionPayload, ReporteDonacion, ReporteDonacionQuery } from "@/lib/type/donacion"
+import type { Donacion, DetalleDonacion, DonacionCreada, CreateDonacionPayload, UpdateDonacionPayload, ReporteDonacion, ReporteDonacionQuery } from "@/lib/type/donacion"
 import { request } from "./client"
 
 export const donacionApi = {
   getAll: () => request<Donacion[]>("/donacion"),
+
+  // Trazabilidad: materiales, turno, fotos, retiro y constancia, lote y certificado
+  detalle: (id: number) => request<DetalleDonacion>(`/donacion/${id}/detalle`),
 
   getReporte: (params: ReporteDonacionQuery) => {
     const query = new URLSearchParams()

@@ -22,6 +22,7 @@ import { useDonantes } from "@/hooks/use-donantes"
 import { useDonaciones } from "@/hooks/use-donacion"
 import { useRetiros } from "@/hooks/use-retiro"
 import { formatDate, getDonanteActual, getErrorMessage } from "@/lib/utils/helpers"
+import { ESTADO_DONACION } from "@/lib/constants/estados"
 import type { ConstanciaRetiro } from "@/lib/type/constancia-retiro"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import type { Donacion } from "@/lib/type/donacion"
@@ -85,7 +86,7 @@ export default function ConstanciaRetiroPage() {
     ? (() => {
         const myDonacionIds = new Set(
           donaciones
-            .filter((d: Donacion) => d.donanteId === myDonante.id)
+            .filter((d: Donacion) => d.donanteId === myDonante.id && d.estadoDonacion?.descripcion?.toLowerCase() === ESTADO_DONACION.FINALIZADA.toLowerCase())
             .map((d: Donacion) => d.id)
         )
         const myRetiroIds = new Set(
@@ -196,6 +197,12 @@ export default function ConstanciaRetiroPage() {
         </p>
       </div>
 
+      {isDonante && (
+        <div role="status" className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          Tus constancias de retiro van a estar disponibles cuando tu donación se encuentre finalizada.
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput
           placeholder="Buscar por retiro, técnico u observaciones..."
@@ -220,7 +227,7 @@ export default function ConstanciaRetiroPage() {
         columns={columns}
         isLoading={isLoading}
         loadingText="Cargando constancias..."
-        emptyText="No hay constancias de retiro registradas."
+        emptyText={isDonante ? "Todavía no tenés constancias disponibles." : "No hay constancias de retiro registradas."}
         emptySearchText="No se encontraron constancias con ese criterio."
         search={search}
         onView={openView}

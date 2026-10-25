@@ -19,6 +19,7 @@ import { toast } from "react-toastify"
 import { homeDePermisos, puedeAccederARuta } from "@/lib/nav"
 import { useMisPermisos } from "@/hooks/use-permisos"
 import { PermisosPantallaProvider } from "@/components/permisos-pantalla"
+import { BarraPestanas } from "@/components/barra-pestanas"
 
 export default function RootLayout({
   children,
@@ -111,7 +112,12 @@ export default function RootLayout({
                 <button type="button" className="rounded-md border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted" onClick={() => reintentarPermisos()}>Reintentar</button>
               </div>
             ) : null}
-            {acceso ? <PermisosPantallaProvider permisos={permisos} pathname={pathname}>{children}</PermisosPantallaProvider> : null}
+            {acceso ? (
+              <PermisosPantallaProvider permisos={permisos} pathname={pathname}>
+                <BarraPestanas pathname={pathname} permisos={permisos} />
+                {children}
+              </PermisosPantallaProvider>
+            ) : null}
           </main>{/*
           <ChatWidget /> ver de poner en el otro layout */}
         </SidebarInset>
