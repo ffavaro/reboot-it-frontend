@@ -1,41 +1,32 @@
-import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, metodoDestruccionApi } from "@/lib/api"
+import { createCrudHooks } from "@/lib/hooks/create-crud-hooks"
+import { metodoDestruccionApi } from "@/lib/api"
 import type {
   CreateMetodoDestruccionPayload,
   UpdateMetodoDestruccionPayload,
 } from "@/lib/api/metodo-destruccion"
 import type { MetodoDestruccion } from "@/lib/type/metodo-destruccion"
 
+const crud = createCrudHooks<MetodoDestruccion, CreateMetodoDestruccionPayload, UpdateMetodoDestruccionPayload>(
+  "/metodo-destruccion",
+  metodoDestruccionApi,
+)
+
 export function useMetodosDestruccion() {
-  const { data, isLoading, error, mutate } = useSWR<MetodoDestruccion[]>("/metodo-destruccion", fetcher)
-  return { metodos: data ?? [], isLoading, error, mutate }
+  const { data, isLoading, error, mutate } = crud.useList()
+  return { metodos: data, isLoading, error, mutate }
 }
 
 export function useCreateMetodoDestruccion() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/metodo-destruccion",
-    (_key: string, { arg }: { arg: CreateMetodoDestruccionPayload }) =>
-      metodoDestruccionApi.create(arg),
-  )
-  return { createMetodo: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useCreate()
+  return { createMetodo: trigger, isLoading, error }
 }
 
 export function useUpdateMetodoDestruccion() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/metodo-destruccion",
-    (_key: string, { arg }: { arg: { id: number } & UpdateMetodoDestruccionPayload }) => {
-      const { id, ...payload } = arg
-      return metodoDestruccionApi.update(id, payload)
-    },
-  )
-  return { updateMetodo: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useUpdate()
+  return { updateMetodo: trigger, isLoading, error }
 }
 
 export function useDeleteMetodoDestruccion() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/metodo-destruccion",
-    (_key: string, { arg }: { arg: number }) => metodoDestruccionApi.remove(arg),
-  )
-  return { deleteMetodo: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useDelete()
+  return { deleteMetodo: trigger, isLoading, error }
 }

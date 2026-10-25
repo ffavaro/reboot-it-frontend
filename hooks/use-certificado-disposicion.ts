@@ -1,41 +1,32 @@
-import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, certificadoDisposicionApi } from "@/lib/api"
+import { createCrudHooks } from "@/lib/hooks/create-crud-hooks"
+import { certificadoDisposicionApi } from "@/lib/api"
 import type {
   CertificadoDisposicion,
   CreateCertificadoDisposicionPayload,
   UpdateCertificadoDisposicionPayload,
 } from "@/lib/type/certificado-disposicion"
 
+const crud = createCrudHooks<CertificadoDisposicion, CreateCertificadoDisposicionPayload, UpdateCertificadoDisposicionPayload>(
+  "/certificado-disposicion",
+  certificadoDisposicionApi,
+)
+
 export function useCertificadosDisposicion() {
-  const { data, isLoading, error, mutate } = useSWR<CertificadoDisposicion[]>("/certificado-disposicion", fetcher)
-  return { certificados: data ?? [], isLoading, error, mutate }
+  const { data, isLoading, error, mutate } = crud.useList()
+  return { certificados: data, isLoading, error, mutate }
 }
 
 export function useCreateCertificadoDisposicion() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/certificado-disposicion",
-    (_key: string, { arg }: { arg: CreateCertificadoDisposicionPayload }) =>
-      certificadoDisposicionApi.create(arg),
-  )
-  return { createCertificado: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useCreate()
+  return { createCertificado: trigger, isLoading, error }
 }
 
 export function useUpdateCertificadoDisposicion() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/certificado-disposicion",
-    (_key: string, { arg }: { arg: { id: number } & UpdateCertificadoDisposicionPayload }) => {
-      const { id, ...payload } = arg
-      return certificadoDisposicionApi.update(id, payload)
-    },
-  )
-  return { updateCertificado: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useUpdate()
+  return { updateCertificado: trigger, isLoading, error }
 }
 
 export function useDeleteCertificadoDisposicion() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/certificado-disposicion",
-    (_key: string, { arg }: { arg: number }) => certificadoDisposicionApi.remove(arg),
-  )
-  return { deleteCertificado: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useDelete()
+  return { deleteCertificado: trigger, isLoading, error }
 }

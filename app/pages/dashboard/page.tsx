@@ -21,6 +21,8 @@ import { useCondicionesMaterial } from "@/hooks/use-condicion-material"
 import { exportToPdf, exportToExcel, type ExportColumn } from "@/lib/utils/export"
 import { formatDate } from "@/lib/utils/helpers"
 import { esCondicionSinClasificar } from "@/lib/constants/estados"
+import { EstadoBadge } from "@/components/ui/estado-badge"
+import { ESTADO_LOTE_COLORS, colorPorEstado } from "@/lib/estado-colores"
 import {
   type Periodo, PERIODO_LABELS, getRangoFechas, getRangoAnterior,
   getRangoCustom, getRangoAnteriorCustom, getBucketOrder, getBucketKey,
@@ -55,23 +57,15 @@ function KpiCard({ label, value, sub, trend }: {
 
 // ── Componente Badge de estado ─────────────────────────────────────────────
 const ESTADOS_LOTE = ["En proceso", "Clasificado", "Desechado"] as const
+// Colores hex (no Tailwind) porque recharts los necesita como `fill`/`background`, no como className
 const ESTADO_COLORS: Record<string, string> = {
   "En proceso":  "#F5A623",
   "Clasificado": "#639922",
   "Desechado":   "#E24B4A",
 }
 
-function EstadoBadge({ estado }: { estado: string }) {
-  const styles: Record<string, string> = {
-    "En proceso":  "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
-    "Clasificado": "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-    "Desechado":   "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  }
-  return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[estado] ?? "bg-muted text-muted-foreground"}`}>
-      {estado}
-    </span>
-  )
+function EstadoLoteBadge({ estado }: { estado: string }) {
+  return <EstadoBadge texto={estado} colorClass={colorPorEstado(ESTADO_LOTE_COLORS, estado, "bg-muted text-muted-foreground")} />
 }
 
 // Ventana por defecto al entrar al dashboard: últimos 3 meses hasta hoy
@@ -838,7 +832,7 @@ export default function DashboardPage() {
                         <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{l.id}</td>
                         <td className="px-4 py-3 text-foreground">{l.donante}</td>
                         <td className="px-4 py-3 text-muted-foreground">{l.pesoKg.toFixed(1)}</td>
-                        <td className="px-4 py-3"><EstadoBadge estado={l.estado} /></td>
+                        <td className="px-4 py-3"><EstadoLoteBadge estado={l.estado} /></td>
                       </tr>
                     ))
                   )}

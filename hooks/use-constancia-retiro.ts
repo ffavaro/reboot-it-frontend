@@ -1,40 +1,32 @@
-import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, constanciaRetiroApi } from "@/lib/api"
+import { createCrudHooks } from "@/lib/hooks/create-crud-hooks"
+import { constanciaRetiroApi } from "@/lib/api"
 import type {
   ConstanciaRetiro,
   CreateConstanciaRetiroPayload,
   UpdateConstanciaRetiroPayload,
 } from "@/lib/type/constancia-retiro"
 
+const crud = createCrudHooks<ConstanciaRetiro, CreateConstanciaRetiroPayload, UpdateConstanciaRetiroPayload>(
+  "/constancia-retiro",
+  constanciaRetiroApi,
+)
+
 export function useConstanciasRetiro() {
-  const { data, isLoading, error, mutate } = useSWR<ConstanciaRetiro[]>("/constancia-retiro", fetcher)
-  return { constancias: data ?? [], isLoading, error, mutate }
+  const { data, isLoading, error, mutate } = crud.useList()
+  return { constancias: data, isLoading, error, mutate }
 }
 
 export function useCreateConstanciaRetiro() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/constancia-retiro",
-    (_key: string, { arg }: { arg: CreateConstanciaRetiroPayload }) => constanciaRetiroApi.create(arg),
-  )
-  return { createConstancia: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useCreate()
+  return { createConstancia: trigger, isLoading, error }
 }
 
 export function useUpdateConstanciaRetiro() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/constancia-retiro",
-    (_key: string, { arg }: { arg: { id: number } & UpdateConstanciaRetiroPayload }) => {
-      const { id, ...payload } = arg
-      return constanciaRetiroApi.update(id, payload)
-    },
-  )
-  return { updateConstancia: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useUpdate()
+  return { updateConstancia: trigger, isLoading, error }
 }
 
 export function useDeleteConstanciaRetiro() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/constancia-retiro",
-    (_key: string, { arg }: { arg: number }) => constanciaRetiroApi.remove(arg),
-  )
-  return { deleteConstancia: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useDelete()
+  return { deleteConstancia: trigger, isLoading, error }
 }

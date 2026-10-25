@@ -12,6 +12,8 @@ import { useAuditoria } from "@/hooks/use-auditoria"
 import { useUsuarios } from "@/hooks/use-users"
 import { formatDateTime } from "@/lib/utils/helpers"
 import { cn } from "@/lib/utils"
+import { EstadoBadge } from "@/components/ui/estado-badge"
+import { RESULTADO_AUDITORIA_COLORS, colorPorEstado } from "@/lib/estado-colores"
 import type { AuditoriaQuery, RegistroAuditoria } from "@/lib/type/auditoria"
 
 const POR_PAGINA = 20
@@ -186,7 +188,6 @@ export default function AuditoriaPage() {
               </TableRow>
             ) : registros.map((r) => {
               const u = nombreUsuario(r)
-              const ok = r.resultado === "Éxito"
               return (
                 <TableRow key={r.id}>
                   <TableCell className="whitespace-nowrap tabular-nums">{formatDateTime(r.fechaHora)}</TableCell>
@@ -199,14 +200,10 @@ export default function AuditoriaPage() {
                   <TableCell className="text-muted-foreground">{r.rol ?? "—"}</TableCell>
                   <TableCell className="font-medium">{r.accion}</TableCell>
                   <TableCell>
-                    <span className={cn(
-                      "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-                      ok
-                        ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                        : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
-                    )}>
-                      {r.resultado}{r.codigoHttp ? ` · ${r.codigoHttp}` : ""}
-                    </span>
+                    <EstadoBadge
+                      texto={`${r.resultado}${r.codigoHttp ? ` · ${r.codigoHttp}` : ""}`}
+                      colorClass={colorPorEstado(RESULTADO_AUDITORIA_COLORS, r.resultado, "bg-gray-100 text-gray-800")}
+                    />
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {r.entidad ? `${r.entidad}${r.entidadId ? ` #${r.entidadId}` : ""}` : "—"}

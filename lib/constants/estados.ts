@@ -45,3 +45,15 @@ export const esCondicionSinClasificar = (nombre?: string | null) => {
   const n = minusculas(nombre)
   return !n || n.includes(minusculas(CONDICION_MATERIAL.A_DEFINIR)) || n.includes("pendiente")
 }
+
+// Un turno queda listo para el botón "Clasificar" cuando el retiro a domicilio confirmó la
+// recepción, o cuando el turno de sucursal ya fue asignado a un técnico/administrativo.
+export const puedeClasificarTurno = (t: {
+  estadoTurno?: { descripcion?: string | null } | null
+  necesitaRetiro: boolean
+  empleadoId: number | null
+}) => {
+  const estado = minusculas(t.estadoTurno?.descripcion)
+  if (t.necesitaRetiro) return estado === minusculas(ESTADO_TURNO.RETIRO_CONFIRMADO)
+  return estado === minusculas(ESTADO_TURNO.ASIGNADO) && !!t.empleadoId
+}

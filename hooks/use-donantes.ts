@@ -1,6 +1,5 @@
-import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, donantesApi, tipoDonanteApi } from "@/lib/api"
+import { createCrudHooks } from "@/lib/hooks/create-crud-hooks"
+import { donantesApi, tipoDonanteApi } from "@/lib/api"
 import type {
   Donante,
   TipoDonante,
@@ -10,66 +9,48 @@ import type {
   UpdateTipoDonantePayload,
 } from "@/lib/type/donante"
 
+const donanteCrud = createCrudHooks<Donante, CreateDonantePayload, UpdateDonantePayload>("/donantes", donantesApi)
+const tipoDonanteCrud = createCrudHooks<TipoDonante, CreateTipoDonantePayload, UpdateTipoDonantePayload>(
+  "/tipo-donante",
+  tipoDonanteApi,
+)
+
 export function useDonantes() {
-  const { data, isLoading, error, mutate } = useSWR<Donante[]>("/donantes", fetcher)
-  return { donantes: data ?? [], isLoading, error, mutate }
+  const { data, isLoading, error, mutate } = donanteCrud.useList()
+  return { donantes: data, isLoading, error, mutate }
 }
 
 export function useTipoDonantes() {
-  const { data, isLoading, error, mutate } = useSWR<TipoDonante[]>("/tipo-donante", fetcher)
-  return { tipos: data ?? [], isLoading, error, mutate }
+  const { data, isLoading, error, mutate } = tipoDonanteCrud.useList()
+  return { tipos: data, isLoading, error, mutate }
 }
 
 export function useCreateDonante() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/donantes",
-    (_key: string, { arg }: { arg: CreateDonantePayload }) => donantesApi.create(arg),
-  )
-  return { createDonante: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = donanteCrud.useCreate()
+  return { createDonante: trigger, isLoading, error }
 }
 
 export function useUpdateDonante() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/donantes",
-    (_key: string, { arg }: { arg: { id: number } & UpdateDonantePayload }) => {
-      const { id, ...payload } = arg
-      return donantesApi.update(id, payload)
-    },
-  )
-  return { updateDonante: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = donanteCrud.useUpdate()
+  return { updateDonante: trigger, isLoading, error }
 }
 
 export function useDeleteDonante() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/donantes",
-    (_key: string, { arg }: { arg: number }) => donantesApi.remove(arg),
-  )
-  return { deleteDonante: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = donanteCrud.useDelete()
+  return { deleteDonante: trigger, isLoading, error }
 }
 
 export function useCreateTipoDonante() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/tipo-donante",
-    (_key: string, { arg }: { arg: CreateTipoDonantePayload }) => tipoDonanteApi.create(arg),
-  )
-  return { createTipo: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = tipoDonanteCrud.useCreate()
+  return { createTipo: trigger, isLoading, error }
 }
 
 export function useUpdateTipoDonante() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/tipo-donante",
-    (_key: string, { arg }: { arg: { id: number } & UpdateTipoDonantePayload }) => {
-      const { id, ...payload } = arg
-      return tipoDonanteApi.update(id, payload)
-    },
-  )
-  return { updateTipo: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = tipoDonanteCrud.useUpdate()
+  return { updateTipo: trigger, isLoading, error }
 }
 
 export function useDeleteTipoDonante() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/tipo-donante",
-    (_key: string, { arg }: { arg: number }) => tipoDonanteApi.remove(arg),
-  )
-  return { deleteTipo: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = tipoDonanteCrud.useDelete()
+  return { deleteTipo: trigger, isLoading, error }
 }

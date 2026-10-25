@@ -12,15 +12,11 @@ import { materialApi } from "@/lib/api"
 import type { ReporteInventario, ReporteInventarioQuery } from "@/lib/type/material"
 import type { TipoMaterial } from "@/lib/type/tipo-material"
 import type { CondicionMaterial } from "@/lib/type/condicion-material"
-import { formatDate, periodoPorDefecto } from "@/lib/utils/helpers"
+import { formatDate, formatFechaHoy, periodoPorDefecto } from "@/lib/utils/helpers"
 import { ExportarReporte, periodoTexto } from "@/components/exportar-reporte"
+import { ReportePrintStyles } from "@/components/reporte-print-styles"
 import type { ExportColumn } from "@/lib/utils/export"
-
-const ESTADO_COLOR: Record<string, string> = {
-  Iniciado: "bg-blue-100 text-blue-700",
-  Pendiente: "bg-yellow-100 text-yellow-700",
-  Finalizado: "bg-green-100 text-green-700",
-}
+import { ESTADO_PROCESO_DESTRUCCION_COLORS_REPORTE as ESTADO_COLOR } from "@/lib/estado-colores"
 
 // Columnas de los archivos PDF y Excel (las mismas que la tabla)
 const COLUMNAS_EXPORT: ExportColumn<ReporteInventario>[] = [
@@ -78,30 +74,14 @@ export default function ReporteInventarioPage() {
 
   return (
     <>
-      <style>{`
-        @media print {
-          .no-print { display: none !important; }
-          .print-show { display: block !important; }
-          body { font-size: 11px; color: #000; }
-          .report-table { width: 100%; border-collapse: collapse; }
-          .report-table th,
-          .report-table td { border: 1px solid #aaa; padding: 4px 6px; text-align: left; }
-          .report-table th { background-color: #eee !important; font-weight: 600; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .report-table tr:nth-child(even) td { background-color: #f9f9f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .badge { border: 1px solid #ccc; padding: 1px 5px; border-radius: 9999px; font-size: 10px; font-weight: 600; }
-          .tag-destruccion { color: #b45309 !important; }
-          .tag-sin-destruccion { color: #15803d !important; }
-        }
-        .print-show { display: none; }
-      `}</style>
+      <ReportePrintStyles extra=".badge { border: 1px solid #ccc; padding: 1px 5px; border-radius: 9999px; font-size: 10px; font-weight: 600; } .tag-destruccion { color: #b45309 !important; } .tag-sin-destruccion { color: #15803d !important; }" />
 
       <div className="flex flex-col gap-6 p-6">
         {/* Encabezado solo al imprimir */}
         <div className="print-show flex flex-col gap-1 mb-2">
           <h1 className="text-xl font-bold">Reporte de Inventario de Materiales</h1>
           <p className="text-sm">
-            Generado el{" "}
-            {new Date().toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })}
+            Generado el {formatFechaHoy()}
             {tipoLabel ? ` · Tipo: ${tipoLabel}` : ""}
             {condicionLabel ? ` · Condición: ${condicionLabel}` : ""}
             {filters.loteId ? ` · Lote #${filters.loteId}` : ""}

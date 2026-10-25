@@ -10,8 +10,11 @@ import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { FormModal } from "@/components/ui/form-modal"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { uploadFoto } from "@/lib/api/client"
 import { DataTable, TableColumn } from "@/components/ui/data-table"
+import { EstadoBadge } from "@/components/ui/estado-badge"
+import { ESTADO_DONACION_COLORS, colorPorEstadoInsensible } from "@/lib/estado-colores"
 import {
   useDonaciones,
   useCreateDonacion,
@@ -22,19 +25,21 @@ import { useDonantes } from "@/hooks/use-donantes"
 import { useTipoMateriales } from "@/hooks/use-tipo-material"
 import { useCondicionesMaterial } from "@/hooks/use-condicion-material"
 import { useEstadosDonacion } from "@/hooks/use-estado-donacion"
-import { useTurnos } from "@/hooks/use-turno"
+import { useTurnos, useAsignarEmpleadoTurno } from "@/hooks/use-turno"
+import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
 import type { Donacion, EstadoDonacion } from "@/lib/type/donacion"
 import type { Donante } from "@/lib/type/donante"
 import type { TipoMaterial } from "@/lib/type/tipo-material"
 import type { CondicionMaterial } from "@/lib/type/condicion-material"
 import type { Turno } from "@/lib/type/turno"
+import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import { getUser } from "@/lib/auth-utils"
 import { GenerarCertificadoModal } from "@/components/generar-certificado-modal"
 import { DetalleDonacionDialog } from "@/components/detalle-donacion-dialog"
 import { SelectBuscador } from "@/components/ui/select-buscador"
 import { FiltrosActivos, columnasFiltrables } from "@/components/ui/filtros-activos"
 import { enforceDecimalInput } from "@/lib/utils/number-limit"
-import { formatPeso, getErrorMessage } from "@/lib/utils/helpers"
+import { formatPeso, formatDateTime, getErrorMessage } from "@/lib/utils/helpers"
 import { CONDICION_MATERIAL, ESTADO_DONACION, esCondicion } from "@/lib/constants/estados"
 
 const EMPTY_FORM = { donanteId: "", fechaHora: "", estadoDonacionId: "", descripcion: "" }
@@ -66,13 +71,6 @@ function slotPasado(dia: Date, slot: string, ahora = new Date()): boolean {
 // Hoy se puede pedir turno mientras quede algún horario dentro del horario de atención
 function quedanHorariosHoy(ahora = new Date()): boolean {
   return TIME_SLOTS.some((slot) => !slotPasado(ahora, slot, ahora))
-}
-
-const ESTADO_COLORS: Record<string, string> = {
-  pendiente: "bg-yellow-100 text-yellow-800",
-  "en proceso": "bg-blue-100 text-blue-800",
-  completada: "bg-green-100 text-green-800",
-  cancelada: "bg-red-100 text-red-800",
 }
 
 function mismoDia(a: Date, b: Date): boolean {
@@ -129,13 +127,18 @@ export default function DonacionPage() {
   const { tipoMateriales } = useTipoMateriales()
   const { condiciones } = useCondicionesMaterial()
   const { estadosDonacion } = useEstadosDonacion()
-  const { turnos } = useTurnos()
+  const { turnos, mutate: mutateTurnos } = useTurnos()
+  const { transportistas } = useEmpleadosTransportistas()
   const { createDonacion, isLoading: isCreating } = useCreateDonacion()
   const { updateDonacion, isLoading: isUpdating } = useUpdateDonacion()
   const { deleteDonacion, isLoading: isDeleting } = useDeleteDonacion()
+  const { asignarEmpleado, isLoading: isAsignando } = useAsignarEmpleadoTurno()
 
   const [search, setSearch] = useState("")
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [asignarModalOpen, setAsignarModalOpen] = useState(false)
+  const [asignando, setAsignando] = useState<Turno | null>(null)
+  const [asignarForm, setAsignarForm] = useState({ empleadoTransportistaId: "" })
   const [editing, setEditing] = useState<Donacion | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -201,7 +204,12 @@ export default function DonacionPage() {
     ? []
     : donaciones
 
-  // La última donación cargada va primero
+  // Fecha del turno generado junto con la donación (la donación en sí no guarda una fecha propia)
+  function fechaDonacion(d: Donacion): string {
+    return turnos.find((t: Turno) => t.donacionId === d.id)?.fechaHora ?? ""
+  }
+
+  // Más recientes primero, por la fecha del turno (las donaciones sin turno quedan al final)
   const filtered = visibleDonaciones.filter((d: Donacion) => {
     if (fDonante !== null && d.donanteId !== fDonante) return false
     if (fEstado !== null && d.estadoDonacion?.descripcion !== fEstado) return false
@@ -212,7 +220,7 @@ export default function DonacionPage() {
       (d.estadoDonacion?.descripcion ?? "").toLowerCase().includes(q) ||
       (d.descripcion ?? "").toLowerCase().includes(q)
     )
-  }).sort((a: Donacion, b: Donacion) => b.id - a.id)
+  }).sort((a: Donacion, b: Donacion) => fechaDonacion(b).localeCompare(fechaDonacion(a)) || b.id - a.id)
 
   function slotsOcupados(dia: Date): Set<string> {
     const ocupados = new Set<string>()
@@ -486,12 +494,70 @@ export default function DonacionPage() {
     }
   }
 
+  function openAsignar(t: Turno) {
+    setAsignando(t)
+    setAsignarForm({ empleadoTransportistaId: t.empleadoTransportistaId ? String(t.empleadoTransportistaId) : "" })
+    setAsignarModalOpen(true)
+  }
+
+  async function handleAsignar() {
+    if (!asignando) return
+    if (!asignarForm.empleadoTransportistaId) {
+      toast.error("Seleccioná un empleado transportista")
+      return
+    }
+
+    const transportista = transportistas.find(
+      (t: EmpleadoTransportista) => String(t.id) === asignarForm.empleadoTransportistaId,
+    )
+    const tipoVehiculo = transportista?.vehiculo?.tipoVehiculo
+    const donacionDelTurno = donaciones.find((d: Donacion) => d.id === asignando.donacionId)
+    const pesoEstimado = donacionDelTurno?.pesoEstimadoKg
+
+    if (tipoVehiculo?.pesoMinimo != null && tipoVehiculo?.pesoMaximo != null && pesoEstimado != null) {
+      // pesoMinimo/pesoMaximo/pesoEstimado llegan como string desde columnas DECIMAL de MySQL:
+      // comparar sin convertir a Number hace comparación lexicográfica ("85.00" > "150.00" == true)
+      const pesoEstimadoNum = Number(pesoEstimado)
+      const pesoMinimoNum = Number(tipoVehiculo.pesoMinimo)
+      const pesoMaximoNum = Number(tipoVehiculo.pesoMaximo)
+      if (pesoEstimadoNum < pesoMinimoNum || pesoEstimadoNum > pesoMaximoNum) {
+        toast.error(
+          `El vehículo de este transportista soporta entre ${pesoMinimoNum} y ${pesoMaximoNum} kg, ` +
+          `y la donación tiene un peso estimado de ${pesoEstimadoNum} kg. Elegí otro transportista o vehículo.`
+        )
+        return
+      }
+    }
+
+    try {
+      await asignarEmpleado({ id: asignando.id, empleadoTransportistaId: Number(asignarForm.empleadoTransportistaId) })
+      toast.success("Transportista asignado. El turno pasó a estado Asignado.")
+      await mutateTurnos()
+      setAsignarModalOpen(false)
+    } catch {
+      toast.error("Error al asignar el transportista")
+    }
+  }
+
   const columns: TableColumn<Donacion>[] = [
     {
       key: "id",
       header: "N°",
       cell: (d) => `#${d.id}`,
       className: "font-mono text-xs w-14",
+    },
+    {
+      key: "fecha",
+      header: "Fecha",
+      cell: (d) => {
+        const fecha = fechaDonacion(d)
+        return (
+          <span className="text-muted-foreground whitespace-nowrap">
+            {fecha ? formatDateTime(fecha) : <span className="italic">—</span>}
+          </span>
+        )
+      },
+      className: "w-36",
     },
     ...(!isDonante
       ? [
@@ -511,11 +577,11 @@ export default function DonacionPage() {
       cell: (d) => {
         const desc = d.estadoDonacion?.descripcion
         if (!desc) return <span className="italic text-muted-foreground">—</span>
-        const color = ESTADO_COLORS[desc.toLowerCase()] ?? "bg-gray-100 text-gray-800"
         return (
-          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}>
-            {desc}
-          </span>
+          <EstadoBadge
+            texto={desc}
+            colorClass={colorPorEstadoInsensible(ESTADO_DONACION_COLORS, desc, "bg-gray-100 text-gray-800")}
+          />
         )
       },
       className: "w-32",
@@ -545,6 +611,50 @@ export default function DonacionPage() {
         ),
       className: "w-28",
     },
+    ...(!isDonante
+      ? [
+          {
+            key: "transportista",
+            header: "Transportista",
+            cell: (d: Donacion) => {
+              if (!d.necesitaRetiro) return <span className="text-muted-foreground text-xs">—</span>
+              const turno = turnos.find((t: Turno) => t.donacionId === d.id)
+              if (!turno) return <span className="italic text-muted-foreground text-xs">Sin turno</span>
+
+              const estado = turno.estadoTurno?.descripcion?.toLowerCase() ?? ""
+              const puedeAsignarse = estado === "pendiente" || estado === "asignado"
+              const et = turno.empleadoTransportista
+              const nombre = turno.empleadoTransportistaId
+                ? et?.empleado
+                  ? `${et.empleado.nombre} ${et.empleado.apellido}`
+                  : `Transportista #${turno.empleadoTransportistaId}`
+                : null
+
+              return (
+                <div className="flex items-center gap-1.5">
+                  {nombre ? (
+                    <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+                      {nombre}
+                    </span>
+                  ) : (
+                    <span className="italic text-muted-foreground text-xs">Sin asignar</span>
+                  )}
+                  {puedeAsignarse && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => { e.stopPropagation(); openAsignar(turno) }}
+                    >
+                      {nombre ? "Reasignar" : "Asignar"}
+                    </Button>
+                  )}
+                </div>
+              )
+            },
+            className: "w-56",
+          },
+        ]
+      : []),
     {
       key: "descripcion",
       header: "Descripción",
@@ -591,6 +701,20 @@ export default function DonacionPage() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
         />
+        <Select
+          value={fEstado ?? ""}
+          onValueChange={(v) => setFEstado(v || null)}
+        >
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Todos los estados" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todos los estados</SelectItem>
+            {estadosDonacion.map((e: EstadoDonacion) => (
+              <SelectItem key={e.id} value={e.descripcion}>{e.descripcion}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <span className="text-sm text-muted-foreground">
           {filtered.length} donación{filtered.length !== 1 ? "es" : ""}
         </span>
@@ -1026,6 +1150,42 @@ export default function DonacionPage() {
 
         </div>
       </FormModal>
+
+      {/* Modal asignar transportista */}
+      {asignando && (
+        <FormModal
+          open={asignarModalOpen}
+          onOpenChange={setAsignarModalOpen}
+          title="Asignar transportista"
+          description="Esta donación requiere retiro a domicilio. Asigná un empleado transportista al turno."
+          onSave={handleAsignar}
+          isLoading={isAsignando}
+          saveLabel="Confirmar asignación"
+        >
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">
+              Empleado transportista
+              <span className="ml-2 inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+                Requiere retiro
+              </span>
+            </label>
+            <select
+              value={asignarForm.empleadoTransportistaId}
+              onChange={(e) => setAsignarForm({ empleadoTransportistaId: e.target.value })}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="">Seleccionar transportista...</option>
+              {transportistas.map((et: EmpleadoTransportista) => {
+                // con el DNI se distinguen dos empleados con el mismo nombre
+                const nombre = et.empleado
+                  ? `${et.empleado.nombre} ${et.empleado.apellido}${et.empleado.cuitDni ? ` - ${et.empleado.cuitDni}` : ""}`
+                  : `Transportista #${et.id}`
+                return <option key={et.id} value={et.id}>{nombre}</option>
+              })}
+            </select>
+          </div>
+        </FormModal>
+      )}
 
       {/* Confirmación del turno con los datos cargados */}
       <Dialog open={!!confirmacion} onOpenChange={(abierto) => { if (!abierto) setConfirmacion(null) }}>

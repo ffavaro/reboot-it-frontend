@@ -35,6 +35,18 @@ export const formatDate = (iso: string | null) => {
   return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
 
+// Fecha de "hoy" en dd/mm/aaaa, para el encabezado de los reportes imprimibles
+export const formatFechaHoy = () =>
+  new Date().toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
+
+// Hora HH:mm a partir de un datetime ISO, con padding manual (sin Intl/toLocaleTimeString)
+// para no depender de los datos ICU de es-AR del entorno
+export const formatHora = (iso: string): string => {
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 export const formatDateTime = (iso: string | null) => {
   if (!iso) return null
   return new Date(iso).toLocaleString("es-AR", {

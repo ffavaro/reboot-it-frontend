@@ -11,6 +11,7 @@ import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   useMateriales,
   useCreateMaterial,
@@ -422,6 +423,20 @@ export default function MaterialPage() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
         />
+        <Select
+          value={fCondicion ?? ""}
+          onValueChange={(v) => setFCondicion(v || null)}
+        >
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Todas las condiciones" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todas las condiciones</SelectItem>
+            {condiciones.map((c: CondicionMaterial) => (
+              <SelectItem key={c.id} value={c.condicion}>{c.condicion}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <span className="text-sm text-muted-foreground">
           {filtered.length} material{filtered.length !== 1 ? "es" : ""}
         </span>

@@ -10,6 +10,7 @@ import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
+import { EstadoBadge } from "@/components/ui/estado-badge"
 import {
   useEstadosProcesoDestruccion,
   useCreateEstadoProcesoDestruccion,
@@ -17,13 +18,8 @@ import {
   useDeleteEstadoProcesoDestruccion,
 } from "@/hooks/use-estado-proceso-destruccion"
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
+import { ESTADO_PROCESO_DESTRUCCION_COLORS, colorPorEstado } from "@/lib/estado-colores"
 import type { EstadoProcesoDestruccion } from "@/lib/type/estado-proceso-destruccion"
-
-const ESTADO_COLORS: Record<string, string> = {
-  Iniciado: "bg-blue-100 text-blue-800",
-  Pendiente: "bg-yellow-100 text-yellow-800",
-  Finalizado: "bg-green-100 text-green-800",
-}
 
 const EMPTY_FORM = { nombre: "", descripcion: "" }
 
@@ -31,14 +27,12 @@ const COLUMNS: TableColumn<EstadoProcesoDestruccion>[] = [
   {
     key: "nombre",
     header: "Nombre",
-    cell: (e) => {
-      const color = ESTADO_COLORS[e.nombre] ?? "bg-gray-100 text-gray-800"
-      return (
-        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}>
-          {e.nombre}
-        </span>
-      )
-    },
+    cell: (e) => (
+      <EstadoBadge
+        texto={e.nombre}
+        colorClass={colorPorEstado(ESTADO_PROCESO_DESTRUCCION_COLORS, e.nombre, "bg-gray-100 text-gray-800")}
+      />
+    ),
   },
   {
     key: "descripcion",

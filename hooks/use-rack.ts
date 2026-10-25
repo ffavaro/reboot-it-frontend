@@ -1,36 +1,25 @@
-import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, rackApi } from "@/lib/api"
+import { createCrudHooks } from "@/lib/hooks/create-crud-hooks"
+import { rackApi } from "@/lib/api"
 import type { Rack, CreateRackPayload, UpdateRackPayload } from "@/lib/type/rack"
 
+const crud = createCrudHooks<Rack, CreateRackPayload, UpdateRackPayload>("/rack", rackApi)
+
 export function useRacks() {
-  const { data, isLoading, error, mutate } = useSWR<Rack[]>("/rack", fetcher)
-  return { racks: data ?? [], isLoading, error, mutate }
+  const { data, isLoading, error, mutate } = crud.useList()
+  return { racks: data, isLoading, error, mutate }
 }
 
 export function useCreateRack() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/rack",
-    (_key: string, { arg }: { arg: CreateRackPayload }) => rackApi.create(arg),
-  )
-  return { createRack: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useCreate()
+  return { createRack: trigger, isLoading, error }
 }
 
 export function useUpdateRack() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/rack",
-    (_key: string, { arg }: { arg: { id: number } & UpdateRackPayload }) => {
-      const { id, ...payload } = arg
-      return rackApi.update(id, payload)
-    },
-  )
-  return { updateRack: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useUpdate()
+  return { updateRack: trigger, isLoading, error }
 }
 
 export function useDeleteRack() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/rack",
-    (_key: string, { arg }: { arg: number }) => rackApi.remove(arg),
-  )
-  return { deleteRack: trigger, isLoading: isMutating, error }
+  const { trigger, isLoading, error } = crud.useDelete()
+  return { deleteRack: trigger, isLoading, error }
 }

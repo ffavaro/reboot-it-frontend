@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button"
 import { FormModal } from "@/components/ui/form-modal"
 import { useTurnos } from "@/hooks/use-turno"
 import { useDonaciones } from "@/hooks/use-donacion"
+import { AGENDA_ESTADO_COLORS, colorAgendaPorDescripcion } from "@/lib/estado-colores"
+import { formatHora } from "@/lib/utils/helpers"
+import { puedeClasificarTurno } from "@/lib/constants/estados"
 import type { Turno } from "@/lib/type/turno"
 
 const DIAS_SEMANA = ["Lun", "Mar", "Mié", "Jue", "Vie"]
@@ -50,34 +53,13 @@ function topPx(fechaHora: string): number {
   return (d.getHours() - HORA_INICIO + d.getMinutes() / 60) * PX_POR_HORA
 }
 
-const COLORES_ESTADO: Record<string, { bg: string; text: string; dot: string; borde: string }> = {
-  pendiente:  { bg: "bg-blue-100",   text: "text-blue-800",   dot: "bg-blue-500",   borde: "border-blue-400"   },
-  confirmado: { bg: "bg-green-100",  text: "text-green-800",  dot: "bg-green-500",  borde: "border-green-400"  },
-  "en curso": { bg: "bg-orange-100", text: "text-orange-800", dot: "bg-orange-500", borde: "border-orange-400" },
-  completado: { bg: "bg-teal-100",   text: "text-teal-800",   dot: "bg-teal-500",   borde: "border-teal-400"   },
-  cancelado:  { bg: "bg-gray-100",   text: "text-gray-500",   dot: "bg-gray-400",   borde: "border-gray-300"   },
-}
-
-const COLOR_DEFAULT = { bg: "bg-indigo-100", text: "text-indigo-800", dot: "bg-indigo-500", borde: "border-indigo-400" }
-
-function colorEstado(descripcion?: string) {
-  if (!descripcion) return COLOR_DEFAULT
-  const key = Object.keys(COLORES_ESTADO).find((k) =>
-    descripcion.toLowerCase().includes(k)
-  )
-  return key ? COLORES_ESTADO[key] : COLOR_DEFAULT
-}
-
-function formatHora(iso: string): string {
-  return new Date(iso).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })
-}
-
 export default function AgendaPage() {
   const { turnos, isLoading } = useTurnos()
   const { donaciones } = useDonaciones()
   const [inicioSemana, setInicioSemana] = useState(() => semanaHabil(new Date()))
   const [seleccionado, setSeleccionado] = useState<Turno | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [soloParaClasificar, setSoloParaClasificar] = useState(false)
 
   const donacionSeleccionada = seleccionado?.donacionId != null
     ? donaciones.find((d) => d.id === seleccionado.donacionId)
@@ -96,7 +78,8 @@ export default function AgendaPage() {
 
   const turnosSemana = turnos.filter((t) => {
     const f = new Date(t.fechaHora)
-    return f >= inicioSemana && f < finSemana && t.isActive
+    if (!(f >= inicioSemana && f < finSemana && t.isActive)) return false
+    return !soloParaClasificar || puedeClasificarTurno(t)
   })
 
   function turnosDia(dia: Date): Turno[] {
@@ -127,7 +110,7 @@ export default function AgendaPage() {
       {/* Leyenda */}
       <div className="flex items-center gap-2 flex-wrap rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-3">
         <span className="text-xs font-medium text-muted-foreground mr-1">Estado:</span>
-        {Object.entries(COLORES_ESTADO).map(([label, c]) => (
+        {Object.entries(AGENDA_ESTADO_COLORS).map(([label, c]) => (
           <span key={label} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium capitalize ${c.bg} ${c.text}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${c.dot}`} />
             {label}
@@ -144,7 +127,16 @@ export default function AgendaPage() {
         </Button>
         <Button variant="outline" size="sm" onClick={irHoy}>Hoy</Button>
         <span className="text-sm font-medium ml-1">{etiquetaSemana}</span>
-        <span className="ml-auto text-sm text-muted-foreground">
+        <label className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={soloParaClasificar}
+            onChange={(e) => setSoloParaClasificar(e.target.checked)}
+            className="h-4 w-4 rounded border-input"
+          />
+          Listos para clasificar
+        </label>
+        <span className="text-sm text-muted-foreground">
           {isLoading
             ? "Cargando..."
             : `${turnosSemana.length} turno${turnosSemana.length !== 1 ? "s" : ""} esta semana`}
@@ -235,7 +227,7 @@ export default function AgendaPage() {
                     const top = topPx(t.fechaHora)
                     if (top < 0 || top >= TOTAL_H) return null
                     const height = Math.min(PX_POR_HORA, TOTAL_H - top)
-                    const c = colorEstado(t.estadoTurno?.descripcion)
+                    const c = colorAgendaPorDescripcion(t.estadoTurno?.descripcion)
 
                     return (
                       <button
@@ -292,7 +284,7 @@ export default function AgendaPage() {
               </p>
               {seleccionado.estadoTurno?.descripcion ? (
                 (() => {
-                  const c = colorEstado(seleccionado.estadoTurno.descripcion)
+                  const c = colorAgendaPorDescripcion(seleccionado.estadoTurno.descripcion)
                   return (
                     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${c.bg} ${c.text}`}>
                       <span className={`h-1.5 w-1.5 rounded-full ${c.dot}`} />

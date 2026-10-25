@@ -4,15 +4,9 @@ import type { ReactNode } from "react"
 import { CheckCircle2 } from "lucide-react"
 import { EstadoHojaBadge } from "@/components/ui/estado-hoja-badge"
 import { MapaRuta } from "@/components/mapa-ruta"
-import { formatFechaISO, formatKm } from "@/lib/utils/helpers"
+import { formatFechaISO, formatHora, formatKm } from "@/lib/utils/helpers"
 import { cn } from "@/lib/utils"
 import type { HojaRutaDia, ParadaHojaRuta } from "@/lib/type/hoja-ruta"
-
-function formatHora(iso: string): string {
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
 
 export function nombreTransportista(h: HojaRutaDia): string {
   return h.transportista ? `${h.transportista.nombre} ${h.transportista.apellido}` : `Transportista #${h.empleadoTransportistaId}`

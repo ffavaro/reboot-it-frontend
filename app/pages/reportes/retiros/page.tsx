@@ -13,8 +13,9 @@ import type { ReporteRetiro, ReporteRetiroQuery } from "@/lib/type/retiro"
 import type { EstadoDonacion } from "@/lib/type/donacion"
 import type { Donante } from "@/lib/type/donante"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
-import { formatDate, formatDateTime, periodoPorDefecto } from "@/lib/utils/helpers"
+import { formatDate, formatDateTime, formatFechaHoy, periodoPorDefecto } from "@/lib/utils/helpers"
 import { ExportarReporte, periodoTexto } from "@/components/exportar-reporte"
+import { ReportePrintStyles } from "@/components/reporte-print-styles"
 import type { ExportColumn } from "@/lib/utils/export"
 
 // Columnas de los archivos PDF y Excel (las mismas que la tabla)
@@ -70,32 +71,14 @@ export default function ReporteRetirosPage() {
 
   return (
     <>
-      <style>{`
-        @media print {
-          .no-print { display: none !important; }
-          .print-show { display: block !important; }
-          body { font-size: 11px; color: #000; }
-          .report-table { width: 100%; border-collapse: collapse; }
-          .report-table th,
-          .report-table td { border: 1px solid #aaa; padding: 4px 6px; text-align: left; }
-          .report-table th { background-color: #eee !important; font-weight: 600; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .report-table tr:nth-child(even) td { background-color: #f9f9f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .badge { border: 1px solid #ccc; padding: 1px 4px; border-radius: 4px; font-size: 10px; }
-        }
-        .print-show { display: none; }
-      `}</style>
+      <ReportePrintStyles extra=".badge { border: 1px solid #ccc; padding: 1px 4px; border-radius: 4px; font-size: 10px; }" />
 
       <div className="flex flex-col gap-6 p-6">
         {/* Encabezado solo visible al imprimir */}
         <div className="print-show flex flex-col gap-1 mb-2">
           <h1 className="text-xl font-bold">Reporte de Retiros a Domicilio</h1>
           <p className="text-sm">
-            Generado el{" "}
-            {new Date().toLocaleDateString("es-AR", {
-              day: "2-digit",
-              month: "2-digit",
-              year: "numeric",
-            })}
+            Generado el {formatFechaHoy()}
             {filters.donanteId && donantes.find((d: Donante) => d.id === filters.donanteId)
               ? ` · Donante: ${donantes.find((d: Donante) => d.id === filters.donanteId)!.nombre}`
               : ""}
