@@ -1,11 +1,12 @@
 "use client"
 
+import useSWR from "swr"
 import { useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DatePicker } from "@/components/ui/date-picker"
 import { MultiSelect } from "@/components/ui/multi-select"
-import { SearchInput } from "@/components/ui/search-input"
+import { accionesDeAuditoria } from "@/lib/api/auditoria"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useAuditoria } from "@/hooks/use-auditoria"
 import { useUsuarios } from "@/hooks/use-users"
@@ -29,6 +30,8 @@ export default function AuditoriaPage() {
   const [usuarioIds, setUsuarioIds] = useState<number[]>([])
   const [resultado, setResultado] = useState<"" | (typeof RESULTADOS)[number]>("")
   const [accion, setAccion] = useState("")
+  // acciones registradas: alimentan el filtro por acción
+  const { data: acciones = [] } = useSWR("/auditoria/acciones", accionesDeAuditoria)
   const [page, setPage] = useState(1)
 
   const params: AuditoriaQuery = useMemo(() => ({
@@ -123,12 +126,15 @@ export default function AuditoriaPage() {
           {RESULTADOS.map((r) => <option key={r} value={r}>{r}</option>)}
         </select>
 
-        <SearchInput
-          placeholder="Buscar en la acción…"
+        <select
           value={accion}
           onChange={(e) => filtrar(setAccion)(e.target.value)}
-          className="w-52"
-        />
+          className="max-w-[260px] text-xs px-3 py-1.5 rounded-lg border border-border bg-background text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          aria-label="Filtrar por acción"
+        >
+          <option value="">Todas las acciones</option>
+          {acciones.map((a) => <option key={a} value={a}>{a}</option>)}
+        </select>
 
         {hayFiltros && (
           <button

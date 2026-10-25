@@ -171,6 +171,8 @@ export default function ProcesoDestruccionPage() {
   const [editing, setEditing] = useState<ProcesoDestruccion | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  // Al crear, se pueden sumar más medios de almacenamiento: se crea un proceso por cada uno, con el mismo método y responsable
+  const [mediosAdicionales, setMediosAdicionales] = useState<string[]>([])
   const { permisos } = useMisPermisos()
 
   // "Iniciar": define el método y el responsable de un proceso que se registró sin ellos
@@ -215,6 +217,7 @@ export default function ProcesoDestruccionPage() {
   })
 
   function openCreate() {
+    setMediosAdicionales([])
     setIsViewing(false)
     setEditing(null)
     const estadoPendiente = estados.find((e: EstadoProcesoDestruccion) =>
@@ -229,6 +232,7 @@ export default function ProcesoDestruccionPage() {
   }
 
   function openEdit(p: ProcesoDestruccion) {
+    setMediosAdicionales([])
     setIsViewing(false)
     setEditing(p)
     setForm({
@@ -242,6 +246,7 @@ export default function ProcesoDestruccionPage() {
   }
 
   function openView(p: ProcesoDestruccion) {
+    setMediosAdicionales([])
     setIsViewing(true)
     setEditing(p)
     setForm({
@@ -279,8 +284,13 @@ export default function ProcesoDestruccionPage() {
         await updateProceso({ id: editing.id, ...payload })
         toast.success("Proceso de destrucción actualizado")
       } else {
-        await createProceso(payload)
-        toast.success("Proceso de destrucción creado")
+        const ids = [form.medioAlmacenamientoId, ...mediosAdicionales].filter(Boolean)
+        if (new Set(ids).size !== ids.length) {
+          toast.error("Hay un medio de almacenamiento repetido")
+          return
+        }
+        for (const id of ids) await createProceso({ ...payload, medioAlmacenamientoId: Number(id) })
+        toast.success(ids.length > 1 ? `Se crearon ${ids.length} procesos de destrucción (uno por medio)` : "Proceso de destrucción creado")
       }
       await mutate()
       setModalOpen(false)
@@ -514,6 +524,42 @@ export default function ProcesoDestruccionPage() {
                 </Button>
               )}
             </div>
+
+            {/* Más medios en el mismo proceso: solo al crear */}
+            {!editing && !isViewing && (
+              <>
+                {mediosAdicionales.map((valor, i) => (
+                  <div key={i} className="flex gap-2">
+                    <select
+                      value={valor}
+                      onChange={(e) => setMediosAdicionales((lista) => lista.map((v, k) => (k === i ? e.target.value : v)))}
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      aria-label={`Otro medio de almacenamiento ${i + 1}`}
+                    >
+                      <option value="">Seleccionar otro medio...</option>
+                      {medios
+                        .filter((m: MedioAlmacenamiento) => String(m.id) === valor || (String(m.id) !== form.medioAlmacenamientoId && !mediosAdicionales.includes(String(m.id))))
+                        .map((m: MedioAlmacenamiento) => (
+                          <option key={m.id} value={m.id}>{medioLabel(m)}</option>
+                        ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      title="Quitar este medio"
+                      onClick={() => setMediosAdicionales((lista) => lista.filter((_, k) => k !== i))}
+                    >
+                      ✕
+                    </Button>
+                  </div>
+                ))}
+                <Button type="button" variant="ghost" size="sm" className="w-fit" onClick={() => setMediosAdicionales((lista) => [...lista, ""])}>
+                  <Plus className="h-4 w-4" />
+                  Agregar otro almacenamiento
+                </Button>
+              </>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">

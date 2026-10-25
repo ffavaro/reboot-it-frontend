@@ -289,7 +289,8 @@ export default function LotePage() {
               <SelectValue placeholder="Seleccioná una donación" />
             </SelectTrigger>
             <SelectContent>
-              {donaciones.map((d) => (
+              {/* una donación tiene un solo lote: no se ofrecen las que ya lo tienen */}
+              {donaciones.filter((d) => !lotes.some((l) => l.donacionId === d.id && l.id !== editing?.id)).map((d) => (
                 <SelectItem key={d.id} value={String(d.id)}>
                   <span className="font-mono text-xs text-muted-foreground w-8 shrink-0">#{d.id}</span>
                   <span className="font-medium truncate">{d.donante?.nombre ?? `Donante #${d.donanteId}`}</span>
