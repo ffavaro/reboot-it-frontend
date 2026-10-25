@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"
 import type { ConstanciaRetiroDatos } from "@/lib/type/hoja-ruta"
+import { dibujarEncabezadoEmpresa } from "@/lib/utils/pdf-empresa"
 
 function fecha(iso: string | null): string {
   if (!iso) return "—"
@@ -19,18 +20,19 @@ function fechaHora(iso: string | null): string {
 export function descargarConstanciaPdf(c: ConstanciaRetiroDatos) {
   const doc = new jsPDF()
   const ancho = doc.internal.pageSize.getWidth()
+  const dy = dibujarEncabezadoEmpresa(doc) // logo y datos fiscales de la empresa arriba; el resto baja
   const nroConstancia = String(c.constanciaId).padStart(6, "0")
 
   doc.setFont("helvetica", "bold")
   doc.setFontSize(18)
-  doc.text("Constancia de retiro", ancho / 2, 22, { align: "center" })
+  doc.text("Constancia de retiro", ancho / 2, 22 + dy, { align: "center" })
   doc.setFontSize(10)
   doc.setFont("helvetica", "normal")
   doc.setTextColor(100)
-  doc.text("Reboot IT", ancho / 2, 29, { align: "center" })
+  doc.text("Reboot IT", ancho / 2, 29 + dy, { align: "center" })
   doc.setTextColor(0)
-  doc.text(`N° ${nroConstancia}`, 14, 40)
-  doc.text(`Fecha de emisión: ${fecha(c.fechaEmision)}`, ancho - 14, 40, { align: "right" })
+  doc.text(`N° ${nroConstancia}`, 14, 40 + dy)
+  doc.text(`Fecha de emisión: ${fecha(c.fechaEmision)}`, ancho - 14, 40 + dy, { align: "right" })
 
   const transportista = c.transportista ? `${c.transportista.nombre} ${c.transportista.apellido}` : "—"
   const filas: [string, string][] = [
@@ -46,7 +48,7 @@ export function descargarConstanciaPdf(c: ConstanciaRetiroDatos) {
     ["Peso estimado", c.pesoEstimadoKg != null ? `${Number(c.pesoEstimadoKg)} kg` : "—"],
   ]
   autoTable(doc, {
-    startY: 46,
+    startY: 46 + dy,
     body: filas,
     theme: "grid",
     styles: { fontSize: 10, cellPadding: 2.5 },

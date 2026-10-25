@@ -31,6 +31,7 @@ import type { Turno } from "@/lib/type/turno"
 import { getUser } from "@/lib/auth-utils"
 import { GenerarCertificadoModal } from "@/components/generar-certificado-modal"
 import { DetalleDonacionDialog } from "@/components/detalle-donacion-dialog"
+import { SelectBuscador } from "@/components/ui/select-buscador"
 import { FiltrosActivos, columnasFiltrables } from "@/components/ui/filtros-activos"
 import { enforceDecimalInput } from "@/lib/utils/number-limit"
 import { formatPeso, getErrorMessage } from "@/lib/utils/helpers"
@@ -644,19 +645,16 @@ export default function DonacionPage() {
           {!isDonante && (
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Donante *</label>
-              <select
+              {/* con cientos de donantes, se busca escribiendo */}
+              <SelectBuscador
                 value={form.donanteId}
-                onChange={(e) => setForm((f) => ({ ...f, donanteId: e.target.value }))}
+                onChange={(v) => setForm((f) => ({ ...f, donanteId: v }))}
                 disabled={!!editing}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <option value="">Seleccionar donante...</option>
-                {donantes.map((d: Donante) => (
-                  <option key={d.id} value={d.id}>
-                    {d.nombre}{d.razonSocial ? ` — ${d.razonSocial}` : ""}
-                  </option>
-                ))}
-              </select>
+                placeholder="Seleccionar donante..."
+                placeholderBusqueda="Buscar donante por nombre o razón social…"
+                aria-label="Donante"
+                opciones={donantes.map((d: Donante) => ({ value: String(d.id), label: d.nombre, detalle: d.razonSocial ?? undefined }))}
+              />
             </div>
           )}
 
