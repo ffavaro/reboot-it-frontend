@@ -5,7 +5,8 @@ import type { ConstanciaRetiroDatos } from "@/lib/type/hoja-ruta"
 function fecha(iso: string | null): string {
   if (!iso) return "—"
   // fecha "solo día" (yyyy-MM-dd): se corta el string para no restar un día por la zona horaria
-  if (/^d{4}-d{2}-d{2}$/.test(iso)) return iso.split("-").reverse().join("/")
+  const dia = /^(\d{4})-(\d{2})-(\d{2})(?:T00:00:00(?:\.0+)?Z?)?$/.exec(iso)
+  if (dia) return `${dia[3]}/${dia[2]}/${dia[1]}`
   return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
 

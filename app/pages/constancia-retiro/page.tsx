@@ -22,7 +22,6 @@ import { useDonantes } from "@/hooks/use-donantes"
 import { useDonaciones } from "@/hooks/use-donacion"
 import { useRetiros } from "@/hooks/use-retiro"
 import { formatDate, getDonanteActual, getErrorMessage } from "@/lib/utils/helpers"
-import { ESTADO_DONACION } from "@/lib/constants/estados"
 import type { ConstanciaRetiro } from "@/lib/type/constancia-retiro"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import type { Donacion } from "@/lib/type/donacion"
@@ -51,7 +50,7 @@ const columns: TableColumn<ConstanciaRetiro>[] = [
   },
   {
     key: "tecnico",
-    header: "Técnico",
+    header: "Transportista",
     cell: (c) =>
       c.tecnico
         ? `${c.tecnico.nombre} ${c.tecnico.apellido}`
@@ -86,7 +85,7 @@ export default function ConstanciaRetiroPage() {
     ? (() => {
         const myDonacionIds = new Set(
           donaciones
-            .filter((d: Donacion) => d.donanteId === myDonante.id && d.estadoDonacion?.descripcion?.toLowerCase() === ESTADO_DONACION.FINALIZADA.toLowerCase())
+            .filter((d: Donacion) => d.donanteId === myDonante.id)
             .map((d: Donacion) => d.id)
         )
         const myRetiroIds = new Set(
@@ -106,24 +105,12 @@ export default function ConstanciaRetiroPage() {
       (c.observaciones ?? "").toLowerCase().includes(q) ||
       tecnico.includes(q)
     )
-  })
+  }).sort((a: ConstanciaRetiro, b: ConstanciaRetiro) => String(b.fechaEmision ?? "").localeCompare(String(a.fechaEmision ?? "")) || b.id - a.id)
 
   function openCreate() {
     setIsViewing(false)
     setEditing(null)
     setForm({ ...EMPTY_FORM, fechaEmision: todayISO() })
-    setSheetOpen(true)
-  }
-
-  function openEdit(c: ConstanciaRetiro) {
-    setIsViewing(false)
-    setEditing(c)
-    setForm({
-      retiroId: String(c.retiroId),
-      fechaEmision: c.fechaEmision ? c.fechaEmision.slice(0, 10) : "",
-      observaciones: c.observaciones ?? "",
-      tecnicoId: c.tecnicoId ? String(c.tecnicoId) : "",
-    })
     setSheetOpen(true)
   }
 
@@ -199,7 +186,7 @@ export default function ConstanciaRetiroPage() {
 
       {isDonante && (
         <div role="status" className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          Tus constancias de retiro van a estar disponibles cuando tu donación se encuentre finalizada.
+          Tus constancias de retiro están disponibles desde que se confirma el retiro de tu donación.
         </div>
       )}
 
@@ -231,7 +218,6 @@ export default function ConstanciaRetiroPage() {
         emptySearchText="No se encontraron constancias con ese criterio."
         search={search}
         onView={openView}
-        onEdit={isDonante ? undefined : openEdit}
         onDelete={isDonante ? undefined : handleDelete}
         isDeleting={isDeleting}
       />
@@ -292,7 +278,7 @@ export default function ConstanciaRetiroPage() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Técnico responsable *</label>
+          <label className="text-sm font-medium">Transportista *</label>
           <select
             value={form.tecnicoId}
             onChange={(e) => setForm((f) => ({ ...f, tecnicoId: e.target.value }))}

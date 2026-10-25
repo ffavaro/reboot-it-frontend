@@ -63,7 +63,7 @@ function FotosDelLote({ fotos, max }: { fotos: RegistroFotografico[]; max?: numb
 const baseColumns: TableColumn<Lote>[] = [
   {
     key: "id",
-    header: "N°",
+    header: "Lote",
     cell: (l) => <span className="font-mono text-xs">#{l.id}</span>,
   },
   {

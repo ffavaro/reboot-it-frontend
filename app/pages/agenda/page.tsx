@@ -23,6 +23,14 @@ function getLunes(fecha: Date): Date {
   return d
 }
 
+// Semana que se muestra al entrar: la de hoy, o la próxima si hoy es sábado o domingo (la agenda es de lunes a viernes)
+function semanaHabil(fecha: Date): Date {
+  const d = new Date(fecha)
+  if (d.getDay() === 6) d.setDate(d.getDate() + 2)
+  else if (d.getDay() === 0) d.setDate(d.getDate() + 1)
+  return getLunes(d)
+}
+
 function sumarDias(fecha: Date, dias: number): Date {
   const d = new Date(fecha)
   d.setDate(d.getDate() + dias)
@@ -67,7 +75,7 @@ function formatHora(iso: string): string {
 export default function AgendaPage() {
   const { turnos, isLoading } = useTurnos()
   const { donaciones } = useDonaciones()
-  const [inicioSemana, setInicioSemana] = useState(() => getLunes(new Date()))
+  const [inicioSemana, setInicioSemana] = useState(() => semanaHabil(new Date()))
   const [seleccionado, setSeleccionado] = useState<Turno | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
 
@@ -78,7 +86,7 @@ export default function AgendaPage() {
   const hoy = new Date()
   const diasSemana = Array.from({ length: 5 }, (_, i) => sumarDias(inicioSemana, i))
   const finSemana = sumarDias(inicioSemana, 5)
-  const esSemanaActual = mismoDia(inicioSemana, getLunes(hoy))
+  const esSemanaActual = mismoDia(inicioSemana, semanaHabil(hoy))
 
   const nowTop = (() => {
     if (!esSemanaActual) return null
@@ -99,7 +107,7 @@ export default function AgendaPage() {
 
   function semanaAnterior() { setInicioSemana((d) => sumarDias(d, -7)); setSeleccionado(null) }
   function semanaSiguiente() { setInicioSemana((d) => sumarDias(d, 7)); setSeleccionado(null) }
-  function irHoy() { setInicioSemana(getLunes(new Date())); setSeleccionado(null) }
+  function irHoy() { setInicioSemana(semanaHabil(new Date())); setSeleccionado(null) }
 
   const etiquetaSemana = (() => {
     const inicio = inicioSemana.toLocaleDateString("es-AR", { day: "numeric", month: "long" })

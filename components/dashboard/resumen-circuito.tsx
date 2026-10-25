@@ -68,7 +68,7 @@ function Indicador({ etiqueta, valor, detalle }: { etiqueta: string; valor: stri
 
 export function IndicadoresCircuito({ resumen }: { resumen?: DashboardResumen }) {
   if (!resumen) return null
-  const { ciclo, reutilizacion: r, medios, donantes, kmPorRetiro, retiroDomicilio } = resumen
+  const { ciclo, reutilizacion: r, medios, donantes, kmPorRetiro } = resumen
   return (
     <section aria-labelledby="titulo-indicadores" className="flex flex-col gap-3">
       <div>
@@ -106,13 +106,6 @@ export function IndicadoresCircuito({ resumen }: { resumen?: DashboardResumen })
             etiqueta="Km por retiro"
             valor={kmPorRetiro.valor !== null ? `${decimal(kmPorRetiro.valor)} km` : "—"}
             detalle={kmPorRetiro.retiros > 0 ? `${decimal(kmPorRetiro.km)} km en ${num(kmPorRetiro.retiros)} retiros` : "Sin hojas de ruta finalizadas"}
-          />
-        )}
-        {retiroDomicilio && (
-          <Indicador
-            etiqueta="Retiro a domicilio"
-            valor={retiroDomicilio.total > 0 ? `${num(retiroDomicilio.conRetiro)} de ${num(retiroDomicilio.total)}` : "—"}
-            detalle={retiroDomicilio.total > 0 ? `${porcentaje(retiroDomicilio.conRetiro, retiroDomicilio.total)} de las donaciones (sin canceladas)` : "Sin donaciones en el período"}
           />
         )}
       </div>

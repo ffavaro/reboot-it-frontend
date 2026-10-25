@@ -24,6 +24,7 @@ import { useCondicionesMaterial } from "@/hooks/use-condicion-material"
 import { useTipos, useCreateTipo } from "@/hooks/use-tipo"
 import { useMisPermisos } from "@/hooks/use-permisos"
 import { puede, puedeVerPantalla } from "@/lib/nav"
+import { FiltrosActivos, columnasFiltrables } from "@/components/ui/filtros-activos"
 import { useMarcas, useCreateMarca } from "@/hooks/use-marca"
 import { useModelos, useCreateModelo } from "@/hooks/use-modelo"
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
@@ -130,6 +131,16 @@ export default function MaterialPage() {
   const columnasConClasificar: TableColumn<Material>[] = [
     ...columns,
     {
+      key: "clasificacion",
+      header: "Clasificación",
+      cell: (m: Material) =>
+        esCondicionSinClasificar(m.condicionMaterial?.condicion) ? (
+          <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">Por clasificar</span>
+        ) : (
+          <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">Clasificado</span>
+        ),
+    },
+    {
       key: "procesoDestruccion",
       header: "Proceso de destrucción",
       cell: (m: Material) =>
@@ -168,7 +179,20 @@ export default function MaterialPage() {
       : []),
   ]
 
+  // Filtros que se activan tocando el valor en la grilla
+  const [fTipo, setFTipo] = useState<string | null>(null)
+  const [fCondicion, setFCondicion] = useState<string | null>(null)
+  const [fProceso, setFProceso] = useState<"Sí" | "No" | null>(null)
+  const [fClasif, setFClasif] = useState<"Clasificado" | "Por clasificar" | null>(null)
+  const procesoDe = (m: Material) => (m.procesoDestruccion ? "Sí" : "No")
+  const clasifDe = (m: Material) => (esCondicionSinClasificar(m.condicionMaterial?.condicion) ? "Por clasificar" : "Clasificado")
+
+  // más recientes primero
   const filtered = materiales.filter((m: Material) => {
+    if (fTipo !== null && m.tipoMaterial?.nombre !== fTipo) return false
+    if (fCondicion !== null && m.condicionMaterial?.condicion !== fCondicion) return false
+    if (fProceso !== null && procesoDe(m) !== fProceso) return false
+    if (fClasif !== null && clasifDe(m) !== fClasif) return false
     const q = search.toLowerCase()
     const tipo = m.tipoMaterial?.nombre?.toLowerCase() ?? ""
     const condicion = m.condicionMaterial?.condicion?.toLowerCase() ?? ""
@@ -178,7 +202,7 @@ export default function MaterialPage() {
       condicion.includes(q) ||
       (m.descripcion ?? "").toLowerCase().includes(q)
     )
-  })
+  }).sort((a: Material, b: Material) => b.id - a.id)
 
   // Resuelve si el tipo seleccionado actualmente es "Almacenamiento"
   const tipoSeleccionado = tipoMateriales.find(
@@ -407,9 +431,24 @@ export default function MaterialPage() {
         </CrearButton>
       </div>
 
+      <FiltrosActivos
+        filtros={[
+          ...(fTipo !== null ? [{ etiqueta: "Tipo de material", valor: fTipo, quitar: () => setFTipo(null) }] : []),
+          ...(fCondicion !== null ? [{ etiqueta: "Condición", valor: fCondicion, quitar: () => setFCondicion(null) }] : []),
+          ...(fClasif !== null ? [{ etiqueta: "Clasificación", valor: fClasif, quitar: () => setFClasif(null) }] : []),
+          ...(fProceso !== null ? [{ etiqueta: "Proceso de destrucción", valor: fProceso, quitar: () => setFProceso(null) }] : []),
+        ]}
+        onLimpiar={() => { setFTipo(null); setFCondicion(null); setFProceso(null); setFClasif(null) }}
+      />
+
       <DataTable
         data={filtered}
-        columns={columnasConClasificar}
+        columns={columnasFiltrables(columnasConClasificar, {
+          tipoMaterial: { activo: (m) => fTipo !== null && fTipo === m.tipoMaterial?.nombre, alternar: (m) => setFTipo((v) => (v === (m.tipoMaterial?.nombre ?? null) ? null : m.tipoMaterial?.nombre ?? null)) },
+          condicion: { activo: (m) => fCondicion !== null && fCondicion === m.condicionMaterial?.condicion, alternar: (m) => setFCondicion((v) => (v === (m.condicionMaterial?.condicion ?? null) ? null : m.condicionMaterial?.condicion ?? null)) },
+          clasificacion: { activo: (m) => fClasif === clasifDe(m), alternar: (m) => setFClasif((v) => (v === clasifDe(m) ? null : clasifDe(m))) },
+          procesoDestruccion: { activo: (m) => fProceso === procesoDe(m), alternar: (m) => setFProceso((v) => (v === procesoDe(m) ? null : procesoDe(m))) },
+        })}
         isLoading={isLoading}
         loadingText="Cargando materiales..."
         emptyText="No hay materiales registrados."

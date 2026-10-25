@@ -37,8 +37,9 @@ const SELECT_CLASS =
 
 function AdminView() {
   const [tab, setTab] = useState<Tab>("hojas")
-  const [desde, setDesde] = useState(todayISO())
-  const [hasta, setHasta] = useState(todayISO())
+  // Por defecto: la última semana y la próxima (así se ven también los turnos de los próximos días)
+  const [desde, setDesde] = useState(() => sumarDias(-7))
+  const [hasta, setHasta] = useState(() => sumarDias(7))
   const [transportistaId, setTransportistaId] = useState("")
   const [estado, setEstado] = useState<EstadoHojaRuta | "">("")
 
@@ -51,7 +52,7 @@ function AdminView() {
     empleadoTransportistaId: transportistaId ? Number(transportistaId) : undefined,
     estado: estado || undefined,
   })
-  const rangoModificado = desde !== todayISO() || hasta !== todayISO()
+  const rangoModificado = desde !== sumarDias(-7) || hasta !== sumarDias(7)
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -111,7 +112,7 @@ function AdminView() {
             </select>
             {(transportistaId || estado || rangoModificado) && (
               <button
-                onClick={() => { setTransportistaId(""); setEstado(""); setDesde(todayISO()); setHasta(todayISO()) }}
+                onClick={() => { setTransportistaId(""); setEstado(""); setDesde(sumarDias(-7)); setHasta(sumarDias(7)) }}
                 className="px-1 text-xs text-muted-foreground hover:text-foreground"
               >
                 ✕ Limpiar filtros

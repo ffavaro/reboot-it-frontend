@@ -31,6 +31,7 @@ import type { Turno } from "@/lib/type/turno"
 import { getUser } from "@/lib/auth-utils"
 import { GenerarCertificadoModal } from "@/components/generar-certificado-modal"
 import { DetalleDonacionDialog } from "@/components/detalle-donacion-dialog"
+import { FiltrosActivos, columnasFiltrables } from "@/components/ui/filtros-activos"
 import { enforceDecimalInput } from "@/lib/utils/number-limit"
 import { formatPeso, getErrorMessage } from "@/lib/utils/helpers"
 import { CONDICION_MATERIAL, ESTADO_DONACION, esCondicion } from "@/lib/constants/estados"
@@ -182,6 +183,11 @@ export default function DonacionPage() {
   const [certDonacion, setCertDonacion] = useState<Donacion | null>(null)
   // Detalle de trazabilidad (el ojo de la grilla)
   const [detalleId, setDetalleId] = useState<number | null>(null)
+  // Filtros que se activan tocando el valor en la grilla (Donante, Estado y Entrega)
+  const [fDonante, setFDonante] = useState<number | null>(null)
+  const [fEstado, setFEstado] = useState<string | null>(null)
+  const [fEntrega, setFEntrega] = useState<"Retiro a domicilio" | "Sucursal" | null>(null)
+  const entregaDe = (d: Donacion) => (d.necesitaRetiro ? "Retiro a domicilio" : "Sucursal")
 
   // Condición por defecto de todo material cargado: se define recién al clasificarlo
   const condicionADefinir = condiciones.find(
@@ -196,6 +202,9 @@ export default function DonacionPage() {
 
   // La última donación cargada va primero
   const filtered = visibleDonaciones.filter((d: Donacion) => {
+    if (fDonante !== null && d.donanteId !== fDonante) return false
+    if (fEstado !== null && d.estadoDonacion?.descripcion !== fEstado) return false
+    if (fEntrega !== null && entregaDe(d) !== fEntrega) return false
     const q = search.toLowerCase()
     return (
       (d.donante?.nombre ?? "").toLowerCase().includes(q) ||
@@ -590,9 +599,22 @@ export default function DonacionPage() {
         </CrearButton>
       </div>
 
+      <FiltrosActivos
+        filtros={[
+          ...(fDonante !== null ? [{ etiqueta: "Donante", valor: donantes.find((d: Donante) => d.id === fDonante)?.nombre ?? `#${fDonante}`, quitar: () => setFDonante(null) }] : []),
+          ...(fEstado !== null ? [{ etiqueta: "Estado", valor: fEstado, quitar: () => setFEstado(null) }] : []),
+          ...(fEntrega !== null ? [{ etiqueta: "Entrega", valor: fEntrega, quitar: () => setFEntrega(null) }] : []),
+        ]}
+        onLimpiar={() => { setFDonante(null); setFEstado(null); setFEntrega(null) }}
+      />
+
       <DataTable
         data={filtered}
-        columns={columns}
+        columns={columnasFiltrables(columns, {
+          donante: { activo: (d) => fDonante === d.donanteId, alternar: (d) => setFDonante((f) => (f === d.donanteId ? null : d.donanteId)) },
+          estado: { activo: (d) => fEstado !== null && fEstado === d.estadoDonacion?.descripcion, alternar: (d) => setFEstado((f) => (f === (d.estadoDonacion?.descripcion ?? null) ? null : d.estadoDonacion?.descripcion ?? null)) },
+          retiro: { activo: (d) => fEntrega === entregaDe(d), alternar: (d) => setFEntrega((f) => (f === entregaDe(d) ? null : entregaDe(d))) },
+        })}
         isLoading={isLoading}
         loadingText="Cargando donaciones..."
         emptyText="No hay donaciones registradas."

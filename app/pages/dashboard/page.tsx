@@ -151,7 +151,7 @@ export default function DashboardPage() {
   )
 
   // Indicadores y gráficos del circuito (trabajo pendiente, tiempos y gráficos de tres variables): se calculan en el servidor
-  const { resumen, isLoading: cargandoResumen } = useDashboardResumen({ fechaDesde: rango.fechaDesde, fechaHasta: rango.fechaHasta, donanteIds })
+  const { resumen } = useDashboardResumen({ fechaDesde: rango.fechaDesde, fechaHasta: rango.fechaHasta, donanteIds })
 
   // ── Datos base ────────────────────────────────────────────────────────
   const { lotes, isLoading: loadingLotes } = useLotes()
@@ -229,7 +229,6 @@ export default function DashboardPage() {
     : undefined
 
   // Lotes activos "en laboratorio" es una foto del presente, no depende del rango de fechas
-  const labCount = useMemo(() => lotes.filter(l => l.isActive && incluyeDonante(l.donacion?.donanteId)).length, [lotes, donanteSeleccionado]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const lotesFiltrados = useMemo(() => lotes.filter(l => {
     const matchDonante = incluyeDonante(l.donacion?.donanteId)
@@ -480,16 +479,11 @@ export default function DashboardPage() {
       <IndicadoresCircuito resumen={resumen} />
 
       {/* Nivel 1 — KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <KpiCard
           label="Total donaciones recibidas"
           value={isLoading ? "…" : donacionesActuales.length}
           trend={isLoading ? undefined : trendDonaciones}
-        />
-        <KpiCard
-          label="Hardware en laboratorio"
-          value={cargandoResumen && !resumen ? "…" : resumen?.pendiente.lotesPorClasificar ?? labCount}
-          sub="lotes con materiales sin clasificar"
         />
         <KpiCard
           label="Efectividad de recuperación"

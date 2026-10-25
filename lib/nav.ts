@@ -36,10 +36,10 @@ export const navMain: NavSection[] = [
         ],
       },
       {
-        title: "Agenda de turnos", url: "/pages/turno", clave: "turnos", icon: CalendarDays, visibleSi: (p) => p?.turnos?.ver === "PLENO",
+        title: "Agenda de turnos", url: "/pages/agenda", clave: "agenda", icon: CalendarDays, visibleSi: (p) => p?.turnos?.ver === "PLENO",
         tabs: [
-          { title: "Lista", url: "/pages/turno", clave: "turnos" },
           { title: "Calendario", url: "/pages/agenda", clave: "agenda" },
+          { title: "Lista", url: "/pages/turno", clave: "turnos" },
         ],
       },
     ],

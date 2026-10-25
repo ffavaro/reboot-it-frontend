@@ -11,6 +11,7 @@ type Graficos = DashboardResumen["graficos"]
 const num = (n: number) => n.toLocaleString("es-AR")
 const dec = (n: number) => n.toLocaleString("es-AR", { maximumFractionDigits: 1 })
 const PALETA = ["#378ADD", "#639922", "#F5A623", "#E24B4A", "#8B5CF6", "#14B8A6", "#EC4899"]
+const textoLeyenda = (valor: string) => <span className="text-foreground">{valor}</span>
 const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
 
 const nombreMes = (mes: string, conAnio: boolean) => {
@@ -36,13 +37,13 @@ function Panel({ titulo, subtitulo, children, vacio }: { titulo: string; subtitu
 
 // ── 1. Tiempo de ciclo por etapa y mes (barras apiladas) ──────────────────────
 const ETAPAS = [
-  { key: "espera", nombre: "Espera de retiro", color: "#c9c7bd" },
-  { key: "clasificacion", nombre: "Clasificación", color: "#dad9d0" },
-  { key: "destruccionPallet", nombre: "Destrucción y pallet", color: "#e8e7e1" },
+  { key: "espera", nombre: "Espera de retiro", color: "#94a3b8" },
+  { key: "clasificacion", nombre: "Clasificación", color: "#b8c4d4" },
+  { key: "destruccionPallet", nombre: "Destrucción y pallet", color: "#d3dbe6" },
   { key: "certificacion", nombre: "Certificación", color: "#378ADD" },
 ] as const
 
-export function CicloPorEtapaChart({ datos }: { datos: Graficos["cicloPorEtapa"] }) {
+export function CicloPorEtapaChart({ datos, promedioCiclo }: { datos: Graficos["cicloPorEtapa"]; promedioCiclo?: number | null }) {
   const filas = useMemo(() => {
     const meses = datos?.meses ?? []
     const variosAnios = new Set(meses.map((m) => m.mes.slice(0, 4))).size > 1
@@ -52,7 +53,7 @@ export function CicloPorEtapaChart({ datos }: { datos: Graficos["cicloPorEtapa"]
   if (!datos || filas.length === 0) {
     return <Panel titulo="Tiempo de ciclo por etapa" subtitulo="Mes × etapa × días promedio" vacio="Todavía no hay donaciones con certificado emitido en el período." />
   }
-  const total = ETAPAS.reduce((s, e) => s + datos.promedio[e.key], 0)
+  const total = promedioCiclo ?? ETAPAS.reduce((s, e) => s + datos.promedio[e.key], 0)
   const larga = ETAPAS.reduce((a, b) => (datos.promedio[b.key] > datos.promedio[a.key] ? b : a))
   return (
     <Panel
@@ -65,14 +66,14 @@ export function CicloPorEtapaChart({ datos }: { datos: Graficos["cicloPorEtapa"]
           <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v} d`} />
           <YAxis type="category" dataKey="etiqueta" width={96} tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
           <Tooltip formatter={(v) => `${dec(Number(v))} días`} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
-          <Legend iconType="square" wrapperStyle={{ fontSize: 12 }} />
+          <Legend iconType="square" wrapperStyle={{ fontSize: 12 }} formatter={textoLeyenda} />
           {ETAPAS.map((e, i) => (
             <Bar key={e.key} dataKey={e.key} name={e.nombre} stackId="ciclo" fill={e.color}>
               <LabelList
                 dataKey={e.key}
                 position="center"
                 formatter={(v) => (Number(v) >= 1.5 ? dec(Number(v)) : "")}
-                style={{ fontSize: 11, fill: i === ETAPAS.length - 1 ? "#ffffff" : "#44443c" }}
+                style={{ fontSize: 11, fill: i === ETAPAS.length - 1 || i === 0 ? "#ffffff" : "#1e293b" }}
               />
               {i === ETAPAS.length - 1 && (
                 <LabelList
@@ -122,7 +123,7 @@ export function DestinoPorTipoChart({ datos }: { datos: Graficos["destinoPorTipo
           <XAxis type="number" domain={[0, 1]} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${Math.round(Number(v) * 100)} %`} />
           <YAxis type="category" dataKey="etiqueta" width={150} tick={{ fontSize: 12 }} tickLine={false} axisLine={false} interval={0} />
           <Tooltip formatter={(v, nombre) => [`${v} materiales`, String(nombre)]} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
-          <Legend iconType="square" wrapperStyle={{ fontSize: 12 }} />
+          <Legend iconType="square" wrapperStyle={{ fontSize: 12 }} formatter={textoLeyenda} />
           <ReferenceLine x={pctTotal} stroke="#71716a" strokeDasharray="4 3" />
           <Bar dataKey="reutilizable" name="Reutilizable" stackId="destino" fill="#7acc7d">
             <LabelList
@@ -139,7 +140,7 @@ export function DestinoPorTipoChart({ datos }: { datos: Graficos["destinoPorTipo
               }}
             />
           </Bar>
-          <Bar dataKey="reciclable" name="Reciclable" stackId="destino" fill="#d4d3cc" />
+          <Bar dataKey="reciclable" name="Reciclable" stackId="destino" fill="#b5b3a8" />
           <Bar dataKey="desecho" name="Desecho" stackId="destino" fill="#e89a98" />
         </BarChart>
       </ResponsiveContainer>
@@ -236,7 +237,7 @@ export function MapaDonantesChart({ datos }: { datos: Graficos["mapaDonantes"] }
       subtitulo={`Cada burbuja es un donante: ${mejor ? `${mejor.nombre} es el de mayor volumen (${num(mejor.kg)} kg). ` : ""}Tamaño = % de lo que traen que es reutilizable; color = tipo de donante`}
     >
       <ResponsiveContainer width="100%" height={320}>
-        <ScatterChart margin={{ top: 8, right: 16, left: 0, bottom: 24 }}>
+        <ScatterChart margin={{ top: 8, right: 16, left: 0, bottom: 28 }}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.4} />
           <XAxis type="number" dataKey="donaciones" name="Donaciones" allowDecimals={false} tick={{ fontSize: 11 }} tickLine={false} label={{ value: "Donaciones", position: "insideBottom", offset: -12, fontSize: 11 }} />
           <YAxis type="number" dataKey="kg" name="Kg" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={52} label={{ value: "kg", angle: -90, position: "insideLeft", fontSize: 11 }} />
@@ -256,7 +257,7 @@ export function MapaDonantesChart({ datos }: { datos: Graficos["mapaDonantes"] }
               )
             }}
           />
-          <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+          <Legend iconType="circle" verticalAlign="top" wrapperStyle={{ fontSize: 12, paddingBottom: 8 }} formatter={textoLeyenda} />
           {grupos.map(([tipo, lista], i) => (
             <Scatter key={tipo} name={tipo} data={lista} fill={PALETA[i % PALETA.length]} fillOpacity={0.6} stroke={PALETA[i % PALETA.length]} />
           ))}
@@ -291,7 +292,7 @@ export function KgPorMesChart({ datos }: { datos: Graficos["kgPorMesYTipo"] }) {
           <XAxis dataKey="etiqueta" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
           <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={56} tickFormatter={(v) => `${num(Number(v))} kg`} />
           <Tooltip formatter={(v, nombre) => [`${dec(Number(v))} kg`, String(nombre)]} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
-          <Legend iconType="square" wrapperStyle={{ fontSize: 12 }} />
+          <Legend iconType="square" wrapperStyle={{ fontSize: 12 }} formatter={textoLeyenda} />
           {tipos.map((t, i) => <Bar key={t} dataKey={t} name={t} stackId="kg" fill={PALETA[i % PALETA.length]} />)}
         </BarChart>
       </ResponsiveContainer>
@@ -375,7 +376,7 @@ export function EficienciaRutasChart({ datos }: { datos: Graficos["eficienciaRut
       subtitulo={`Cada punto es una hoja de ruta finalizada${kmPorParada !== null ? ` · promedio ${dec(kmPorParada)} km por parada` : ""}. Agrupar retiros por zona baja los km`}
     >
       <ResponsiveContainer width="100%" height={300}>
-        <ScatterChart margin={{ top: 8, right: 16, left: 0, bottom: 24 }}>
+        <ScatterChart margin={{ top: 8, right: 16, left: 0, bottom: 28 }}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.4} />
           <XAxis type="number" dataKey="paradas" name="Paradas" allowDecimals={false} tick={{ fontSize: 11 }} tickLine={false} label={{ value: "Paradas por hoja", position: "insideBottom", offset: -12, fontSize: 11 }} />
           <YAxis type="number" dataKey="km" name="Km" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={48} label={{ value: "km", angle: -90, position: "insideLeft", fontSize: 11 }} />
@@ -394,7 +395,7 @@ export function EficienciaRutasChart({ datos }: { datos: Graficos["eficienciaRut
               )
             }}
           />
-          <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+          <Legend iconType="circle" verticalAlign="top" wrapperStyle={{ fontSize: 12, paddingBottom: 8 }} formatter={textoLeyenda} />
           {grupos.map(([nombre, lista], i) => (
             <Scatter key={nombre} name={nombre} data={lista} fill={PALETA[i % PALETA.length]} fillOpacity={0.7} />
           ))}
@@ -415,7 +416,7 @@ export function GraficosCircuito({ resumen }: { resumen?: DashboardResumen }) {
         <p className="text-xs text-muted-foreground">Gráficos que cruzan tres o más variables; cada uno responde una pregunta de gestión.</p>
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        {resumen.completo && <div className="xl:col-span-2"><CicloPorEtapaChart datos={g.cicloPorEtapa} /></div>}
+        {resumen.completo && <div className="xl:col-span-2"><CicloPorEtapaChart datos={g.cicloPorEtapa} promedioCiclo={resumen.ciclo?.promedio} /></div>}
         <DestinoPorTipoChart datos={g.destinoPorTipo} />
         {resumen.completo && <DemandaTurnosChart datos={g.demandaTurnos} />}
         {resumen.completo && <MapaDonantesChart datos={g.mapaDonantes} />}

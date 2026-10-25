@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { CrearButton } from "@/components/ui/crear-button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
+import { FiltrosActivos, columnasFiltrables } from "@/components/ui/filtros-activos"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
@@ -46,6 +47,15 @@ const EMPTY_TIPO = { descripcion: "" }
 
 const donanteColumns: TableColumn<Donante>[] = [
   {
+    key: "tipo",
+    header: "Tipo",
+    cell: (d) => (
+      <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+        {d.tipoDonante?.descripcion ?? "—"}
+      </span>
+    ),
+  },
+  {
     key: "nombre",
     header: "Nombre",
     cell: (d) => <span className="font-medium">{d.nombre}</span>,
@@ -56,15 +66,6 @@ const donanteColumns: TableColumn<Donante>[] = [
     cell: (d) => (
       <span className="text-muted-foreground">
         {d.razonSocial ?? <span className="italic">—</span>}
-      </span>
-    ),
-  },
-  {
-    key: "tipo",
-    header: "Tipo",
-    cell: (d) => (
-      <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
-        {d.tipoDonante?.descripcion ?? "—"}
       </span>
     ),
   },
@@ -104,11 +105,15 @@ function DonantesTab() {
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_DONANTE)
 
+  // Filtro que se activa tocando el Tipo en la grilla
+  const [fTipo, setFTipo] = useState<string | null>(null)
+
   const filtered = donantes.filter(
     (d) =>
-      d.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      (d.razonSocial ?? "").toLowerCase().includes(search.toLowerCase()) ||
-      (d.telefono ?? "").toLowerCase().includes(search.toLowerCase()),
+      (fTipo === null || d.tipoDonante?.descripcion === fTipo) &&
+      (d.nombre.toLowerCase().includes(search.toLowerCase()) ||
+        (d.razonSocial ?? "").toLowerCase().includes(search.toLowerCase()) ||
+        (d.telefono ?? "").toLowerCase().includes(search.toLowerCase())),
   )
 
   function set(field: keyof typeof EMPTY_DONANTE, value: string | number) {
@@ -237,9 +242,16 @@ function DonantesTab() {
         </CrearButton>
       </div>
 
+      <FiltrosActivos
+        filtros={fTipo !== null ? [{ etiqueta: "Tipo", valor: fTipo, quitar: () => setFTipo(null) }] : []}
+        onLimpiar={() => setFTipo(null)}
+      />
+
       <DataTable
         data={filtered}
-        columns={donanteColumns}
+        columns={columnasFiltrables(donanteColumns, {
+          tipo: { activo: (d) => fTipo !== null && fTipo === d.tipoDonante?.descripcion, alternar: (d) => setFTipo((v) => (v === (d.tipoDonante?.descripcion ?? null) ? null : d.tipoDonante?.descripcion ?? null)) },
+        })}
         isLoading={isLoading}
         loadingText="Cargando donantes..."
         emptyText="No hay donantes registrados."
