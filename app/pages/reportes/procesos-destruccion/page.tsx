@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { DateInput } from "@/components/ui/date-input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -169,7 +169,7 @@ export default function ReporteProcesoDestruccionPage() {
             {/* Fecha desde */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Fecha Desde</label>
-              <DateInput
+              <DatePicker variant="field" conFinDeSemana clearable placeholder="Seleccionar fecha"
                 value={filters.fechaDesde ?? ""}
                 onChange={(v) => setFilters((f) => ({ ...f, fechaDesde: v || undefined }))}
               />
@@ -178,7 +178,7 @@ export default function ReporteProcesoDestruccionPage() {
             {/* Fecha hasta */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Fecha Hasta</label>
-              <DateInput
+              <DatePicker variant="field" conFinDeSemana clearable placeholder="Seleccionar fecha"
                 value={filters.fechaHasta ?? ""}
                 onChange={(v) => setFilters((f) => ({ ...f, fechaHasta: v || undefined }))}
               />

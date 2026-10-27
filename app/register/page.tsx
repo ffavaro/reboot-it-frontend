@@ -3,10 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { DireccionMapa, tieneAltura } from '@/components/direccion-mapa';
 import { toast } from 'react-toastify';
 import { useRegister } from '@/hooks/use-auth';
 import { jwtDecode } from 'jwt-decode';
 import { TipoDonante } from '@/lib/type/donante';
+import { isLegalEntity, isOrganismo, JURISDICCIONES } from '@/lib/donante-tipo';
 import { tipoDonanteApi, donantesApi } from '@/lib/api';
 import { TokenPayload } from '@/lib/auth-utils';
 import { validateEmail, validateCuitDni } from '@/lib/utils/helpers';
@@ -18,6 +20,10 @@ const EMPTY_FORM = {
   name: '',
   apellido: '',
   razonSocial: '',
+  jurisdiccion: '',
+  respApellido: '',
+  respNombre: '',
+  cargoResponsable: '',
   email: '',
   cuitDni: '',
   direccion: '',
@@ -30,12 +36,6 @@ const MAX_NOMBRE = 25;
 const SOLO_LETRAS = /^[\p{L} ]+$/u;
 
 type FormErrors = Partial<Record<keyof typeof EMPTY_FORM, string>>;
-
-function isLegalEntity(tipo: TipoDonante | undefined): boolean {
-  if (!tipo) return false;
-  const desc = tipo.descripcion.toLowerCase();
-  return desc.includes('empresa') || desc.includes('organismo') || desc.includes('público') || desc.includes('publico');
-}
 
 function validateSoloLetras(value: string, campo: string): string | undefined {
   const v = value.trim();
@@ -65,6 +65,7 @@ export default function RegisterPage() {
 
   const selectedTipo = tipoDonantes.find((t) => String(t.id) === formData.tipoDonanteId);
   const usesRazonSocial = isLegalEntity(selectedTipo);
+  const esOrganismo = isOrganismo(selectedTipo);
   const tipoSeleccionado = !!formData.tipoDonanteId;
 
   function validate(data: typeof EMPTY_FORM): FormErrors {
@@ -74,9 +75,20 @@ export default function RegisterPage() {
 
     if (!data.tipoDonanteId) e.tipoDonanteId = 'Seleccioná el tipo de donante';
 
+    const organismo = isOrganismo(tipo);
+
     if (legalEntity) {
-      if (!data.razonSocial.trim()) e.razonSocial = 'La razón social es obligatoria';
+      if (!data.razonSocial.trim()) e.razonSocial = organismo ? 'El nombre del organismo es obligatorio' : 'La razón social es obligatoria';
       else if (data.razonSocial.trim().length < 3) e.razonSocial = 'Mínimo 3 caracteres';
+      if (organismo) {
+        if (!data.jurisdiccion) e.jurisdiccion = 'Seleccioná la jurisdicción';
+        const apellidoResp = validateSoloLetras(data.respApellido, 'apellido del responsable');
+        if (apellidoResp) e.respApellido = apellidoResp;
+        const nombreResp = validateSoloLetras(data.respNombre, 'nombre del responsable');
+        if (nombreResp) e.respNombre = nombreResp;
+        if (!data.cargoResponsable.trim()) e.cargoResponsable = 'El cargo del responsable es obligatorio';
+        if (!data.telefono.trim()) e.telefono = 'El teléfono de contacto es obligatorio';
+      }
     } else if (data.tipoDonanteId) {
       const nameError = validateSoloLetras(data.name, 'nombre');
       if (nameError) e.name = nameError;
@@ -87,11 +99,13 @@ export default function RegisterPage() {
     if (!data.email.trim()) e.email = 'El correo es obligatorio';
     else if (!validateEmail(data.email)) e.email = 'Correo inválido';
 
-    if (!data.cuitDni.trim()) e.cuitDni = 'El CUIT/DNI es obligatorio';
+    if (!data.cuitDni.trim()) e.cuitDni = organismo ? 'El CUIT es obligatorio' : 'El CUIT/DNI es obligatorio';
     else if (!validateCuitDni(data.cuitDni)) e.cuitDni = 'Debe tener 8 (DNI) u 11 (CUIT) dígitos';
+    else if (organismo && data.cuitDni.replace(/\D/g, '').length !== 11) e.cuitDni = 'El CUIT del organismo debe tener 11 dígitos';
 
     if (!data.direccion.trim()) e.direccion = 'La dirección es obligatoria';
     else if (data.direccion.trim().length < 5) e.direccion = 'Ingresá una dirección válida';
+    else if (!tieneAltura(data.direccion)) e.direccion = 'Incluí la altura (número de la casa)';
 
     if (!data.password) e.password = 'La contraseña es obligatoria';
     else if (data.password.length < 6) e.password = 'Mínimo 6 caracteres';
@@ -110,6 +124,10 @@ export default function RegisterPage() {
       updated.name = '';
       updated.apellido = '';
       updated.razonSocial = '';
+      updated.jurisdiccion = '';
+      updated.respApellido = '';
+      updated.respNombre = '';
+      updated.cargoResponsable = '';
     }
     setFormData(updated);
     if (touched[name as keyof typeof EMPTY_FORM]) {
@@ -154,6 +172,11 @@ export default function RegisterPage() {
         razonSocial: usesRazonSocial ? formData.razonSocial.trim() : undefined,
         direccion: formData.direccion.trim() || undefined,
         telefono: formData.telefono.trim() || undefined,
+        ...(esOrganismo ? {
+          jurisdiccion: formData.jurisdiccion,
+          responsable: `${formData.respApellido.trim()} ${formData.respNombre.trim()}`,
+          cargoResponsable: formData.cargoResponsable.trim(),
+        } : {}),
         usuarioId,
       }, authResult?.access_token);
       toast.success('Registro exitoso! Por favor, inicia sesión.');
@@ -250,12 +273,12 @@ export default function RegisterPage() {
                       {usesRazonSocial && (
                         <div>
                           <label htmlFor="razonSocial" className="block text-xs font-semibold text-gray-600 mb-1">
-                            Razón Social
+                            {esOrganismo ? 'Nombre del organismo' : 'Razón Social'}
                           </label>
                           <Input
                             id="razonSocial"
                             type="text"
-                            placeholder="Empresa S.A."
+                            placeholder={esOrganismo ? 'Ministerio de Ambiente' : 'Empresa S.A.'}
                             className={`h-9 text-sm ${err('razonSocial')}`}
                             {...field('razonSocial')}
                           />
@@ -263,23 +286,76 @@ export default function RegisterPage() {
                         </div>
                       )}
 
+                      {/* Datos propios del organismo público */}
+                      {esOrganismo && (
+                        <>
+                          <div>
+                            <label htmlFor="jurisdiccion" className="block text-xs font-semibold text-gray-600 mb-1">
+                              Jurisdicción
+                            </label>
+                            <select
+                              id="jurisdiccion"
+                              className={`flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm bg-white transition-colors focus-visible:outline-none focus-visible:ring-1 ${touched.jurisdiccion && errors.jurisdiccion
+                                  ? 'border-red-400 focus-visible:ring-red-400'
+                                  : 'border-input focus-visible:ring-ring'
+                                }`}
+                              {...field('jurisdiccion')}
+                            >
+                              <option value="">Seleccionar jurisdicción...</option>
+                              {JURISDICCIONES.map((j) => (
+                                <option key={j} value={j}>{j}</option>
+                              ))}
+                            </select>
+                            <FieldError name="jurisdiccion" />
+                          </div>
+                          <div>
+                            <label htmlFor="respApellido" className="block text-xs font-semibold text-gray-600 mb-1">
+                              Apellido del responsable
+                            </label>
+                            <Input
+                              id="respApellido"
+                              type="text"
+                              placeholder="Gómez"
+                              maxLength={MAX_NOMBRE}
+                              className={`h-9 text-sm ${err('respApellido')}`}
+                              {...field('respApellido')}
+                            />
+                            <FieldError name="respApellido" />
+                          </div>
+                          <div>
+                            <label htmlFor="respNombre" className="block text-xs font-semibold text-gray-600 mb-1">
+                              Nombre del responsable
+                            </label>
+                            <Input
+                              id="respNombre"
+                              type="text"
+                              placeholder="Laura"
+                              maxLength={MAX_NOMBRE}
+                              className={`h-9 text-sm ${err('respNombre')}`}
+                              {...field('respNombre')}
+                            />
+                            <FieldError name="respNombre" />
+                          </div>
+                          <div>
+                            <label htmlFor="cargoResponsable" className="block text-xs font-semibold text-gray-600 mb-1">
+                              Cargo del responsable
+                            </label>
+                            <Input
+                              id="cargoResponsable"
+                              type="text"
+                              placeholder="Directora de Compras"
+                              maxLength={100}
+                              className={`h-9 text-sm ${err('cargoResponsable')}`}
+                              {...field('cargoResponsable')}
+                            />
+                            <FieldError name="cargoResponsable" />
+                          </div>
+                        </>
+                      )}
+
                       {/* Nombre y Apellido — particular */}
                       {!usesRazonSocial && (
                         <>
-                          <div>
-                            <label htmlFor="name" className="block text-xs font-semibold text-gray-600 mb-1">
-                              Nombre
-                            </label>
-                            <Input
-                              id="name"
-                              type="text"
-                              placeholder="Juan"
-                              maxLength={MAX_NOMBRE}
-                              className={`h-9 text-sm ${err('name')}`}
-                              {...field('name')}
-                            />
-                            <SoloLetrasHint name="name" />
-                          </div>
                           <div>
                             <label htmlFor="apellido" className="block text-xs font-semibold text-gray-600 mb-1">
                               Apellido
@@ -294,13 +370,27 @@ export default function RegisterPage() {
                             />
                             <SoloLetrasHint name="apellido" />
                           </div>
+                          <div>
+                            <label htmlFor="name" className="block text-xs font-semibold text-gray-600 mb-1">
+                              Nombre
+                            </label>
+                            <Input
+                              id="name"
+                              type="text"
+                              placeholder="Juan"
+                              maxLength={MAX_NOMBRE}
+                              className={`h-9 text-sm ${err('name')}`}
+                              {...field('name')}
+                            />
+                            <SoloLetrasHint name="name" />
+                          </div>
                         </>
                       )}
 
                       {/* CUIT / DNI */}
                       <div>
                         <label htmlFor="cuitDni" className="block text-xs font-semibold text-gray-600 mb-1">
-                          CUIT / DNI
+                          {esOrganismo ? 'CUIT' : 'CUIT / DNI'}
                         </label>
                         <Input
                           id="cuitDni"
@@ -317,12 +407,18 @@ export default function RegisterPage() {
                         <label htmlFor="direccion" className="block text-xs font-semibold text-gray-600 mb-1">
                           Dirección
                         </label>
-                        <Input
+                        <DireccionMapa
                           id="direccion"
-                          type="text"
-                          placeholder="Av. Corrientes 1234, CABA"
-                          className={`h-9 text-sm ${err('direccion')}`}
-                          {...field('direccion')}
+                          name="direccion"
+                          placeholder="Av. Colón 1234, Córdoba"
+                          inputClassName={`h-9 text-sm ${err('direccion')}`}
+                          value={formData.direccion}
+                          onChange={(valor) =>
+                            handleChange({ target: { name: 'direccion', value: valor } } as React.ChangeEvent<HTMLInputElement>)
+                          }
+                          onBlur={() =>
+                            handleBlur({ target: { name: 'direccion' } } as React.FocusEvent<HTMLInputElement>)
+                          }
                         />
                         <FieldError name="direccion" />
                       </div>
@@ -330,15 +426,16 @@ export default function RegisterPage() {
                       {/* Teléfono */}
                       <div>
                         <label htmlFor="telefono" className="block text-xs font-semibold text-gray-600 mb-1">
-                          Teléfono <span className="font-normal text-gray-400">(opcional)</span>
+                          Teléfono {!esOrganismo && <span className="font-normal text-gray-400">(opcional)</span>}
                         </label>
                         <Input
                           id="telefono"
                           type="tel"
                           placeholder="+54 11 1234-5678"
-                          className="h-9 text-sm"
+                          className={`h-9 text-sm ${err('telefono')}`}
                           {...field('telefono')}
                         />
+                        <FieldError name="telefono" />
                       </div>
                     </div>
 

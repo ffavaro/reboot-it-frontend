@@ -186,7 +186,7 @@ export default function ConstanciaRetiroPage() {
 
       {isDonante && (
         <div role="status" className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          Tus constancias de retiro están disponibles desde que se confirma el retiro de tu donación.
+          Tus constancias de retiro estarán disponibles una vez confirmado el retiro de la donación.
         </div>
       )}
 

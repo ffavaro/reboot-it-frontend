@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { etiquetaX, etiquetaY, ALTO_EJE_X } from "@/components/dashboard/ejes"
 import { CartesianGrid, LabelList, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from "recharts"
 import { DatePicker } from "@/components/ui/date-picker"
 import { useUsoVehiculos } from "@/hooks/use-historial-km"
@@ -64,7 +65,7 @@ export function VehiculosUsoChart() {
   )
 
   return (
-    <div className="rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
+    <div className="flex h-full flex-col rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm font-medium text-foreground mb-1">Vehículos más utilizados</p>
@@ -112,18 +113,18 @@ export function VehiculosUsoChart() {
       </div>
 
       {error ? (
-        <div className="h-[260px] flex items-center justify-center text-xs text-destructive">
+        <div className="min-h-[180px] flex-1 flex items-center justify-center text-xs text-destructive">
           No se pudieron cargar los datos de uso de vehículos.
         </div>
       ) : isLoading ? (
-        <div className="h-[260px] flex items-center justify-center text-xs text-muted-foreground">Cargando…</div>
+        <div className="min-h-[180px] flex-1 flex items-center justify-center text-xs text-muted-foreground">Cargando…</div>
       ) : uso.length === 0 ? (
-        <div className="h-[260px] flex items-center justify-center text-xs text-muted-foreground text-center px-6">
+        <div className="min-h-[180px] flex-1 flex items-center justify-center text-xs text-muted-foreground text-center px-6">
           No hay hojas de ruta finalizadas en este período.
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={300}>
-          <ScatterChart margin={{ top: 16, right: 24, left: 0, bottom: 24 }}>
+        <ResponsiveContainer className="flex-1" width="100%" height="100%" minHeight={200}>
+          <ScatterChart margin={{ top: 16, right: 24, left: 0, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.15)" />
             <XAxis
               type="number"
@@ -133,7 +134,8 @@ export function VehiculosUsoChart() {
               tick={{ fontSize: 11 }}
               tickLine={false}
               domain={[0, (max: number) => Math.max(2, Math.ceil(max * 1.15))]}
-              label={{ value: "Recorridos", position: "insideBottom", offset: -12, fontSize: 11 }}
+              height={ALTO_EJE_X}
+              label={etiquetaX("Cantidad de recorridos")}
             />
             <YAxis
               type="number"
@@ -143,7 +145,8 @@ export function VehiculosUsoChart() {
               tickLine={false}
               axisLine={false}
               unit=" km"
-              width={64}
+              width={84}
+              label={etiquetaY("Km recorridos")}
               domain={[0, (max: number) => Math.ceil(max * 1.15)]}
             />
             <ZAxis type="number" dataKey="kmPorRecorrido" range={[90, 600]} />

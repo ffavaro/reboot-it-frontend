@@ -41,6 +41,15 @@ export const dniOCuit = (): Validator => (value) => {
   return s.length === 8 || s.length === 11 ? null : "Debe tener 8 (DNI) u 11 (CUIT) dígitos"
 }
 
+// Teléfono argentino solo con dígitos: código de área + número (10 dígitos, sin 0 ni 15), con 54 y/o 9 delante opcionales
+export const REGEX_TELEFONO_AR = /^(?:54)?9?[1-9]\d{9}$/
+export const telefonoArgentino = (): Validator => (value) => {
+  const s = String(value ?? "").trim()
+  if (!s) return null
+  if (!/^\d+$/.test(s)) return "Solo se permiten números"
+  return REGEX_TELEFONO_AR.test(s) ? null : "Ingresá un teléfono argentino válido: código de área + número, 10 dígitos (ej. 1123456789)"
+}
+
 export const integerNonNegative = (): Validator => (value) => {
   const s = String(value ?? "").trim()
   return s && !/^\d+$/.test(s) ? "Debe ser un número entero positivo" : null
@@ -70,4 +79,18 @@ export const run = (value: unknown, validators: Validator[]): string | null => {
     if (err) return err
   }
   return null
+}
+
+// La dirección tiene que incluir la altura (número de la casa)
+export const direccionConAltura = (): Validator => (value) => {
+  const s = String(value ?? "").trim()
+  return s && !/\d/.test(s) ? "Incluí la altura (número de la casa)" : null
+}
+
+// Solo letras y espacios, con un máximo de caracteres
+export const soloLetras = (label: string, max: number): Validator => (value) => {
+  const s = String(value ?? "").trim()
+  if (!s) return null
+  if (s.length > max) return `Máximo ${max} caracteres`
+  return /^[\p{L} ]+$/u.test(s) ? null : `${label} solo puede contener letras`
 }

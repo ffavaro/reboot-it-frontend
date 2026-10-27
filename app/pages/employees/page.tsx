@@ -13,6 +13,7 @@ import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { FieldError } from "@/components/ui/field"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   useEmpleadosFull,
   useRoles,
@@ -26,7 +27,7 @@ import { usePermisosPantalla } from "@/components/permisos-pantalla"
 import { getUser } from "@/lib/auth-utils"
 import { uploadFoto } from "@/lib/api/client"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import { required, requiredSelect, maxLength as maxLengthValidator, dniOCuit, notFutureDate, emailFormat, minLength } from "@/lib/form-validators"
+import { required, requiredSelect, maxLength as maxLengthValidator, dniOCuit, notFutureDate, emailFormat, minLength, telefonoArgentino, direccionConAltura } from "@/lib/form-validators"
 import { CuitDniField, DireccionField, FechaAltaField, DIRECCION_MAX } from "@/components/empleado-fields"
 import { formatFechaISO, getErrorMessage, todayISO } from "@/lib/utils/helpers"
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
@@ -79,7 +80,7 @@ function buildColumns(onReactivar?: (e: Empleado) => void): TableColumn<Empleado
   },
   {
     key: "cuitDni",
-    header: "CUIT / DNI",
+    header: "CUIT",
     cell: (emp) => (
       <span className="font-mono text-xs text-muted-foreground">
         {emp.cuitDni ?? <span className="italic">—</span>}
@@ -145,6 +146,7 @@ export default function EmployeePage() {
   const esAdmin = (getUser()?.rol?.nombre ?? "").trim().toLowerCase() === "admin"
   const { usuarios } = useUsuarios()
   const { roles } = useRoles()
+  const [fRol, setFRol] = useState("")
   const { createEmpleado, isLoading: isCreating } = useCreateEmpleado()
   const { updateEmpleado, isLoading: isUpdating } = useUpdateEmpleado()
   const { deleteEmpleado, isLoading: isDeleting } = useDeleteEmpleado()
@@ -220,10 +222,11 @@ export default function EmployeePage() {
 
   const filtered = empleados.filter(
     (e) =>
-      e.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      e.apellido.toLowerCase().includes(search.toLowerCase()) ||
-      (e.cargo ?? "").toLowerCase().includes(search.toLowerCase()) ||
-      (e.cuitDni ?? "").includes(search.trim()),
+      (!fRol || String(e.rolId ?? e.rol?.id) === fRol) &&
+      (e.nombre.toLowerCase().includes(search.toLowerCase()) ||
+        e.apellido.toLowerCase().includes(search.toLowerCase()) ||
+        (e.cargo ?? "").toLowerCase().includes(search.toLowerCase()) ||
+        (e.cuitDni ?? "").includes(search.trim())),
   )
 
   function set(field: keyof typeof EMPTY_FORM, value: string | number | boolean) {
@@ -302,8 +305,8 @@ export default function EmployeePage() {
       cargo: [maxLengthValidator(DEFAULT_TEXT_MAX)],
       cuitDni: [required("el CUIT/DNI"), dniOCuit()],
       fechaAlta: [required("la fecha de alta"), notFutureDate("La fecha de alta")],
-      direccion: [required("la dirección"), maxLengthValidator(DIRECCION_MAX)],
-      telefono: [required("el teléfono"), minLength(6)],
+      direccion: [required("la dirección"), maxLengthValidator(DIRECCION_MAX), direccionConAltura()],
+      telefono: [required("el teléfono"), telefonoArgentino()],
       // el usuario se crea junto con el empleado, así que email y contraseña solo se piden al crear
       ...(!editing ? {
         email: [required("el email"), emailFormat(), maxLengthValidator(EMAIL_MAX)],
@@ -386,6 +389,17 @@ export default function EmployeePage() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
         />
+        <Select value={fRol} onValueChange={(v) => setFRol(v ?? "")}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Todos los roles" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todos los roles</SelectItem>
+            {roles.map((r) => (
+              <SelectItem key={r.id} value={String(r.id)}>{r.nombre}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <span className="text-sm text-muted-foreground">
           {filtered.length} empleado{filtered.length !== 1 ? "s" : ""}
         </span>
@@ -472,11 +486,12 @@ export default function EmployeePage() {
               <Input
                 value={form.telefono}
                 onChange={(e) => set("telefono", e.target.value.replace(/\D/g, ""))}
-                placeholder="5491112345678"
+                placeholder="1123456789"
                 inputMode="numeric"
-                maxLength={20}
+                maxLength={13}
                 className={cn(errors.telefono && "border-destructive focus-visible:ring-destructive")}
               />
+              {!errors.telefono && <p className="text-xs text-muted-foreground">Código de área + número, sin 0 ni 15 (10 dígitos). Ej: 1123456789</p>}
               <FieldError>{errors.telefono}</FieldError>
             </div>
 

@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { FormModal } from "@/components/ui/form-modal"
 import { useTurnos } from "@/hooks/use-turno"
 import { useDonaciones } from "@/hooks/use-donacion"
-import { AGENDA_ESTADO_COLORS, colorAgendaPorDescripcion } from "@/lib/estado-colores"
+import { colorAgendaPorDescripcion } from "@/lib/estado-colores"
+import { LeyendaEstadosTurno } from "@/components/leyenda-estados-turno"
 import { formatHora } from "@/lib/utils/helpers"
 import { puedeClasificarTurno } from "@/lib/constants/estados"
 import type { Turno } from "@/lib/type/turno"
@@ -108,15 +109,7 @@ export default function AgendaPage() {
       </div>
 
       {/* Leyenda */}
-      <div className="flex items-center gap-2 flex-wrap rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-3">
-        <span className="text-xs font-medium text-muted-foreground mr-1">Estado:</span>
-        {Object.entries(AGENDA_ESTADO_COLORS).map(([label, c]) => (
-          <span key={label} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium capitalize ${c.bg} ${c.text}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${c.dot}`} />
-            {label}
-          </span>
-        ))}
-      </div>
+      <LeyendaEstadosTurno />
 
       <div className="flex items-center gap-2 rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-3">
         <Button variant="outline" size="icon" onClick={semanaAnterior}>

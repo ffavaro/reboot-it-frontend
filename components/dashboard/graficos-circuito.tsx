@@ -2,9 +2,11 @@
 
 import { useMemo } from "react"
 import {
-  Bar, BarChart, CartesianGrid, Legend, LabelList, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis,
+  Bar, BarChart, CartesianGrid, Legend, LabelList, PolarAngleAxis, RadialBar, RadialBarChart, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis,
 } from "recharts"
 import type { DashboardResumen } from "@/lib/type/dashboard"
+import type { ItemGrilla } from "@/components/dashboard/grilla-graficos"
+import { etiquetaX, etiquetaY, ALTO_EJE_X } from "@/components/dashboard/ejes"
 
 type Graficos = DashboardResumen["graficos"]
 
@@ -25,74 +27,57 @@ type PropsEtiqueta = { x?: number | string; y?: number | string; width?: number 
 
 function Panel({ titulo, subtitulo, children, vacio }: { titulo: string; subtitulo?: string; children?: React.ReactNode; vacio?: string }) {
   return (
-    <div className="rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-5 min-w-0">
-      <p className="text-base font-medium text-foreground">{titulo}</p>
-      {subtitulo && <p className="mb-4 mt-0.5 text-xs text-muted-foreground">{subtitulo}</p>}
+    <div className="flex h-full min-w-0 flex-col rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
+      <p className="text-sm font-medium text-foreground">{titulo}</p>
+      {subtitulo && <p className="mb-3 mt-0.5 text-xs text-muted-foreground">{subtitulo}</p>}
       {vacio ? (
-        <div className="flex h-[200px] items-center justify-center px-6 text-center text-xs text-muted-foreground">{vacio}</div>
-      ) : children}
+        <div className="flex min-h-[120px] flex-1 items-center justify-center px-6 text-center text-xs text-muted-foreground">{vacio}</div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+      )}
     </div>
   )
 }
 
-// ── 1. Tiempo de ciclo por etapa y mes (barras apiladas) ──────────────────────
+// ── 1. Tiempo de espera por etapa (barras radiales) ───────────────────────────
 const ETAPAS = [
-  { key: "espera", nombre: "Espera de retiro", color: "#94a3b8" },
-  { key: "clasificacion", nombre: "Clasificación", color: "#b8c4d4" },
-  { key: "destruccionPallet", nombre: "Destrucción y pallet", color: "#d3dbe6" },
+  { key: "espera", nombre: "Espera de retiro", color: "#F5A623" },
+  { key: "clasificacion", nombre: "Clasificación", color: "#639922" },
+  { key: "destruccionPallet", nombre: "Destrucción y pallet", color: "#8B5CF6" },
   { key: "certificacion", nombre: "Certificación", color: "#378ADD" },
 ] as const
 
 export function CicloPorEtapaChart({ datos, promedioCiclo }: { datos: Graficos["cicloPorEtapa"]; promedioCiclo?: number | null }) {
-  const filas = useMemo(() => {
-    const meses = datos?.meses ?? []
-    const variosAnios = new Set(meses.map((m) => m.mes.slice(0, 4))).size > 1
-    return meses.map((m) => ({ ...m, etiqueta: nombreMes(m.mes, variosAnios) }))
-  }, [datos])
-
-  if (!datos || filas.length === 0) {
-    return <Panel titulo="Tiempo de ciclo por etapa" subtitulo="Mes × etapa × días promedio" vacio="Todavía no hay donaciones con certificado emitido en el período." />
+  if (!datos || datos.meses.length === 0) {
+    return <Panel titulo="Tiempo de espera por etapa" subtitulo="Etapa × días promedio" vacio="Todavía no hay donaciones con certificado emitido en el período." />
   }
-  const total = promedioCiclo ?? ETAPAS.reduce((s, e) => s + datos.promedio[e.key], 0)
-  const larga = ETAPAS.reduce((a, b) => (datos.promedio[b.key] > datos.promedio[a.key] ? b : a))
+  const filas = ETAPAS.map((e) => ({ nombre: e.nombre, dias: datos.promedio[e.key], fill: e.color }))
+  const maxDias = Math.max(1, ...filas.map((x) => x.dias))
+  const total = promedioCiclo ?? filas.reduce((sum, x) => sum + x.dias, 0)
+  const larga = filas.reduce((x, y) => (y.dias > x.dias ? y : x))
   return (
     <Panel
-      titulo={`${larga.nombre} es la etapa más larga del ciclo`}
-      subtitulo={`Días promedio por etapa · ${larga.nombre.toLowerCase()} ${dec(datos.promedio[larga.key])} de ${dec(total)} días en promedio (${num(datos.donaciones)} donaciones)`}
+      titulo="Tiempo de espera por etapa"
+      subtitulo={`Días promedio por etapa · ${larga.nombre.toLowerCase()} es la más larga: ${dec(larga.dias)} de ${dec(total)} días en promedio (${num(datos.donaciones)} donaciones)`}
     >
-      <ResponsiveContainer width="100%" height={Math.max(220, filas.length * 52 + 70)}>
-        <BarChart data={filas} layout="vertical" margin={{ top: 4, right: 56, left: 8, bottom: 4 }} barCategoryGap="28%">
-          <CartesianGrid horizontal={false} strokeDasharray="3 3" opacity={0.4} />
-          <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v} d`} />
-          <YAxis type="category" dataKey="etiqueta" width={96} tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
-          <Tooltip formatter={(v) => `${dec(Number(v))} días`} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
-          <Legend iconType="square" wrapperStyle={{ fontSize: 12 }} formatter={textoLeyenda} />
-          {ETAPAS.map((e, i) => (
-            <Bar key={e.key} dataKey={e.key} name={e.nombre} stackId="ciclo" fill={e.color}>
-              <LabelList
-                dataKey={e.key}
-                position="center"
-                formatter={(v) => (Number(v) >= 1.5 ? dec(Number(v)) : "")}
-                style={{ fontSize: 11, fill: i === ETAPAS.length - 1 || i === 0 ? "#ffffff" : "#1e293b" }}
-              />
-              {i === ETAPAS.length - 1 && (
-                <LabelList
-                  dataKey="total"
-                  content={(props: object) => {
-                    const p = props as PropsEtiqueta
-                    const fila = filas[p.index ?? 0]
-                    return (
-                      <text x={Number(p.x) + Number(p.width) + 8} y={Number(p.y) + Number(p.height) / 2} dominantBaseline="middle" fontSize={12} fontWeight={600} fill="currentColor">
-                        {fila ? `${dec(fila.total)} d` : ""}
-                      </text>
-                    )
-                  }}
-                />
-              )}
-            </Bar>
+      <div className="grid min-h-0 flex-1 grid-cols-1 items-center gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+        <ResponsiveContainer className="min-h-[190px]" width="100%" height="100%" minHeight={190}>
+          <RadialBarChart data={filas} innerRadius="22%" outerRadius="100%" startAngle={90} endAngle={-270} barSize={14}>
+            <PolarAngleAxis type="number" domain={[0, maxDias * 1.15]} tick={false} />
+            <RadialBar dataKey="dias" background cornerRadius={7} />
+            <Tooltip formatter={(v, _n, p) => [`${dec(Number(v))} días`, String(p?.payload?.nombre ?? "")]} />
+          </RadialBarChart>
+        </ResponsiveContainer>
+        <ul className="flex flex-col gap-2 text-xs">
+          {filas.map((x) => (
+            <li key={x.nombre} className="flex items-center gap-2">
+              <span className="size-3 shrink-0 rounded-sm" style={{ background: x.fill }} aria-hidden />
+              <span className="text-foreground">{x.nombre}</span>
+              <span className="ml-auto pl-3 font-medium tabular-nums text-foreground">{dec(x.dias)} d</span>
+            </li>
           ))}
-        </BarChart>
-      </ResponsiveContainer>
+        </ul>
+      </div>
       <p className="mt-1 text-[11px] text-muted-foreground">
         Etapas: registro hasta el retiro (o el turno, si se entrega en sucursal), retiro hasta la clasificación, clasificación hasta el pallet y pallet hasta el certificado.
       </p>
@@ -115,13 +100,13 @@ export function DestinoPorTipoChart({ datos }: { datos: Graficos["destinoPorTipo
   }
   return (
     <Panel
-      titulo={top.length > 0 ? `Lo más reutilizable: ${top.join(", ")}` : "Destino por tipo de material"}
-      subtitulo={`Destino de ${num(totalMateriales)} materiales clasificados, por tipo · ${Math.round(pctTotal * 100)} % reutilizable en total`}
+      titulo="Promedio de reutilización de materiales"
+      subtitulo={`Destino de ${num(totalMateriales)} materiales clasificados, por tipo · ${Math.round(pctTotal * 100)} % reutilizable en total${top.length > 0 ? ` · lo más reutilizable: ${top.join(", ")}` : ""}`}
     >
-      <ResponsiveContainer width="100%" height={Math.max(240, filas.length * 30 + 70)}>
+      <ResponsiveContainer className="flex-1" width="100%" height="100%" minHeight={Math.max(180, filas.length * 26 + 60)}>
         <BarChart data={filas} layout="vertical" stackOffset="expand" margin={{ top: 4, right: 16, left: 8, bottom: 4 }} barCategoryGap="22%">
-          <XAxis type="number" domain={[0, 1]} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${Math.round(Number(v) * 100)} %`} />
-          <YAxis type="category" dataKey="etiqueta" width={150} tick={{ fontSize: 12 }} tickLine={false} axisLine={false} interval={0} />
+          <XAxis type="number" domain={[0, 1]} height={ALTO_EJE_X} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${Math.round(Number(v) * 100)} %`} label={etiquetaX("% de materiales")} />
+          <YAxis type="category" dataKey="etiqueta" width={176} tick={{ fontSize: 12 }} tickLine={false} axisLine={false} interval={0} label={etiquetaY("Tipo de material (cantidad)")} />
           <Tooltip formatter={(v, nombre) => [`${v} materiales`, String(nombre)]} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
           <Legend iconType="square" wrapperStyle={{ fontSize: 12 }} formatter={textoLeyenda} />
           <ReferenceLine x={pctTotal} stroke="#71716a" strokeDasharray="4 3" />
@@ -170,14 +155,14 @@ export function DemandaTurnosChart({ datos }: { datos: Graficos["demandaTurnos"]
   const horaTop = horas[totalesHora.indexOf(Math.max(...totalesHora))]
   return (
     <Panel
-      titulo={`${DIAS[diaTop]} concentra el ${pctTop} % de los turnos`}
-      subtitulo={`${num(total)} turnos por día y hora de inicio · la franja de las ${horaTop} h es la más pedida de la semana`}
+      titulo="Concentración de turnos por día/hora"
+      subtitulo={`El día más concentrado es el ${DIAS[diaTop].toLowerCase()}, con el ${pctTop} % de los turnos · ${num(total)} turnos por día y hora de inicio · la franja de las ${horaTop} h es la más pedida de la semana`}
     >
       <div className="overflow-x-auto">
         <table className="w-full border-separate border-spacing-1 text-xs" aria-label="Turnos por día y hora">
           <thead>
             <tr>
-              <th className="w-20" />
+              <th className="w-20 text-left text-[10px] font-normal text-muted-foreground">Día ↓ / Hora →</th>
               {horas.map((h) => <th key={h} className="font-normal text-muted-foreground">{h} h</th>)}
               <th className="font-normal text-muted-foreground">Total</th>
             </tr>
@@ -233,14 +218,14 @@ export function MapaDonantesChart({ datos }: { datos: Graficos["mapaDonantes"] }
   }
   return (
     <Panel
-      titulo="Quiénes son los donantes clave"
+      titulo="Principales Donantes"
       subtitulo={`Cada burbuja es un donante: ${mejor ? `${mejor.nombre} es el de mayor volumen (${num(mejor.kg)} kg). ` : ""}Tamaño = % de lo que traen que es reutilizable; color = tipo de donante`}
     >
-      <ResponsiveContainer width="100%" height={320}>
-        <ScatterChart margin={{ top: 8, right: 16, left: 0, bottom: 28 }}>
+      <ResponsiveContainer className="flex-1" width="100%" height="100%" minHeight={200}>
+        <ScatterChart margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.4} />
-          <XAxis type="number" dataKey="donaciones" name="Donaciones" allowDecimals={false} tick={{ fontSize: 11 }} tickLine={false} label={{ value: "Donaciones", position: "insideBottom", offset: -12, fontSize: 11 }} />
-          <YAxis type="number" dataKey="kg" name="Kg" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={52} label={{ value: "kg", angle: -90, position: "insideLeft", fontSize: 11 }} />
+          <XAxis type="number" dataKey="donaciones" name="Donaciones" allowDecimals={false} tick={{ fontSize: 11 }} tickLine={false} height={ALTO_EJE_X} label={etiquetaX("Cantidad de donaciones")} />
+          <YAxis type="number" dataKey="kg" name="Kg" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={64} label={etiquetaY("Kg donados")} />
           <ZAxis type="number" dataKey="z" range={[70, 520]} />
           <Tooltip
             cursor={{ strokeDasharray: "3 3" }}
@@ -285,12 +270,12 @@ export function KgPorMesChart({ datos }: { datos: Graficos["kgPorMesYTipo"] }) {
     return <Panel titulo="Kg por mes y tipo de donante" subtitulo="Mes × kg × particular / empresa / organismo" vacio="Sin lotes pesados en el período." />
   }
   return (
-    <Panel titulo="Crece el volumen y quién lo trae" subtitulo="Kg de lotes pesados por mes, según el tipo de donante">
-      <ResponsiveContainer width="100%" height={300}>
+    <Panel titulo="Kg de lotes pesados por mes, según el tipo de donante">
+      <ResponsiveContainer className="flex-1" width="100%" height="100%" minHeight={190}>
         <BarChart data={filas} margin={{ top: 8, right: 8, left: 0, bottom: 4 }} barCategoryGap="30%">
           <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.4} />
-          <XAxis dataKey="etiqueta" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-          <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={56} tickFormatter={(v) => `${num(Number(v))} kg`} />
+          <XAxis dataKey="etiqueta" height={ALTO_EJE_X} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} label={etiquetaX("Mes")} />
+          <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={80} tickFormatter={(v) => `${num(Number(v))} kg`} label={etiquetaY("Kilogramos")} />
           <Tooltip formatter={(v, nombre) => [`${dec(Number(v))} kg`, String(nombre)]} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
           <Legend iconType="square" wrapperStyle={{ fontSize: 12 }} formatter={textoLeyenda} />
           {tipos.map((t, i) => <Bar key={t} dataKey={t} name={t} stackId="kg" fill={PALETA[i % PALETA.length]} />)}
@@ -319,14 +304,14 @@ export function DestruccionMatrizChart({ datos }: { datos: Graficos["destruccion
   }
   return (
     <Panel
-      titulo={incorrectos > 0 ? `${incorrectos} proceso${incorrectos !== 1 ? "s" : ""} con un método que no corresponde al medio` : "Cada medio se destruyó con un método adecuado"}
-      subtitulo={`${num(total)} procesos de destrucción · la desmagnetización no sirve en SSD ni NVMe (NIST SP 800-88)`}
+      titulo="Media de procesos de destrucción"
+      subtitulo={`${num(total)} procesos de destrucción · ${incorrectos > 0 ? `${incorrectos} con un método que no corresponde al medio` : "cada medio se destruyó con un método adecuado"} · la desmagnetización no sirve en SSD ni NVMe (NIST SP 800-88)`}
     >
       <div className="overflow-x-auto">
         <table className="w-full border-separate border-spacing-1 text-xs" aria-label="Procesos de destrucción por método y tipo de medio">
           <thead>
             <tr>
-              <th className="text-left font-normal text-muted-foreground">Método</th>
+              <th className="text-left text-[10px] font-normal text-muted-foreground">Método ↓ / Medio →</th>
               {medios.map((m) => <th key={m} className="font-normal text-muted-foreground">{m}</th>)}
             </tr>
           </thead>
@@ -358,31 +343,74 @@ export function DestruccionMatrizChart({ datos }: { datos: Graficos["destruccion
 }
 
 // ── 7. Eficiencia de rutas (dispersión paradas × km por transportista) ────────
+const MAX_HOJAS_RADAR = 12
+
+// Tope "redondo" (1, 2, 2.5, 5 × 10^n) algo por encima del máximo: el dominio queda fijo y el perímetro de la grilla se ve completo
+function topeRedondo(maximo: number) {
+  const objetivo = Math.max(maximo, 1) * 1.15
+  const potencia = 10 ** Math.floor(Math.log10(objetivo))
+  const multiplo = [1, 2, 2.5, 5, 10].find((m) => potencia * m >= objetivo) ?? 10
+  return potencia * multiplo
+}
+
 export function EficienciaRutasChart({ datos }: { datos: Graficos["eficienciaRutas"] }) {
-  const { grupos, kmPorParada } = useMemo(() => {
-    const porTransportista = new Map<string, Graficos["eficienciaRutas"]>()
-    for (const h of datos) porTransportista.set(h.transportista, [...(porTransportista.get(h.transportista) ?? []), h])
-    const paradas = datos.reduce((s, h) => s + h.paradas, 0)
-    const km = datos.reduce((s, h) => s + h.km, 0)
-    return { grupos: [...porTransportista.entries()], kmPorParada: paradas > 0 ? km / paradas : null }
+  const { filas, topeKm, topeParadas, kmPorParada, recortado } = useMemo(() => {
+    const ordenadas = [...datos].sort((x, y) => x.fecha.localeCompare(y.fecha) || x.id - y.id)
+    const ultimas = ordenadas.slice(-MAX_HOJAS_RADAR)
+    // Las paradas van como valor negativo para dibujarse hacia la izquierda; el tooltip y las marcas muestran el valor real
+    const filas = ultimas.map((h) => ({ ...h, paradasIzq: -h.paradas, etiqueta: `#${h.id} · ${h.fecha.slice(8, 10)}/${h.fecha.slice(5, 7)}` }))
+    const paradas = datos.reduce((sum, h) => sum + h.paradas, 0)
+    const km = datos.reduce((sum, h) => sum + h.km, 0)
+    return {
+      filas,
+      topeKm: topeRedondo(Math.max(...filas.map((h) => h.km))),
+      topeParadas: topeRedondo(Math.max(...filas.map((h) => h.paradas))),
+      kmPorParada: paradas > 0 ? km / paradas : null,
+      recortado: ordenadas.length > ultimas.length,
+    }
   }, [datos])
 
   if (datos.length === 0) {
-    return <Panel titulo="Eficiencia de rutas" subtitulo="Paradas por hoja × km × transportista" vacio="Sin hojas de ruta finalizadas con km en el período." />
+    return <Panel titulo="Paradas vs km por hoja de ruta" subtitulo="Paradas por hoja × km × transportista" vacio="Sin hojas de ruta finalizadas con km en el período." />
   }
   return (
     <Panel
-      titulo="Paradas y km de cada hoja de ruta"
-      subtitulo={`Cada punto es una hoja de ruta finalizada${kmPorParada !== null ? ` · promedio ${dec(kmPorParada)} km por parada` : ""}. Agrupar retiros por zona baja los km`}
+      titulo="Paradas vs km por hoja de ruta"
+      subtitulo={`Cada fila es una hoja de ruta finalizada${recortado ? ` (las ${MAX_HOJAS_RADAR} más recientes)` : ""}: paradas a la izquierda y km a la derecha, cada lado con su propia escala${kmPorParada !== null ? ` · promedio ${dec(kmPorParada)} km por parada` : ""}. Agrupar retiros por zona baja los km`}
     >
-      <ResponsiveContainer width="100%" height={300}>
-        <ScatterChart margin={{ top: 8, right: 16, left: 0, bottom: 28 }}>
-          <CartesianGrid strokeDasharray="3 3" opacity={0.4} />
-          <XAxis type="number" dataKey="paradas" name="Paradas" allowDecimals={false} tick={{ fontSize: 11 }} tickLine={false} label={{ value: "Paradas por hoja", position: "insideBottom", offset: -12, fontSize: 11 }} />
-          <YAxis type="number" dataKey="km" name="Km" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={48} label={{ value: "km", angle: -90, position: "insideLeft", fontSize: 11 }} />
-          <ZAxis range={[70, 70]} />
+      <ResponsiveContainer className="flex-1" width="100%" height="100%" minHeight={200}>
+        <BarChart data={filas} layout="vertical" margin={{ top: 4, right: 24, left: 0, bottom: 4 }} barCategoryGap="14%">
+          <CartesianGrid horizontal={false} strokeDasharray="3 3" opacity={0.4} />
+          <XAxis
+            xAxisId="paradas"
+            type="number"
+            orientation="top"
+            domain={[-topeParadas, topeParadas]}
+            ticks={[-topeParadas, -topeParadas / 2, 0]}
+            tickFormatter={(v) => String(Math.abs(Number(v)))}
+            height={ALTO_EJE_X}
+            tick={{ fontSize: 11 }}
+            tickLine={false}
+            axisLine={false}
+            label={{ ...etiquetaX("Paradas"), position: "insideTop" }}
+          />
+          <XAxis
+            xAxisId="km"
+            type="number"
+            orientation="bottom"
+            domain={[-topeKm, topeKm]}
+            ticks={[0, topeKm / 2, topeKm]}
+            tickFormatter={(v) => dec(Number(v))}
+            height={ALTO_EJE_X}
+            tick={{ fontSize: 11 }}
+            tickLine={false}
+            axisLine={false}
+            label={etiquetaX("Kilómetros recorridos")}
+          />
+          <YAxis type="category" dataKey="etiqueta" width={96} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} interval={0} label={etiquetaY("Hoja de ruta")} />
+          <ReferenceLine xAxisId="km" x={0} stroke="#71716a" />
           <Tooltip
-            cursor={{ strokeDasharray: "3 3" }}
+            cursor={{ fill: "rgba(0,0,0,0.04)" }}
             content={({ payload }) => {
               const h = payload?.[0]?.payload as { transportista: string; fecha: string; paradas: number; km: number } | undefined
               if (!h) return null
@@ -395,35 +423,33 @@ export function EficienciaRutasChart({ datos }: { datos: Graficos["eficienciaRut
               )
             }}
           />
-          <Legend iconType="circle" verticalAlign="top" wrapperStyle={{ fontSize: 12, paddingBottom: 8 }} formatter={textoLeyenda} />
-          {grupos.map(([nombre, lista], i) => (
-            <Scatter key={nombre} name={nombre} data={lista} fill={PALETA[i % PALETA.length]} fillOpacity={0.7} />
-          ))}
-        </ScatterChart>
+          <Legend iconType="square" verticalAlign="top" wrapperStyle={{ fontSize: 12, paddingBottom: 8 }} formatter={textoLeyenda} />
+          {/* Mismo stackId: las dos barras comparten la fila, una a cada lado del centro */}
+          <Bar xAxisId="paradas" stackId="hoja" dataKey="paradasIzq" name="Paradas" fill={PALETA[2]} radius={[4, 0, 0, 4]}>
+            <LabelList dataKey="paradas" position="left" style={{ fontSize: 9, fill: "currentColor" }} />
+          </Bar>
+          <Bar xAxisId="km" stackId="hoja" dataKey="km" name="Km recorridos" fill={PALETA[0]} radius={[0, 4, 4, 0]}>
+            <LabelList dataKey="km" position="right" formatter={(v) => dec(Number(v))} style={{ fontSize: 9, fill: "currentColor" }} />
+          </Bar>
+        </BarChart>
       </ResponsiveContainer>
     </Panel>
   )
 }
 
-// ── Conjunto: lo que cada rol ve ──────────────────────────────────────────────
-export function GraficosCircuito({ resumen }: { resumen?: DashboardResumen }) {
-  if (!resumen) return null
+// ── Conjunto: lo que cada rol ve, como ítems de la grilla del dashboard ───────
+export function itemsGraficosCircuito(resumen?: DashboardResumen): ItemGrilla[] {
+  if (!resumen) return []
   const g = resumen.graficos
-  return (
-    <section aria-labelledby="titulo-analisis" className="flex flex-col gap-3">
-      <div>
-        <h2 id="titulo-analisis" className="text-base font-medium text-foreground">Análisis del circuito</h2>
-        <p className="text-xs text-muted-foreground">Gráficos que cruzan tres o más variables; cada uno responde una pregunta de gestión.</p>
-      </div>
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        {resumen.completo && <div className="xl:col-span-2"><CicloPorEtapaChart datos={g.cicloPorEtapa} promedioCiclo={resumen.ciclo?.promedio} /></div>}
-        <DestinoPorTipoChart datos={g.destinoPorTipo} />
-        {resumen.completo && <DemandaTurnosChart datos={g.demandaTurnos} />}
-        {resumen.completo && <MapaDonantesChart datos={g.mapaDonantes} />}
-        {resumen.completo && <KgPorMesChart datos={g.kgPorMesYTipo} />}
-        <DestruccionMatrizChart datos={g.destruccionPorMetodoYMedio} />
-        {resumen.completo && <EficienciaRutasChart datos={g.eficienciaRutas} />}
-      </div>
-    </section>
-  )
+  const items: ItemGrilla[] = []
+  if (resumen.completo) items.push({ id: "ciclo-por-etapa", w: 6, h: 11, nodo: <CicloPorEtapaChart datos={g.cicloPorEtapa} promedioCiclo={resumen.ciclo?.promedio} /> })
+  items.push({ id: "destino-por-tipo", w: 6, h: 12, nodo: <DestinoPorTipoChart datos={g.destinoPorTipo} /> })
+  if (resumen.completo) {
+    items.push({ id: "demanda-turnos", w: 6, h: 12, nodo: <DemandaTurnosChart datos={g.demandaTurnos} /> })
+    items.push({ id: "mapa-donantes", w: 6, h: 12, nodo: <MapaDonantesChart datos={g.mapaDonantes} /> })
+    items.push({ id: "kg-por-mes", w: 6, h: 11, nodo: <KgPorMesChart datos={g.kgPorMesYTipo} /> })
+  }
+  items.push({ id: "destruccion-matriz", w: 6, h: 12, nodo: <DestruccionMatrizChart datos={g.destruccionPorMetodoYMedio} /> })
+  if (resumen.completo) items.push({ id: "eficiencia-rutas", w: 6, h: 13, nodo: <EficienciaRutasChart datos={g.eficienciaRutas} /> })
+  return items
 }

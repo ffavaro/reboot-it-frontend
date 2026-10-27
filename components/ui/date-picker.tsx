@@ -9,6 +9,7 @@ const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "
 const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
 // Solo se pueden elegir días hábiles: la semana va de lunes a viernes
 const DIAS = ["Lu", "Ma", "Mi", "Ju", "Vi"]
+const DIAS_SEMANA = ["Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do"]
 
 function pad(n: number) {
   return String(n).padStart(2, "0")
@@ -50,12 +51,14 @@ type DatePickerProps = {
   clearable?: boolean
   // "field" imita el estilo de los Input de los formularios; "inline" es el compacto de las barras de filtros
   variant?: "inline" | "field"
+  // Por defecto solo se eligen días hábiles (turnos); los filtros de reportes necesitan también sábado y domingo
+  conFinDeSemana?: boolean
   className?: string
   "aria-label"?: string
 }
 
 export function DatePicker({
-  value, onChange, min, max, placeholder = "Seleccionar fecha", clearable = false, variant = "inline", className, ...props
+  value, onChange, min, max, placeholder = "Seleccionar fecha", clearable = false, variant = "inline", conFinDeSemana = false, className, ...props
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false)
   const initial = parseISO(value) ?? parseISO(todayISO())!
@@ -77,7 +80,8 @@ export function DatePicker({
     })
   }
 
-  const isDisabled = (iso: string) => (!!min && iso < min) || (!!max && iso > max) || esFinDeSemana(iso)
+  const dias = conFinDeSemana ? DIAS_SEMANA : DIAS
+  const isDisabled = (iso: string) => (!!min && iso < min) || (!!max && iso > max) || (!conFinDeSemana && esFinDeSemana(iso))
 
   function elegir(iso: string) {
     if (isDisabled(iso)) return
@@ -88,14 +92,17 @@ export function DatePicker({
   // Celdas del mes: solo lunes a viernes, con huecos iniciales hasta el primer día hábil
   const diasMes = new Date(view.year, view.month + 1, 0).getDate()
   const habiles = Array.from({ length: diasMes }, (_, i) => i + 1).filter((d) => {
+    if (conFinDeSemana) return true
     const dow = new Date(view.year, view.month, d).getDay()
     return dow !== 0 && dow !== 6
   })
-  const offset = habiles.length ? new Date(view.year, view.month, habiles[0]).getDay() - 1 : 0
+  // Con fines de semana la semana va de lunes (0) a domingo (6)
+  const columnaDe = (d: number) => (conFinDeSemana ? (new Date(view.year, view.month, d).getDay() + 6) % 7 : new Date(view.year, view.month, d).getDay() - 1)
+  const offset = habiles.length ? columnaDe(habiles[0]) : 0
   const celdas: (number | null)[] = [...Array.from({ length: offset }, () => null), ...habiles]
 
   // Siempre 6 filas de días: el calendario no cambia de alto al pasar de mes
-  while (celdas.length < 30) celdas.push(null)
+  while (celdas.length < dias.length * 6) celdas.push(null)
 
   const hoy = todayISO()
   const anioActual = new Date().getFullYear()
@@ -123,7 +130,7 @@ export function DatePicker({
         <CalendarDays className="size-3.5 text-muted-foreground" />
         <span className="tabular-nums">{value ? formatLabel(value) : placeholder}</span>
       </PopoverTrigger>
-      <PopoverContent side="bottom" align="start" className="w-64 p-3">
+      <PopoverContent side="bottom" align="start" className={conFinDeSemana ? "w-72 p-3" : "w-64 p-3"}>
         <div className="flex items-center justify-between mb-2">
           <button
             type="button"
@@ -161,8 +168,8 @@ export function DatePicker({
           </button>
         </div>
 
-        <div className="grid grid-cols-5 gap-0.5 text-center">
-          {DIAS.map(d => (
+        <div className={cn("grid gap-0.5 text-center", conFinDeSemana ? "grid-cols-7" : "grid-cols-5")}>
+          {dias.map(d => (
             <span key={d} className="text-[11px] font-medium text-muted-foreground py-1">{d}</span>
           ))}
           {celdas.map((dia, i) => {

@@ -6,7 +6,9 @@ import { DatePicker } from "@/components/ui/date-picker"
 import { MultiSelect } from "@/components/ui/multi-select"
 import { VehiculosUsoChart } from "@/components/vehiculos-uso-chart"
 import { TrabajoPendiente, IndicadoresCircuito } from "@/components/dashboard/resumen-circuito"
-import { GraficosCircuito } from "@/components/dashboard/graficos-circuito"
+import { itemsGraficosCircuito } from "@/components/dashboard/graficos-circuito"
+import { GrillaGraficos } from "@/components/dashboard/grilla-graficos"
+import { etiquetaX, etiquetaY, ALTO_EJE_X } from "@/components/dashboard/ejes"
 import { useDashboardResumen } from "@/hooks/use-dashboard"
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -366,17 +368,20 @@ export default function DashboardPage() {
     return donantes.filter(d => ids.has(d.id))
   }, [filasTabla, donantes])
 
-  // Gráfico de lotes: cantidad por fecha de ingreso, apilada por estado (orden cronológico)
+  // Gráfico de lotes: cantidad por mes de ingreso, apilada por estado (orden cronológico)
   const lotesChartData = useMemo(() => {
-    const porFecha = new Map<string, { fecha: string; pesoKg: number } & Record<string, number | string>>()
+    const porMes = new Map<string, { fecha: string; pesoKg: number } & Record<string, number | string>>()
     filasBuscadas.forEach(f => {
       if (!f.fechaIso) return
-      const row = porFecha.get(f.fechaIso) ?? { fecha: f.fecha, pesoKg: 0, "En proceso": 0, "Clasificado": 0, "Desechado": 0 }
+      const mes = f.fechaIso.slice(0, 7)
+      const [anio, m] = mes.split("-").map(Number)
+      const etiqueta = new Date(anio, m - 1, 1).toLocaleDateString("es-AR", { month: "short", year: "2-digit" }).replace(".", "")
+      const row = porMes.get(mes) ?? { fecha: etiqueta, pesoKg: 0, "En proceso": 0, "Clasificado": 0, "Desechado": 0 }
       row[f.estado] = (row[f.estado] as number) + 1
       row.pesoKg = Math.round((row.pesoKg + f.pesoKg) * 10) / 10
-      porFecha.set(f.fechaIso, row)
+      porMes.set(mes, row)
     })
-    return [...porFecha.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, row]) => row)
+    return [...porMes.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, row]) => row)
   }, [filasBuscadas])
 
   const exportColumns: ExportColumn<FilaTabla>[] = [
@@ -404,8 +409,8 @@ export default function DashboardPage() {
   return (
     <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
 
-      {/* Toolbar global */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
+      {/* Toolbar global: queda fija debajo de la cabecera al desplazarse */}
+      <div className="sticky top-14 z-20 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-card shadow-md ring-1 ring-foreground/5 p-4">
         <div>
           <h1 className="text-xl font-medium text-foreground">Reboot IT Analytics</h1>
           <p className="text-sm text-muted-foreground">Panel de control operativo — {rango.label}</p>
@@ -491,71 +496,66 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Nivel 2 — Gráfico principal: destino de materiales */}
-      <div className="rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-5">
-        <p className="text-base font-medium text-foreground mb-1">Distribución de destino de materiales</p>
-        <p className="text-xs text-muted-foreground mb-4">Destino final de los materiales clasificados — {rango.label}</p>
-        {donutTotal === 0 ? (
-          <div className="h-[280px] flex items-center justify-center text-xs text-muted-foreground text-center px-6">
-            Sin materiales clasificados en este período{donanteIds.length > 0 ? " para los donantes seleccionados" : ""}.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center gap-6">
-            <div className="relative">
-              <ResponsiveContainer width="100%" height={280}>
-                <PieChart>
-                  <Pie
-                    data={donutData}
-                    cx="50%" cy="50%"
-                    innerRadius={80} outerRadius={125}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {donutData.map((_, i) => (
-                      <Cell key={i} fill={DONUT_COLORS[i]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value) => [`${value ?? 0} materiales`]}
-                    contentStyle={{ borderRadius: 8, border: "0.5px solid rgba(128,128,128,0.2)", fontSize: 12 }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-3xl font-medium text-foreground leading-none">{donutTotal}</span>
-                <span className="text-xs text-muted-foreground mt-1">materiales</span>
+      {/* Gráficos: cada usuario los acomoda a su gusto */}
+      <GrillaGraficos
+        items={[
+          { id: "destino-materiales", w: 4, h: 11, nodo: (
+            <div className="flex h-full flex-col rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
+            <p className="text-sm font-medium text-foreground mb-1">Distribución de destino de materiales</p>
+            <p className="text-xs text-muted-foreground mb-3">Destino final de los materiales clasificados — {rango.label}</p>
+            {donutTotal === 0 ? (
+              <div className="min-h-[140px] flex-1 flex items-center justify-center text-xs text-muted-foreground text-center px-6">
+                Sin materiales clasificados en este período{donanteIds.length > 0 ? " para los donantes seleccionados" : ""}.
               </div>
-            </div>
-            <div className="flex flex-col gap-3">
-              {DONUT_LABELS.map((label, i) => {
-                const pct = Math.round(donutData[i].value / donutTotal * 100)
-                return (
-                  <div key={i} className="flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="flex items-center gap-2 text-foreground min-w-0">
-                        <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: DONUT_COLORS[i] }}></span>
-                        <span className="truncate">{label}</span>
-                      </span>
-                      <span className="text-muted-foreground tabular-nums flex-shrink-0">
-                        {donutData[i].value} <span className="font-medium text-foreground">({pct}%)</span>
-                      </span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: DONUT_COLORS[i] }} />
-                    </div>
+            ) : (
+              <>
+                <div className="relative min-h-[130px] flex-1">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={donutData}
+                        cx="50%" cy="50%"
+                        innerRadius="62%" outerRadius="92%"
+                        paddingAngle={3}
+                        dataKey="value"
+                      >
+                        {donutData.map((_, i) => (
+                          <Cell key={i} fill={DONUT_COLORS[i]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value) => [`${value ?? 0} materiales`]}
+                        contentStyle={{ borderRadius: 8, border: "0.5px solid rgba(128,128,128,0.2)", fontSize: 12 }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-2xl font-medium text-foreground leading-none">{donutTotal}</span>
+                    <span className="text-xs text-muted-foreground mt-1">materiales</span>
                   </div>
-                )
-              })}
-            </div>
+                </div>
+                <div className="mt-2 flex flex-col gap-1.5">
+                  {DONUT_LABELS.map((label, i) => {
+                    const pct = Math.round(donutData[i].value / donutTotal * 100)
+                    return (
+                      <div key={i} className="flex items-center justify-between gap-3 text-xs">
+                        <span className="flex items-center gap-2 text-muted-foreground min-w-0">
+                          <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: DONUT_COLORS[i] }}></span>
+                          <span className="truncate">{label}</span>
+                        </span>
+                        <span className="text-muted-foreground tabular-nums flex-shrink-0">
+                          {donutData[i].value} <span className="font-medium text-foreground">({pct}%)</span>
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )}
           </div>
-        )}
-      </div>
-
-      {/* Nivel 2.5 — Gráficos secundarios */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-
-        {/* Gráfico de barras */}
-        <div className="rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
+          ) },
+          { id: "ingreso-procesamiento", w: 4, h: 10, nodo: (
+            <div className="flex h-full flex-col rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
           <p className="text-sm font-medium text-foreground mb-1">Ingreso vs. procesamiento</p>
           <p className="text-xs text-muted-foreground mb-4">Donaciones ingresadas vs. materiales clasificados por el laboratorio — {rango.label}</p>
           <div className="flex gap-4 mb-3">
@@ -566,11 +566,11 @@ export default function DashboardPage() {
               <span className="w-3 h-3 rounded-sm inline-block" style={{background:"#639922"}}></span>Clasificados
             </span>
           </div>
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer className="flex-1" width="100%" height="100%" minHeight={150}>
             <BarChart data={barData} barCategoryGap="30%" barGap={4}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.15)" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-              <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
+              <XAxis dataKey="name" height={ALTO_EJE_X} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} label={etiquetaX("Período")} />
+              <YAxis width={48} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} label={etiquetaY("Cantidad")} />
               <Tooltip
                 contentStyle={{ borderRadius: 8, border: "0.5px solid rgba(128,128,128,0.2)", fontSize: 12 }}
                 cursor={{ fill: "rgba(128,128,128,0.07)" }}
@@ -580,18 +580,18 @@ export default function DashboardPage() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-
-        {/* Gráfico de dona: sucursal vs. retiro */}
-        <div className="rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
+          ) },
+          { id: "modalidad-recepcion", w: 4, h: 11, nodo: (
+            <div className="flex h-full flex-col rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
           <p className="text-sm font-medium text-foreground mb-1">Modalidad de recepción</p>
           <p className="text-xs text-muted-foreground mb-4">Donaciones entregadas en sucursal vs. retiradas a domicilio — {rango.label}</p>
           {recepcionTotal === 0 ? (
-            <div className="h-[220px] flex items-center justify-center text-xs text-muted-foreground text-center px-6">
+            <div className="min-h-[140px] flex-1 flex items-center justify-center text-xs text-muted-foreground text-center px-6">
               Sin donaciones registradas en este período{donanteIds.length > 0 ? " para los donantes seleccionados" : ""}.
             </div>
           ) : (
             <>
-              <ResponsiveContainer width="100%" height={220}>
+              <ResponsiveContainer className="flex-1" width="100%" height="100%" minHeight={150}>
                 <PieChart>
                   <Pie
                     data={recepcionData}
@@ -621,11 +621,10 @@ export default function DashboardPage() {
             </>
           )}
         </div>
-
-        {/* Gráfico combinado: barra + línea + área */}
-        <div className="rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
-          <p className="text-sm font-medium text-foreground mb-1">Tendencia combinada</p>
-          <p className="text-xs text-muted-foreground mb-4">Donaciones, materiales clasificados y peso ingresado por sub-período — {rango.label}</p>
+          ) },
+          { id: "tendencia-combinada", w: 6, h: 10, nodo: (
+            <div className="flex h-full flex-col rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
+          <p className="text-sm font-medium text-foreground mb-3">Donaciones, materiales clasificados y peso ingresado por mes</p>
           <div className="flex flex-wrap gap-4 mb-3">
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className="w-3 h-3 rounded-sm inline-block" style={{background:"#378ADD"}}></span>Donaciones
@@ -637,12 +636,12 @@ export default function DashboardPage() {
               <span className="w-3 h-3 rounded-sm inline-block opacity-50" style={{background:"#639922"}}></span>Peso ingresado (kg)
             </span>
           </div>
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer className="flex-1" width="100%" height="100%" minHeight={150}>
             <ComposedChart data={comboData} barCategoryGap="30%">
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.15)" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-              <YAxis yAxisId="left" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+              <XAxis dataKey="name" height={ALTO_EJE_X} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} label={etiquetaX("Mes")} />
+              <YAxis yAxisId="left" width={48} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} label={etiquetaY("Cantidad")} />
+              <YAxis yAxisId="right" orientation="right" width={52} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} label={etiquetaY("Peso (kg)", "derecha")} />
               <Tooltip
                 contentStyle={{ borderRadius: 8, border: "0.5px solid rgba(128,128,128,0.2)", fontSize: 12 }}
                 cursor={{ fill: "rgba(128,128,128,0.07)" }}
@@ -653,13 +652,10 @@ export default function DashboardPage() {
             </ComposedChart>
           </ResponsiveContainer>
         </div>
-      </div>
-
-      {/* Nivel 2.7 — Uso de la flota (tiene su propio filtro de fechas) */}
-      <VehiculosUsoChart key={resetKey} />
-
-      {/* Nivel 3 — Últimos movimientos de lotes (gráfico / tabla) */}
-      <div className="rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 overflow-hidden">
+          ) },
+          { id: "uso-flota", w: 6, h: 11, nodo: <VehiculosUsoChart key={resetKey} /> },
+          { id: "ultimos-lotes", w: 6, h: 11, nodo: (
+            <div className="flex h-full flex-col overflow-hidden rounded-xl bg-card shadow-sm ring-1 ring-foreground/5">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-border">
           <div className="flex items-center gap-3">
             <p className="text-sm font-medium text-foreground">Últimos movimientos de lotes</p>
@@ -754,11 +750,11 @@ export default function DashboardPage() {
         </div>
 
         {lotesVista === "grafico" ? (
-          <div className="p-4">
+          <div className="flex min-h-0 flex-1 flex-col p-4">
             {isLoading ? (
-              <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">Cargando…</div>
+              <div className="min-h-[200px] flex-1 flex items-center justify-center text-sm text-muted-foreground">Cargando…</div>
             ) : lotesChartData.length === 0 ? (
-              <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">No se encontraron resultados.</div>
+              <div className="min-h-[200px] flex-1 flex items-center justify-center text-sm text-muted-foreground">No se encontraron resultados.</div>
             ) : (
               <>
                 <div className="flex flex-wrap gap-4 mb-3">
@@ -771,11 +767,11 @@ export default function DashboardPage() {
                     {filasBuscadas.length} lotes · {Math.round(filasBuscadas.reduce((a, f) => a + f.pesoKg, 0) * 10) / 10} kg
                   </span>
                 </div>
-                <ResponsiveContainer width="100%" height={280}>
+                <ResponsiveContainer className="flex-1" width="100%" height="100%" minHeight={200}>
                   <BarChart data={lotesChartData} barCategoryGap="25%">
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.15)" vertical={false} />
-                    <XAxis dataKey="fecha" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <XAxis dataKey="fecha" height={ALTO_EJE_X} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} label={etiquetaX("Mes de ingreso")} />
+                    <YAxis width={52} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} label={etiquetaY("Cantidad de lotes")} />
                     <Tooltip
                       contentStyle={{ borderRadius: 8, border: "0.5px solid rgba(128,128,128,0.2)", fontSize: 12 }}
                       cursor={{ fill: "rgba(128,128,128,0.07)" }}
@@ -802,7 +798,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <div className="min-h-0 flex-1 overflow-auto">
               <table className="w-full text-sm" style={{ tableLayout: "fixed" }}>
                 <colgroup>
                   <col style={{ width: "140px" }} />
@@ -847,10 +843,11 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+          ) },
+          ...itemsGraficosCircuito(resumen),
+        ]}
+      />
 
-
-      {/* Análisis del circuito: gráficos que cruzan tres o más variables */}
-      <GraficosCircuito resumen={resumen} />
     </div>
   )
 }

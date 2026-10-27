@@ -80,13 +80,31 @@ export const RESULTADO_AUDITORIA_COLORS: ColorMap = {
 // Estado de un turno en la agenda semanal: fondo, texto, punto y borde
 export type EstadoAgendaColor = { bg: string; text: string; dot: string; borde: string }
 
+// Una sola paleta para los estados de turno: la usan la lista, el calendario y la leyenda de ambas pantallas
 export const AGENDA_ESTADO_COLORS: Record<string, EstadoAgendaColor> = {
-  pendiente: { bg: "bg-blue-100", text: "text-blue-800", dot: "bg-blue-500", borde: "border-blue-400" },
-  confirmado: { bg: "bg-green-100", text: "text-green-800", dot: "bg-green-500", borde: "border-green-400" },
-  "en curso": { bg: "bg-orange-100", text: "text-orange-800", dot: "bg-orange-500", borde: "border-orange-400" },
-  completado: { bg: "bg-teal-100", text: "text-teal-800", dot: "bg-teal-500", borde: "border-teal-400" },
+  pendiente: { bg: "bg-yellow-100", text: "text-yellow-800", dot: "bg-yellow-500", borde: "border-yellow-400" },
+  "sin asignar": { bg: "bg-slate-100", text: "text-slate-700", dot: "bg-slate-400", borde: "border-slate-300" },
+  asignado: { bg: "bg-blue-100", text: "text-blue-800", dot: "bg-blue-500", borde: "border-blue-400" },
+  "retiro confirmado": { bg: "bg-orange-100", text: "text-orange-800", dot: "bg-orange-500", borde: "border-orange-400" },
+  "en clasificacion": { bg: "bg-purple-100", text: "text-purple-800", dot: "bg-purple-500", borde: "border-purple-400" },
+  finalizado: { bg: "bg-green-100", text: "text-green-800", dot: "bg-green-500", borde: "border-green-400" },
+  reprogramado: { bg: "bg-teal-100", text: "text-teal-800", dot: "bg-teal-500", borde: "border-teal-400" },
   cancelado: { bg: "bg-gray-100", text: "text-gray-500", dot: "bg-gray-400", borde: "border-gray-300" },
 }
+
+// Qué significa cada estado de turno (leyenda de la lista y del calendario)
+export const ESTADO_TURNO_SIGNIFICADO: { estado: string; significado: string }[] = [
+  { estado: "Pendiente", significado: "El donante pidió el turno y todavía no tiene un empleado asignado." },
+  { estado: "Sin asignar", significado: "El turno no tiene empleado a cargo." },
+  { estado: "Asignado", significado: "Ya tiene un transportista (retiro a domicilio) o un empleado que recibe la donación en la sucursal." },
+  { estado: "Retiro confirmado", significado: "Se retiraron o recibieron los materiales; falta pasarlos a clasificación." },
+  { estado: "En Clasificacion", significado: "Los materiales se están clasificando en planta." },
+  { estado: "Finalizado", significado: "La clasificación terminó y el turno está cerrado." },
+  { estado: "Reprogramado", significado: "Se movió a otra fecha u horario." },
+  { estado: "Cancelado", significado: "El turno se canceló y no se realiza." },
+]
+
+const sinTildes = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim()
 
 export const AGENDA_ESTADO_COLOR_DEFAULT: EstadoAgendaColor = {
   bg: "bg-indigo-100",
@@ -95,9 +113,7 @@ export const AGENDA_ESTADO_COLOR_DEFAULT: EstadoAgendaColor = {
   borde: "border-indigo-400",
 }
 
-// Busca por coincidencia parcial (ej. "en curso" dentro de "Turno en curso")
 export function colorAgendaPorDescripcion(descripcion?: string | null): EstadoAgendaColor {
   if (!descripcion) return AGENDA_ESTADO_COLOR_DEFAULT
-  const key = Object.keys(AGENDA_ESTADO_COLORS).find((k) => descripcion.toLowerCase().includes(k))
-  return key ? AGENDA_ESTADO_COLORS[key] : AGENDA_ESTADO_COLOR_DEFAULT
+  return AGENDA_ESTADO_COLORS[sinTildes(descripcion)] ?? AGENDA_ESTADO_COLOR_DEFAULT
 }

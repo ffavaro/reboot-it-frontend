@@ -28,7 +28,7 @@ import { puede, puedeVerPantalla } from "@/lib/nav"
 import { FiltrosActivos, columnasFiltrables } from "@/components/ui/filtros-activos"
 import { useMarcas, useCreateMarca } from "@/hooks/use-marca"
 import { useModelos, useCreateModelo } from "@/hooks/use-modelo"
-import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
+import { enforceMaxLength, DEFAULT_TEXT_MAX, DESCRIPCION_MAX } from "@/lib/utils/text-limit"
 import type { Material } from "@/lib/type/material"
 import type { Lote } from "@/lib/type/lote"
 import type { TipoMaterial } from "@/lib/type/tipo-material"
@@ -437,6 +437,19 @@ export default function MaterialPage() {
             ))}
           </SelectContent>
         </Select>
+        <Select
+          value={fClasif ?? ""}
+          onValueChange={(v) => setFClasif((v || null) as typeof fClasif)}
+        >
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Todas las clasificaciones" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todas las clasificaciones</SelectItem>
+            <SelectItem value="Clasificado">Clasificado</SelectItem>
+            <SelectItem value="Por clasificar">Por clasificar</SelectItem>
+          </SelectContent>
+        </Select>
         <span className="text-sm text-muted-foreground">
           {filtered.length} material{filtered.length !== 1 ? "es" : ""}
         </span>
@@ -492,7 +505,7 @@ export default function MaterialPage() {
               placeholder="Descripción del material..."
               value={form.descripcion}
               disabled={isViewing}
-              onChange={(e) => setForm((f) => ({ ...f, descripcion: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción") }))}
+              onChange={(e) => setForm((f) => ({ ...f, descripcion: enforceMaxLength(e.target.value, DESCRIPCION_MAX, "La descripción") }))}
             />
           </div>
 
@@ -680,7 +693,7 @@ export default function MaterialPage() {
           </label>
           <Input
             value={quickTipoForm.descripcion}
-            onChange={(e) => setQuickTipoForm((f) => ({ ...f, descripcion: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción") }))}
+            onChange={(e) => setQuickTipoForm((f) => ({ ...f, descripcion: enforceMaxLength(e.target.value, DESCRIPCION_MAX, "La descripción") }))}
             placeholder="Breve descripción del tipo de material"
           />
         </div>

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { ChevronLeft, ChevronRight, Eye, FileDown, Pencil, Trash2 } from "lucide-react"
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Eye, FileDown, Pencil, Trash2 } from "lucide-react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { InboxIcon, SearchRemoveIcon } from "@hugeicons/core-free-icons"
 import { Button } from "@/components/ui/button"
@@ -37,6 +37,33 @@ export type TableColumn<T> = {
   cell: (row: T) => React.ReactNode
   className?: string
   headerClassName?: string
+  // Valor por el que se ordena la columna; si no se indica se toma el texto que muestra la celda
+  sortValue?: (row: T) => string | number | null | undefined
+  // false desactiva el ordenamiento de la columna (por defecto se puede ordenar)
+  sortable?: boolean
+}
+
+// Texto visible de un nodo de React, para poder ordenar columnas cuyas celdas son componentes
+function textoDeNodo(node: React.ReactNode): string {
+  if (node === null || node === undefined || typeof node === "boolean") return ""
+  if (typeof node === "string" || typeof node === "number") return String(node)
+  if (Array.isArray(node)) return node.map(textoDeNodo).join(" ")
+  if (React.isValidElement(node)) return textoDeNodo((node.props as { children?: React.ReactNode }).children)
+  return ""
+}
+
+function claveOrden(valor: string | number | null | undefined): string | number {
+  if (valor === null || valor === undefined) return ""
+  if (typeof valor === "number") return valor
+  const texto = valor.trim()
+  const fecha = texto.match(/^(\d{2})\/(\d{2})\/(\d{4})(.*)$/)
+  if (fecha) return `${fecha[3]}${fecha[2]}${fecha[1]}${fecha[4]}`
+  return texto
+}
+
+function compararValores(a: string | number, b: string | number): number {
+  if (typeof a === "number" && typeof b === "number") return a - b
+  return String(a).localeCompare(String(b), "es", { numeric: true, sensitivity: "base" })
 }
 
 type DataTableProps<T extends { id: number | string }> = {
@@ -172,6 +199,32 @@ export function DataTable<T extends { id: number | string }>({
   const [pageSize, setPageSize] = React.useState(pageSizeOptions[0] ?? 10)
   const [page, setPage] = React.useState(1)
 
+  const [orden, setOrden] = React.useState<{ key: string; dir: "asc" | "desc" } | null>(null)
+
+  function alternarOrden(key: string) {
+    setOrden((actual) => {
+      if (!actual || actual.key !== key) return { key, dir: "asc" }
+      return actual.dir === "asc" ? { key, dir: "desc" } : null
+    })
+    setPage(1)
+  }
+
+  const datosOrdenados = React.useMemo(() => {
+    const col = orden ? columns.find((c) => c.key === orden.key) : undefined
+    if (!orden || !col) return data
+    const valor = (row: T) => claveOrden(col.sortValue ? col.sortValue(row) : textoDeNodo(col.cell(row)))
+    const factor = orden.dir === "asc" ? 1 : -1
+    return data
+      .map((row, i) => ({ row, i, v: valor(row) }))
+      .sort((x, y) => {
+        // Los vacíos van siempre al final
+        if (x.v === "" && y.v !== "") return 1
+        if (y.v === "" && x.v !== "") return -1
+        return factor * compararValores(x.v, y.v) || x.i - y.i
+      })
+      .map((x) => x.row)
+  }, [data, columns, orden])
+
   const totalItems = data.length
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
 
@@ -181,7 +234,7 @@ export function DataTable<T extends { id: number | string }>({
 
   const currentPage = Math.min(page, totalPages)
   const startIndex = (currentPage - 1) * pageSize
-  const pagedData = data.slice(startIndex, startIndex + pageSize)
+  const pagedData = datosOrdenados.slice(startIndex, startIndex + pageSize)
   const rangeStart = totalItems === 0 ? 0 : startIndex + 1
   const rangeEnd = Math.min(startIndex + pageSize, totalItems)
 
@@ -193,7 +246,23 @@ export function DataTable<T extends { id: number | string }>({
             <TableRow className="bg-muted/60 hover:bg-muted/60">
               {columns.map((col) => (
                 <TableHead key={col.key} className={col.headerClassName}>
-                  {col.header}
+                  {col.sortable === false || !col.header ? (
+                    col.header
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => alternarOrden(col.key)}
+                      className="inline-flex items-center gap-1 hover:text-foreground"
+                      title="Ordenar por esta columna"
+                    >
+                      {col.header}
+                      {orden?.key === col.key ? (
+                        orden.dir === "asc" ? <ArrowUp className="h-3 w-3" aria-label="Orden ascendente" /> : <ArrowDown className="h-3 w-3" aria-label="Orden descendente" />
+                      ) : (
+                        <ArrowUpDown className="h-3 w-3 opacity-40" aria-hidden />
+                      )}
+                    </button>
+                  )}
                 </TableHead>
               ))}
               {hasActions && (

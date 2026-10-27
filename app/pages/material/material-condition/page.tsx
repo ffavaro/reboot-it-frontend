@@ -21,7 +21,7 @@ import {
 } from "@/hooks/use-condicion-material"
 import { useFormErrors } from "@/hooks/use-form-errors"
 import { required, maxLength as maxLengthValidator } from "@/lib/form-validators"
-import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
+import { enforceMaxLength, DEFAULT_TEXT_MAX, DESCRIPCION_MAX } from "@/lib/utils/text-limit"
 import type { CondicionMaterial } from "@/lib/type/condicion-material"
 import type { TableColumn } from "@/components/ui/data-table"
 
@@ -105,7 +105,7 @@ export default function CondicionMaterialPage() {
   async function handleSave() {
     if (!validate(form, {
       condicion: [required("la condición"), maxLengthValidator(DEFAULT_TEXT_MAX)],
-      descripcion: [maxLengthValidator(DEFAULT_TEXT_MAX)],
+      descripcion: [maxLengthValidator(DESCRIPCION_MAX)],
     })) return
     try {
       const payload = {
@@ -209,7 +209,7 @@ export default function CondicionMaterialPage() {
           </label>
           <Input
             value={form.descripcion}
-            onChange={(e) => set("descripcion", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción"))}
+            onChange={(e) => set("descripcion", enforceMaxLength(e.target.value, DESCRIPCION_MAX, "La descripción"))}
             placeholder="Breve descripción de la condición"
           />
           <FieldError>{errors.descripcion}</FieldError>

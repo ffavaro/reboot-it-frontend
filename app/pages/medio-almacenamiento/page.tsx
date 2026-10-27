@@ -37,7 +37,7 @@ const EMPTY_FORM = {
 const COLUMNS: TableColumn<MedioAlmacenamiento>[] = [
   {
     key: "materialId",
-    header: "Material ID",
+    header: "N° Material",
     cell: (m) => <span className="font-mono text-xs">{m.materialId}</span>,
   },
   {
