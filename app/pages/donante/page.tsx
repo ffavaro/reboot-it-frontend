@@ -1,8 +1,10 @@
 "use client"
 import { Plus } from "lucide-react"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { toast } from "react-toastify"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SelectBuscador } from "@/components/ui/select-buscador"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { CrearButton } from "@/components/ui/crear-button"
@@ -25,8 +27,10 @@ import {
 } from "@/hooks/use-donantes"
 import { useUsuarios } from "@/hooks/use-users"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import { required, requiredSelect, maxLength as maxLengthValidator, emailFormat, minLength, dniOCuit } from "@/lib/form-validators"
+import { required, requiredSelect, maxLength as maxLengthValidator, emailFormat, minLength, dniOCuit, soloLetras, direccionConAltura } from "@/lib/form-validators"
 import { CuitDniField } from "@/components/empleado-fields"
+import { DireccionMapa } from "@/components/direccion-mapa"
+import { isLegalEntity, isOrganismo, JURISDICCIONES } from "@/lib/donante-tipo"
 import { RestablecerContrasenaDonante } from "@/components/restablecer-contrasena-donante"
 import { getErrorMessage } from "@/lib/utils/helpers"
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
@@ -35,7 +39,39 @@ import type { Donante, TipoDonante } from "@/lib/type/donante"
 type Tab = "donantes" | "tipos"
 
 // email, password y cuitDni son los datos del usuario que se crea junto con el donante (solo al crear)
-const EMPTY_DONANTE = { tipoDonanteId: 0, nombre: "", razonSocial: "", telefono: "", direccion: "", email: "", password: "", cuitDni: "" }
+// particular: apellido + nombre; empresa u organismo: razón social (organismo: además jurisdicción y responsable)
+const EMPTY_DONANTE = {
+  tipoDonanteId: 0, nombre: "", apellido: "", razonSocial: "", jurisdiccion: "", respApellido: "", respNombre: "", cargoResponsable: "",
+  telefono: "", direccion: "", email: "", password: "", cuitDni: "",
+}
+
+const MAX_NOMBRE = 25
+
+// El nombre se guarda como "Nombre Apellido": se separa por el último espacio, y al unirlo vuelve a quedar igual
+function separarNombre(completo: string) {
+  const i = completo.trim().lastIndexOf(" ")
+  return i < 0 ? { nombre: completo.trim(), apellido: "" } : { nombre: completo.slice(0, i).trim(), apellido: completo.slice(i + 1).trim() }
+}
+
+// El responsable se guarda como "Apellido Nombre"
+function separarResponsable(completo: string) {
+  const i = completo.trim().indexOf(" ")
+  return i < 0 ? { respApellido: completo.trim(), respNombre: "" } : { respApellido: completo.slice(0, i).trim(), respNombre: completo.slice(i + 1).trim() }
+}
+
+function formDe(d: Donante) {
+  const legal = isLegalEntity(d.tipoDonante)
+  return {
+    ...EMPTY_DONANTE,
+    tipoDonanteId: d.tipoDonanteId,
+    ...(legal ? { razonSocial: d.razonSocial ?? d.nombre } : separarNombre(d.nombre)),
+    jurisdiccion: d.jurisdiccion ?? "",
+    ...separarResponsable(d.responsable ?? ""),
+    cargoResponsable: d.cargoResponsable ?? "",
+    telefono: d.telefono ?? "",
+    direccion: d.direccion ?? "",
+  }
+}
 
 const EMAIL_MAX = 100
 const PASSWORD_MIN = 6
@@ -109,9 +145,21 @@ function DonantesTab() {
   // Filtro que se activa tocando el Tipo en la grilla
   const [fTipo, setFTipo] = useState<string | null>(null)
 
+  const [fDonante, setFDonante] = useState("")
+  const opcionesDonante = useMemo(
+    () => [
+      { value: "", label: "Todos los donantes" },
+      ...[...donantes]
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" }))
+        .map((d) => ({ value: String(d.id), label: d.nombre })),
+    ],
+    [donantes],
+  )
+
   const filtered = donantes.filter(
     (d) =>
       (fTipo === null || d.tipoDonante?.descripcion === fTipo) &&
+      (!fDonante || String(d.id) === fDonante) &&
       (d.nombre.toLowerCase().includes(search.toLowerCase()) ||
         (d.razonSocial ?? "").toLowerCase().includes(search.toLowerCase()) ||
         (d.telefono ?? "").toLowerCase().includes(search.toLowerCase())),
@@ -133,16 +181,7 @@ function DonantesTab() {
   function openEdit(d: Donante) {
     setIsViewing(false)
     setEditing(d)
-    setForm({
-      tipoDonanteId: d.tipoDonanteId,
-      nombre: d.nombre,
-      razonSocial: d.razonSocial ?? "",
-      telefono: d.telefono ?? "",
-      direccion: d.direccion ?? "",
-      email: "",
-      password: "",
-      cuitDni: "",
-    })
+    setForm(formDe(d))
     reset()
     setModalOpen(true)
   }
@@ -150,40 +189,52 @@ function DonantesTab() {
   function openView(d: Donante) {
     setIsViewing(true)
     setEditing(d)
-    setForm({
-      tipoDonanteId: d.tipoDonanteId,
-      nombre: d.nombre,
-      razonSocial: d.razonSocial ?? "",
-      telefono: d.telefono ?? "",
-      direccion: d.direccion ?? "",
-      email: "",
-      password: "",
-      cuitDni: "",
-    })
+    setForm(formDe(d))
     reset()
     setModalOpen(true)
   }
 
+  const tipoElegido = tipos.find((t) => t.id === form.tipoDonanteId)
+  const esLegal = isLegalEntity(tipoElegido)
+  const esOrganismo = isOrganismo(tipoElegido)
+
   async function handleSave() {
     if (!validate(form, {
-      nombre: [required("el nombre"), maxLengthValidator(DEFAULT_TEXT_MAX)],
       tipoDonanteId: [requiredSelect("un tipo de donante")],
-      razonSocial: [maxLengthValidator(DEFAULT_TEXT_MAX)],
-      direccion: [maxLengthValidator(DEFAULT_TEXT_MAX)],
+      ...(esLegal ? {
+        razonSocial: [required(esOrganismo ? "el nombre del organismo" : "la razón social"), minLength(3), maxLengthValidator(DEFAULT_TEXT_MAX)],
+      } : {
+        nombre: [required("el nombre"), soloLetras("El nombre", MAX_NOMBRE)],
+        // los donantes que ya existían pueden tener un solo nombre, por eso el apellido solo se exige al crear
+        apellido: [...(editing ? [] : [required("el apellido")]), soloLetras("El apellido", MAX_NOMBRE)],
+      }),
+      ...(esOrganismo ? {
+        jurisdiccion: [requiredSelect("la jurisdicción")],
+        respApellido: [required("el apellido del responsable"), soloLetras("El apellido", MAX_NOMBRE)],
+        respNombre: [required("el nombre del responsable"), soloLetras("El nombre", MAX_NOMBRE)],
+        cargoResponsable: [required("el cargo del responsable"), maxLengthValidator(DEFAULT_TEXT_MAX)],
+        telefono: [required("el teléfono de contacto")],
+      } : {}),
+      direccion: [...(editing ? [] : [required("la dirección")]), maxLengthValidator(DEFAULT_TEXT_MAX), direccionConAltura()],
       // el usuario se crea junto con el donante, así que sus datos solo se piden al crear
       ...(!editing ? {
         email: [required("el email"), emailFormat(), maxLengthValidator(EMAIL_MAX)],
         password: [required("la contraseña"), minLength(PASSWORD_MIN), maxLengthValidator(PASSWORD_MAX)],
-        cuitDni: [required("el CUIT/DNI"), dniOCuit()],
+        cuitDni: [required(esOrganismo ? "el CUIT" : "el CUIT/DNI"), dniOCuit(), ...(esOrganismo ? [(v: unknown) => (String(v ?? "").length === 11 ? null : "El CUIT del organismo debe tener 11 dígitos")] : [])],
       } : {}),
     })) return
     try {
       const payload = {
         tipoDonanteId: form.tipoDonanteId,
-        nombre: form.nombre.trim(),
-        razonSocial: form.razonSocial.trim() || undefined,
+        nombre: esLegal ? form.razonSocial.trim() : `${form.nombre.trim()} ${form.apellido.trim()}`.trim(),
+        razonSocial: esLegal ? form.razonSocial.trim() : undefined,
         telefono: form.telefono.trim() || undefined,
         direccion: form.direccion.trim() || undefined,
+        ...(esOrganismo ? {
+          jurisdiccion: form.jurisdiccion,
+          responsable: `${form.respApellido.trim()} ${form.respNombre.trim()}`,
+          cargoResponsable: form.cargoResponsable.trim(),
+        } : {}),
       }
       if (editing) {
         await updateDonante({ id: editing.id, ...payload })
@@ -222,7 +273,8 @@ function DonantesTab() {
   const usuarioDonante = editing?.usuarioId ? usuarios.find((u) => String(u.id) === String(editing.usuarioId)) : undefined
 
   const canSave =
-    !!form.nombre.trim() && form.tipoDonanteId !== 0 &&
+    form.tipoDonanteId !== 0 &&
+    (esLegal ? !!form.razonSocial.trim() : !!form.nombre.trim() && (!!editing || !!form.apellido.trim())) &&
     (!!editing || (!!form.email.trim() && form.password.length >= PASSWORD_MIN && !!form.cuitDni))
 
   return (
@@ -234,6 +286,26 @@ function DonantesTab() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
         />
+        <Select value={fTipo ?? ""} onValueChange={(v) => setFTipo(v || null)}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Todos los tipos" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todos los tipos</SelectItem>
+            {tipos.map((t: TipoDonante) => (
+              <SelectItem key={t.id} value={t.descripcion}>{t.descripcion}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <SelectBuscador
+          className="w-60"
+          opciones={opcionesDonante}
+          value={fDonante}
+          onChange={setFDonante}
+          placeholder="Todos los donantes"
+          placeholderBusqueda="Buscar donante…"
+          aria-label="Filtrar por donante"
+        />
         <span className="text-sm text-muted-foreground">
           {filtered.length} donante{filtered.length !== 1 ? "s" : ""}
         </span>
@@ -244,8 +316,11 @@ function DonantesTab() {
       </div>
 
       <FiltrosActivos
-        filtros={fTipo !== null ? [{ etiqueta: "Tipo", valor: fTipo, quitar: () => setFTipo(null) }] : []}
-        onLimpiar={() => setFTipo(null)}
+        filtros={[
+          ...(fTipo !== null ? [{ etiqueta: "Tipo", valor: fTipo, quitar: () => setFTipo(null) }] : []),
+          ...(fDonante ? [{ etiqueta: "Donante", valor: donantes.find((d) => String(d.id) === fDonante)?.nombre ?? `#${fDonante}`, quitar: () => setFDonante("") }] : []),
+        ]}
+        onLimpiar={() => { setFTipo(null); setFDonante("") }}
       />
 
       <DataTable
@@ -281,27 +356,111 @@ function DonantesTab() {
         saveLabel={editing ? "Guardar cambios" : "Crear donante"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Nombre *</label>
-          <Input
-            value={form.nombre}
-            onChange={(e) => set("nombre", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"))}
-            placeholder="Juan Pérez"
-            className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
-          />
-          <FieldError>{errors.nombre}</FieldError>
+          <label className="text-sm font-medium">Tipo de donante *</label>
+          <select
+            value={form.tipoDonanteId}
+            onChange={(e) => set("tipoDonanteId", Number(e.target.value))}
+            className={selectCls(errors.tipoDonanteId)}
+          >
+            <option value={0}>— Seleccionar tipo —</option>
+            {tipos.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.descripcion}
+              </option>
+            ))}
+          </select>
+          <FieldError>{errors.tipoDonanteId}</FieldError>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
-            Razón social <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
-          <Input
-            value={form.razonSocial}
-            onChange={(e) => set("razonSocial", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La razón social"))}
-            placeholder="Empresa S.A."
-          />
-          <FieldError>{errors.razonSocial}</FieldError>
-        </div>
+        {form.tipoDonanteId !== 0 && (esLegal ? (
+          <>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">{esOrganismo ? "Nombre del organismo *" : "Razón social *"}</label>
+              <Input
+                value={form.razonSocial}
+                onChange={(e) => set("razonSocial", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, esOrganismo ? "El nombre del organismo" : "La razón social"))}
+                placeholder={esOrganismo ? "Ministerio de Ambiente" : "Empresa S.A."}
+                className={cn(errors.razonSocial && "border-destructive focus-visible:ring-destructive")}
+              />
+              <FieldError>{errors.razonSocial}</FieldError>
+            </div>
+
+            {/* Datos propios del organismo público */}
+            {esOrganismo && (
+              <>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium">Jurisdicción *</label>
+                  <select
+                    value={form.jurisdiccion}
+                    onChange={(e) => set("jurisdiccion", e.target.value)}
+                    className={selectCls(errors.jurisdiccion)}
+                  >
+                    <option value="">— Seleccionar jurisdicción —</option>
+                    {JURISDICCIONES.map((j) => (
+                      <option key={j} value={j}>{j}</option>
+                    ))}
+                  </select>
+                  <FieldError>{errors.jurisdiccion}</FieldError>
+                </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Apellido del responsable *</label>
+                    <Input
+                      value={form.respApellido}
+                      onChange={(e) => set("respApellido", enforceMaxLength(e.target.value, MAX_NOMBRE, "El apellido"))}
+                      placeholder="Gómez"
+                      className={cn(errors.respApellido && "border-destructive focus-visible:ring-destructive")}
+                    />
+                    <FieldError>{errors.respApellido}</FieldError>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Nombre del responsable *</label>
+                    <Input
+                      value={form.respNombre}
+                      onChange={(e) => set("respNombre", enforceMaxLength(e.target.value, MAX_NOMBRE, "El nombre"))}
+                      placeholder="Laura"
+                      className={cn(errors.respNombre && "border-destructive focus-visible:ring-destructive")}
+                    />
+                    <FieldError>{errors.respNombre}</FieldError>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium">Cargo del responsable *</label>
+                  <Input
+                    value={form.cargoResponsable}
+                    onChange={(e) => set("cargoResponsable", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El cargo"))}
+                    placeholder="Directora de Compras"
+                    className={cn(errors.cargoResponsable && "border-destructive focus-visible:ring-destructive")}
+                  />
+                  <FieldError>{errors.cargoResponsable}</FieldError>
+                </div>
+              </>
+            )}
+          </>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Apellido{editing ? "" : " *"}</label>
+              <Input
+                value={form.apellido}
+                onChange={(e) => set("apellido", enforceMaxLength(e.target.value, MAX_NOMBRE, "El apellido"))}
+                placeholder="Pérez"
+                className={cn(errors.apellido && "border-destructive focus-visible:ring-destructive")}
+              />
+              <FieldError>{errors.apellido}</FieldError>
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Nombre *</label>
+              <Input
+                value={form.nombre}
+                onChange={(e) => set("nombre", enforceMaxLength(e.target.value, MAX_NOMBRE, "El nombre"))}
+                placeholder="Juan"
+                className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
+              />
+              <FieldError>{errors.nombre}</FieldError>
+            </div>
+          </div>
+        ))}
 
         {/* Usuario asociado: solo existe después de crear el donante */}
         {editing && (
@@ -321,25 +480,8 @@ function DonantesTab() {
         )}
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Tipo de donante *</label>
-          <select
-            value={form.tipoDonanteId}
-            onChange={(e) => set("tipoDonanteId", Number(e.target.value))}
-            className={selectCls(errors.tipoDonanteId)}
-          >
-            <option value={0}>— Seleccionar tipo —</option>
-            {tipos.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.descripcion}
-              </option>
-            ))}
-          </select>
-          <FieldError>{errors.tipoDonanteId}</FieldError>
-        </div>
-
-        <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">
-            Teléfono <span className="text-muted-foreground font-normal">(opcional)</span>
+            Teléfono {esOrganismo ? "*" : <span className="text-muted-foreground font-normal">(opcional)</span>}
           </label>
           <Input
             value={form.telefono}
@@ -347,17 +489,22 @@ function DonantesTab() {
             placeholder="5491112345678"
             inputMode="numeric"
             maxLength={20}
+            className={cn(errors.telefono && "border-destructive focus-visible:ring-destructive")}
           />
+          <FieldError>{errors.telefono}</FieldError>
         </div>
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">
-            Dirección <span className="text-muted-foreground font-normal">(opcional)</span>
+            Dirección {editing ? <span className="text-muted-foreground font-normal">(opcional)</span> : "*"}
           </label>
-          <Input
+          <DireccionMapa
             value={form.direccion}
-            onChange={(e) => set("direccion", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La dirección"))}
-            placeholder="Av. Corrientes 1234, CABA"
+            onChange={(v) => set("direccion", enforceMaxLength(v, DEFAULT_TEXT_MAX, "La dirección"))}
+            placeholder="Av. Colón 1234, Córdoba"
+            maxLength={DEFAULT_TEXT_MAX}
+            disabled={isViewing}
+            inputClassName={cn(errors.direccion && "border-destructive focus-visible:ring-destructive")}
           />
           <FieldError>{errors.direccion}</FieldError>
         </div>

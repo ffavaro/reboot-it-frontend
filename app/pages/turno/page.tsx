@@ -42,6 +42,7 @@ import { getUser } from "@/lib/auth-utils"
 import type { TokenPayload } from "@/lib/auth-utils"
 import { formatDateTime, getTransportistaActual } from "@/lib/utils/helpers"
 import { ESTADO_TURNO, puedeClasificarTurno } from "@/lib/constants/estados"
+import { EstadoTurnoBadge, LeyendaEstadosTurno } from "@/components/leyenda-estados-turno"
 
 const EMPTY_FORM = { donanteId: "", estadoTurnoId: "", fechaHora: "", descripcion: "" }
 const EMPTY_ASIGNAR = { empleadoId: "", empleadoTransportistaId: "" }
@@ -102,6 +103,11 @@ function EmpleadoAsignadoBadge({ turno }: { turno: Turno }) {
       {nombre}
     </span>
   )
+}
+
+function nombreEmpleadoAsignado(t: Turno): string {
+  const e = t.necesitaRetiro ? t.empleadoTransportista?.empleado : t.empleado
+  return e ? `${e.nombre} ${e.apellido}` : ""
 }
 
 export default function TurnoPage() {
@@ -182,16 +188,20 @@ export default function TurnoPage() {
         }]
       : []),
     {
-      key: "estado",
-      header: "Estado",
+      key: "donacion",
+      header: "N° de donación",
+      sortValue: (t) => t.donacionId,
       cell: (t) =>
-        t.estadoTurno?.descripcion ? (
-          <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
-            {t.estadoTurno.descripcion}
-          </span>
+        t.donacionId != null ? (
+          <span className="font-mono text-xs">#{t.donacionId}</span>
         ) : (
           <span className="italic text-muted-foreground">—</span>
         ),
+    },
+    {
+      key: "estado",
+      header: "Estado",
+      cell: (t) => <EstadoTurnoBadge descripcion={t.estadoTurno?.descripcion} />,
     },
     {
       key: "retiro",
@@ -208,7 +218,26 @@ export default function TurnoPage() {
     {
       key: "empleado",
       header: "Empleado asignado",
-      cell: (t) => <EmpleadoAsignadoBadge turno={t} />,
+      sortValue: (t) => nombreEmpleadoAsignado(t),
+      cell: (t) => {
+        const yaAsignado = !!(t.empleadoId || t.empleadoTransportistaId)
+        const estado = t.estadoTurno?.descripcion?.toLowerCase() ?? ""
+        const puedeAsignarse = !isReadOnly && (estado === "pendiente" || estado === "asignado")
+        return (
+          <div className="flex flex-wrap items-center gap-2">
+            <EmpleadoAsignadoBadge turno={t} />
+            {puedeAsignarse && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => { e.stopPropagation(); openAsignar(t) }}
+              >
+                {yaAsignado ? "Reasignar" : "Asignar"}
+              </Button>
+            )}
+          </div>
+        )
+      },
     },
     {
       key: "fechaHora",
@@ -234,23 +263,12 @@ export default function TurnoPage() {
           key: "acciones-extra",
           header: "",
           cell: (t: Turno) => {
-            const yaAsignado = !!(t.empleadoId || t.empleadoTransportistaId)
             const estado = t.estadoTurno?.descripcion?.toLowerCase() ?? ""
-            const puedeAsignarse = estado === "pendiente" || estado === "asignado"
             const puedeFinalizarse = estado === ESTADO_RETIRO_CONFIRMADO
             // sucursal: asignado a un técnico o administrativo, se confirma la recepción y se pasa a clasificar
             const puedeClasificarSucursal = !t.necesitaRetiro && estado === "asignado" && !!t.empleadoId
             return (
               <div className="flex gap-1">
-                {puedeAsignarse && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={(e) => { e.stopPropagation(); openAsignar(t) }}
-                  >
-                    {yaAsignado ? "Reasignar" : "Asignar"}
-                  </Button>
-                )}
                 {puedeClasificarSucursal && (
                   <Button
                     size="sm"
@@ -563,6 +581,8 @@ export default function TurnoPage() {
           Administrá los turnos asignados a donantes.
         </p>
       </div>
+
+      <LeyendaEstadosTurno />
 
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput

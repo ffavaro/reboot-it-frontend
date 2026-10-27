@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { CrearButton } from "@/components/ui/crear-button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
+import { DireccionMapa, tieneAltura } from "@/components/direccion-mapa"
 import { FormModal } from "@/components/ui/form-modal"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -190,6 +191,7 @@ export default function DonacionPage() {
   // Filtros que se activan tocando el valor en la grilla (Donante, Estado y Entrega)
   const [fDonante, setFDonante] = useState<number | null>(null)
   const [fEstado, setFEstado] = useState<string | null>(null)
+  const [fTransportista, setFTransportista] = useState("")
   const [fEntrega, setFEntrega] = useState<"Retiro a domicilio" | "Sucursal" | null>(null)
   const entregaDe = (d: Donacion) => (d.necesitaRetiro ? "Retiro a domicilio" : "Sucursal")
 
@@ -209,9 +211,17 @@ export default function DonacionPage() {
     return turnos.find((t: Turno) => t.donacionId === d.id)?.fechaHora ?? ""
   }
 
-  // Más recientes primero, por la fecha del turno (las donaciones sin turno quedan al final)
+  // Transportista asignado al turno de la donación
+  function transportistaDe(d: Donacion): number | null {
+    return turnos.find((t: Turno) => t.donacionId === d.id)?.empleadoTransportistaId ?? null
+  }
+  const nombreTransportista = (et: EmpleadoTransportista) =>
+    et.empleado ? `${et.empleado.nombre} ${et.empleado.apellido}` : `Transportista #${et.id}`
+
+  // Número de donación más alto primero
   const filtered = visibleDonaciones.filter((d: Donacion) => {
     if (fDonante !== null && d.donanteId !== fDonante) return false
+    if (fTransportista && String(transportistaDe(d)) !== fTransportista) return false
     if (fEstado !== null && d.estadoDonacion?.descripcion !== fEstado) return false
     if (fEntrega !== null && entregaDe(d) !== fEntrega) return false
     const q = search.toLowerCase()
@@ -220,7 +230,7 @@ export default function DonacionPage() {
       (d.estadoDonacion?.descripcion ?? "").toLowerCase().includes(q) ||
       (d.descripcion ?? "").toLowerCase().includes(q)
     )
-  }).sort((a: Donacion, b: Donacion) => fechaDonacion(b).localeCompare(fechaDonacion(a)) || b.id - a.id)
+  }).sort((a: Donacion, b: Donacion) => b.id - a.id)
 
   function slotsOcupados(dia: Date): Set<string> {
     const ocupados = new Set<string>()
@@ -404,6 +414,10 @@ export default function DonacionPage() {
     }
     if (necesitaRetiro && usarOtraDireccion && !direccionRetiro.trim()) {
       toast.error("Ingresá la dirección donde se realizará el retiro")
+      return
+    }
+    if (necesitaRetiro && usarOtraDireccion && !tieneAltura(direccionRetiro)) {
+      toast.error("Incluí la altura (número de la casa) en la dirección del retiro")
       return
     }
     if (necesitaRetiro && !pesoEstimadoKg.trim()) {
@@ -715,6 +729,21 @@ export default function DonacionPage() {
             ))}
           </SelectContent>
         </Select>
+        {!isDonante && (
+          <Select value={fTransportista} onValueChange={(v) => setFTransportista(v ?? "")}>
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="Todos los transportistas" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Todos los transportistas</SelectItem>
+              {[...transportistas]
+                .sort((a: EmpleadoTransportista, b: EmpleadoTransportista) => nombreTransportista(a).localeCompare(nombreTransportista(b), "es", { sensitivity: "base" }))
+                .map((et: EmpleadoTransportista) => (
+                  <SelectItem key={et.id} value={String(et.id)}>{nombreTransportista(et)}</SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        )}
         <span className="text-sm text-muted-foreground">
           {filtered.length} donación{filtered.length !== 1 ? "es" : ""}
         </span>
@@ -729,8 +758,9 @@ export default function DonacionPage() {
           ...(fDonante !== null ? [{ etiqueta: "Donante", valor: donantes.find((d: Donante) => d.id === fDonante)?.nombre ?? `#${fDonante}`, quitar: () => setFDonante(null) }] : []),
           ...(fEstado !== null ? [{ etiqueta: "Estado", valor: fEstado, quitar: () => setFEstado(null) }] : []),
           ...(fEntrega !== null ? [{ etiqueta: "Entrega", valor: fEntrega, quitar: () => setFEntrega(null) }] : []),
+          ...(fTransportista ? [{ etiqueta: "Transportista", valor: (() => { const et = transportistas.find((t: EmpleadoTransportista) => String(t.id) === fTransportista); return et ? nombreTransportista(et) : `#${fTransportista}` })(), quitar: () => setFTransportista("") }] : []),
         ]}
-        onLimpiar={() => { setFDonante(null); setFEstado(null); setFEntrega(null) }}
+        onLimpiar={() => { setFDonante(null); setFEstado(null); setFEntrega(null); setFTransportista("") }}
       />
 
       <DataTable
@@ -997,10 +1027,11 @@ export default function DonacionPage() {
                   Retirar en una dirección distinta a la registrada
                 </label>
                 {usarOtraDireccion && (
-                  <Input
+                  <DireccionMapa
                     placeholder="Dirección donde se realizará el retiro"
                     value={direccionRetiro}
-                    onChange={(e) => setDireccionRetiro(e.target.value)}
+                    onChange={setDireccionRetiro}
+                    maxLength={255}
                   />
                 )}
               </div>

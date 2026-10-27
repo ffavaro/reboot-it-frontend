@@ -7,7 +7,39 @@ import { cn } from "@/lib/utils"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { UnfoldMoreIcon, Tick02Icon, ArrowUp01Icon, ArrowDown01Icon } from "@hugeicons/core-free-icons"
 
-const Select = SelectPrimitive.Root
+function textoDeNodo(node: React.ReactNode): string {
+  if (node === null || node === undefined || typeof node === "boolean") return ""
+  if (typeof node === "string" || typeof node === "number") return String(node)
+  if (Array.isArray(node)) return node.map(textoDeNodo).join(" ").replace(/\s+/g, " ").trim()
+  if (React.isValidElement(node)) return textoDeNodo((node.props as { children?: React.ReactNode }).children)
+  return ""
+}
+
+// Recorre los hijos buscando los SelectItem para conocer el texto de cada valor
+function juntarItems(node: React.ReactNode, acc: { value: string; label: string }[]) {
+  React.Children.forEach(node, (hijo) => {
+    if (!React.isValidElement(hijo)) return
+    const props = hijo.props as { value?: unknown; children?: React.ReactNode }
+    if (hijo.type === SelectItem && typeof props.value === "string") {
+      acc.push({ value: props.value, label: textoDeNodo(props.children) })
+    } else if (props.children) {
+      juntarItems(props.children, acc)
+    }
+  })
+}
+
+// Igual que el Select de base-ui, pero el campo muestra el texto de la opción elegida (no su valor interno)
+function SelectConTextos(props: React.ComponentProps<typeof SelectPrimitive.Root>) {
+  const items = React.useMemo(() => {
+    if (props.items) return props.items
+    const acc: { value: string; label: string }[] = []
+    juntarItems(props.children, acc)
+    return acc
+  }, [props.items, props.children])
+  return <SelectPrimitive.Root {...props} items={items} />
+}
+// Se conserva el tipo genérico del Select original
+const Select = SelectConTextos as typeof SelectPrimitive.Root
 
 function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
   return (

@@ -90,6 +90,10 @@ export function descargarConstanciaPdf(c: ConstanciaRetiroDatos) {
   doc.setFontSize(9)
   doc.text("Firma del transportista", 55, base + 5, { align: "center" })
   doc.text("Firma del donante", ancho - 55, base + 5, { align: "center" })
+  if (c.transportista) {
+    doc.setFont("helvetica", "bold")
+    doc.text(transportista, 55, base + 10, { align: "center" })
+  }
 
   doc.save(`constancia-retiro-${nroConstancia}.pdf`)
 }

@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { DateInput } from "@/components/ui/date-input"
+import { useMemo, useState } from "react"
+import { SelectBuscador } from "@/components/ui/select-buscador"
+import { DatePicker } from "@/components/ui/date-picker"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -35,6 +36,15 @@ export default function ReporteRetirosPage() {
   const { donantes } = useDonantes()
   const { estadosDonacion } = useEstadosDonacion()
   const { transportistas } = useEmpleadosTransportistas()
+  const opcionesDonante = useMemo(
+    () => [
+      { value: "", label: "Todos los donantes" },
+      ...[...donantes]
+        .sort((a: Donante, b: Donante) => a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" }))
+        .map((d: Donante) => ({ value: String(d.id), label: d.nombre })),
+    ],
+    [donantes],
+  )
 
   const [filters, setFilters] = useState<ReporteRetiroQuery>(periodoPorDefecto)
   const [result, setResult] = useState<ReporteRetiro[]>([])
@@ -113,24 +123,13 @@ export default function ReporteRetirosPage() {
             {/* Donante */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Donante</label>
-              <Select
+              <SelectBuscador
+                opciones={opcionesDonante}
                 value={filters.donanteId ? String(filters.donanteId) : ""}
-                onValueChange={(v) =>
-                  setFilters((f) => ({ ...f, donanteId: v ? Number(v) : undefined }))
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Todos los donantes" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Todos los donantes</SelectItem>
-                  {donantes.map((d: Donante) => (
-                    <SelectItem key={d.id} value={String(d.id)}>
-                      {d.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(v) => setFilters((f) => ({ ...f, donanteId: v ? Number(v) : undefined }))}
+                placeholder="Todos los donantes"
+                placeholderBusqueda="Buscar donante…"
+              />
             </div>
 
             {/* Transportista */}
@@ -182,7 +181,7 @@ export default function ReporteRetirosPage() {
             {/* Fecha desde */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Fecha Desde</label>
-              <DateInput
+              <DatePicker variant="field" conFinDeSemana clearable placeholder="Seleccionar fecha"
                 value={filters.fechaDesde ?? ""}
                 onChange={(v) => setFilters((f) => ({ ...f, fechaDesde: v || undefined }))}
               />
@@ -191,7 +190,7 @@ export default function ReporteRetirosPage() {
             {/* Fecha hasta */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Fecha Hasta</label>
-              <DateInput
+              <DatePicker variant="field" conFinDeSemana clearable placeholder="Seleccionar fecha"
                 value={filters.fechaHasta ?? ""}
                 onChange={(v) => setFilters((f) => ({ ...f, fechaHasta: v || undefined }))}
               />

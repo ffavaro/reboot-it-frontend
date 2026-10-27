@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
+import { DireccionMapa } from "@/components/direccion-mapa"
 import { FieldError } from "@/components/ui/field"
 import { DatePicker } from "@/components/ui/date-picker"
 import { todayISO } from "@/lib/utils/helpers"
@@ -60,11 +61,12 @@ export function DireccionField({ value, error, onChange }: FieldProps<"direccion
   return (
     <div className="flex flex-col gap-2">
       <label className="text-sm font-medium">Dirección *</label>
-      <Input
+      <DireccionMapa
         value={value}
-        onChange={(e) => onChange("direccion", enforceMaxLength(e.target.value, DIRECCION_MAX, "La dirección"))}
-        placeholder="Av. Corrientes 1234, CABA"
-        className={cn(error && "border-destructive focus-visible:ring-destructive")}
+        onChange={(v) => onChange("direccion", enforceMaxLength(v, DIRECCION_MAX, "La dirección"))}
+        placeholder="Av. Colón 1234, Córdoba"
+        maxLength={DIRECCION_MAX}
+        inputClassName={cn(error && "border-destructive focus-visible:ring-destructive")}
       />
       <FieldError>{error}</FieldError>
     </div>

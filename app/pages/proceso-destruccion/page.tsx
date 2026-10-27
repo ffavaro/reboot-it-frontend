@@ -11,6 +11,7 @@ import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { DateInput } from "@/components/ui/date-input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { EstadoBadge } from "@/components/ui/estado-badge"
 import { ESTADO_PROCESO_DESTRUCCION_COLORS, colorPorEstado } from "@/lib/estado-colores"
 import {
@@ -162,6 +163,9 @@ export default function ProcesoDestruccionPage() {
   const { createMetodo, isLoading: isCreatingMetodo } = useCreateMetodoDestruccion()
 
   const [search, setSearch] = useState("")
+  const [fEstado, setFEstado] = useState("")
+  const [fEmpleado, setFEmpleado] = useState("")
+  const [fMetodo, setFMetodo] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<ProcesoDestruccion | null>(null)
   const [isViewing, setIsViewing] = useState(false)
@@ -199,6 +203,9 @@ export default function ProcesoDestruccionPage() {
   }, [procesos, procesoAbierto])
 
   const filtered = procesos.filter((p: ProcesoDestruccion) => {
+    if (fEstado && String(p.estado?.id ?? p.estadoId) !== fEstado) return false
+    if (fEmpleado && String(p.empleado?.id ?? p.empleadoId) !== fEmpleado) return false
+    if (fMetodo && String(p.metodoDestruccion?.id ?? p.metodoDestruccionId) !== fMetodo) return false
     const q = search.toLowerCase()
     const empleado = p.empleado ? `${p.empleado.nombre} ${p.empleado.apellido}`.toLowerCase() : ""
     const metodo = p.metodoDestruccion?.nombre.toLowerCase() ?? ""
@@ -453,6 +460,41 @@ export default function ProcesoDestruccionPage() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
         />
+        <Select value={fEstado} onValueChange={(v) => setFEstado(v ?? "")}>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Todos los estados" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todos los estados</SelectItem>
+            {estados.map((e: EstadoProcesoDestruccion) => (
+              <SelectItem key={e.id} value={String(e.id)}>{e.nombre}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={fEmpleado} onValueChange={(v) => setFEmpleado(v ?? "")}>
+          <SelectTrigger className="w-52">
+            <SelectValue placeholder="Todos los empleados" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todos los empleados</SelectItem>
+            {[...empleados]
+              .sort((a: Empleado, b: Empleado) => `${a.apellido} ${a.nombre}`.localeCompare(`${b.apellido} ${b.nombre}`, "es", { sensitivity: "base" }))
+              .map((e: Empleado) => (
+                <SelectItem key={e.id} value={String(e.id)}>{e.nombre} {e.apellido}</SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
+        <Select value={fMetodo} onValueChange={(v) => setFMetodo(v ?? "")}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Todos los métodos" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todos los métodos</SelectItem>
+            {metodos.map((m: MetodoDestruccion) => (
+              <SelectItem key={m.id} value={String(m.id)}>{m.nombre}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <span className="text-sm text-muted-foreground">
           {filtered.length} proceso{filtered.length !== 1 ? "s" : ""}
         </span>

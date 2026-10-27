@@ -392,16 +392,6 @@ export default function UserManagementPage() {
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Nombre *</label>
-            <Input
-              value={form.nombre}
-              onChange={(e) => handleNombreChange("nombre", e.target.value)}
-              placeholder="Juan"
-              className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
-            />
-            <FieldError>{errors.nombre}</FieldError>
-          </div>
-          <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Apellido{isEdit ? "" : " *"}</label>
             <Input
               value={form.apellido}
@@ -410,6 +400,16 @@ export default function UserManagementPage() {
               className={cn(errors.apellido && "border-destructive focus-visible:ring-destructive")}
             />
             <FieldError>{errors.apellido}</FieldError>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium">Nombre *</label>
+            <Input
+              value={form.nombre}
+              onChange={(e) => handleNombreChange("nombre", e.target.value)}
+              placeholder="Juan"
+              className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
+            />
+            <FieldError>{errors.nombre}</FieldError>
           </div>
         </div>
 

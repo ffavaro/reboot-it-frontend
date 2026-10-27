@@ -1,6 +1,8 @@
 import { toast } from "react-toastify"
 
 export const DEFAULT_TEXT_MAX = 25
+// Descripciones de catálogos y materiales (la base admite hasta 255)
+export const DESCRIPCION_MAX = 100
 
 export function enforceMaxLength(value: string, max: number, label: string): string {
   if (value.length <= max) return value

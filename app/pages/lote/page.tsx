@@ -32,13 +32,14 @@ import {
 import { useDonaciones } from "@/hooks/use-donacion"
 import { useRegistrosFotograficos } from "@/hooks/use-registro-fotografico"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import { requiredSelect, positiveNumber, maxDigits } from "@/lib/form-validators"
+import { required, requiredSelect, positiveNumber, maxDigits } from "@/lib/form-validators"
 import { enforceDecimalInput, DEFAULT_WEIGHT_MAX_DIGITS } from "@/lib/utils/number-limit"
 import { formatPeso } from "@/lib/utils/helpers"
 import type { Lote } from "@/lib/type/lote"
 import type { RegistroFotografico } from "@/lib/type/registro-fotografico"
 
 const EMPTY_FORM = { donacionId: "", pesoBrutoKg: "", observaciones: "" }
+const AVISO_PESO_BRUTO = "El peso bruto es obligatorio"
 
 // Miniaturas de las fotos del lote; cada una abre la imagen completa
 function FotosDelLote({ fotos, max }: { fotos: RegistroFotografico[]; max?: number }) {
@@ -212,12 +213,15 @@ export default function LotePage() {
   async function handleSave() {
     if (!validate(form, {
       donacionId: [requiredSelect("una donación")],
-      pesoBrutoKg: [positiveNumber(), maxDigits(DEFAULT_WEIGHT_MAX_DIGITS)],
-    })) return
+      pesoBrutoKg: [required("el peso bruto"), positiveNumber(), maxDigits(DEFAULT_WEIGHT_MAX_DIGITS)],
+    })) {
+      if (!form.pesoBrutoKg.trim()) toast.error(AVISO_PESO_BRUTO, { toastId: "peso-bruto" })
+      return
+    }
     try {
       const payload = {
         donacionId: Number(form.donacionId),
-        pesoBrutoKg: form.pesoBrutoKg !== "" ? Number(form.pesoBrutoKg) : undefined,
+        pesoBrutoKg: Number(form.pesoBrutoKg),
         observaciones: form.observaciones.trim() || undefined,
       }
       if (editing) {
@@ -291,13 +295,21 @@ export default function LotePage() {
         description={editing ? "Modificá los datos del lote." : "Registrá un nuevo lote de materiales."}
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
+        saveDisabled={!form.pesoBrutoKg.trim()}
         saveLabel={editing ? "Guardar cambios" : "Crear lote"}
       >
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Donación</label>
           <Select
             value={form.donacionId}
-            onValueChange={(v) => { setForm((f) => ({ ...f, donacionId: v ?? "" })); clearError("donacionId") }}
+            onValueChange={(v) => {
+              // el peso bruto arranca con el peso estimado que se ingresó en la donación
+              const donacion = donaciones.find((d) => String(d.id) === v)
+              const pesoDonacion = donacion?.pesoEstimadoKg != null ? String(Number(donacion.pesoEstimadoKg)) : ""
+              setForm((f) => ({ ...f, donacionId: v ?? "", pesoBrutoKg: pesoDonacion || f.pesoBrutoKg }))
+              clearError("donacionId")
+              clearError("pesoBrutoKg")
+            }}
             disabled={isViewing}
           >
             <SelectTrigger className={cn("w-full", errors.donacionId && "border-destructive ring-1 ring-destructive")}>
@@ -321,7 +333,7 @@ export default function LotePage() {
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">
-            Peso bruto (kg) <span className="text-muted-foreground font-normal">(opcional)</span>
+            Peso bruto (kg) *
           </label>
           <Input
             inputMode="decimal"
@@ -331,9 +343,10 @@ export default function LotePage() {
               setForm((f) => ({ ...f, pesoBrutoKg: enforceDecimalInput(e.target.value, DEFAULT_WEIGHT_MAX_DIGITS, "El peso bruto") }))
               clearError("pesoBrutoKg")
             }}
+            onBlur={() => { if (!isViewing && !form.pesoBrutoKg.trim()) toast.error(AVISO_PESO_BRUTO, { toastId: "peso-bruto" }) }}
             className={cn(errors.pesoBrutoKg && "border-destructive focus-visible:ring-destructive")}
           />
-          <FieldError>{errors.pesoBrutoKg}</FieldError>
+          {!isViewing && <FieldError>{errors.pesoBrutoKg ?? (!form.pesoBrutoKg.trim() ? AVISO_PESO_BRUTO : undefined)}</FieldError>}
         </div>
 
         <div className="flex flex-col gap-2">

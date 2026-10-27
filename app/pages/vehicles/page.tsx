@@ -40,6 +40,8 @@ const PESO_MAXIMO_MAX_DIGITS = 4
 
 const EMPTY_VEHICULO = { tipoVehiculoId: 0, patente: "", marca: "", modelo: "", itvVencimiento: "", kilometraje: "", tipoCombustible: "" }
 const EMPTY_TIPO = { descripcion: "", pesoMinimo: "", pesoMaximo: "" }
+const PESO_MINIMO_POR_DEFECTO = 1
+const AVISO_PESO_MAXIMO = "El peso máximo es obligatorio"
 
 // ---------------------------------------------------------------------------
 // Vehículos tab
@@ -222,21 +224,21 @@ function VehiculosTab() {
     if (!validateTipo(quickTipoForm, {
       descripcion: [required("la descripción"), maxLengthValidator(DESCRIPCION_MAX)],
       pesoMinimo: [positiveNumber(), maxDigits(PESO_MINIMO_MAX_DIGITS)],
-      pesoMaximo: [positiveNumber(), maxDigits(PESO_MAXIMO_MAX_DIGITS)],
-    })) return
-    if (
-      quickTipoForm.pesoMinimo !== "" &&
-      quickTipoForm.pesoMaximo !== "" &&
-      Number(quickTipoForm.pesoMinimo) > Number(quickTipoForm.pesoMaximo)
-    ) {
+      pesoMaximo: [required("el peso máximo"), positiveNumber(), maxDigits(PESO_MAXIMO_MAX_DIGITS)],
+    })) {
+      if (!quickTipoForm.pesoMaximo.trim()) toast.error(AVISO_PESO_MAXIMO, { toastId: "peso-maximo" })
+      return
+    }
+    const pesoMinimo = quickTipoForm.pesoMinimo !== "" ? Number(quickTipoForm.pesoMinimo) : PESO_MINIMO_POR_DEFECTO
+    if (pesoMinimo > Number(quickTipoForm.pesoMaximo)) {
       toast.error("El peso mínimo no puede ser mayor al peso máximo")
       return
     }
     try {
       const nuevo = await createTipo({
         descripcion: quickTipoForm.descripcion.trim(),
-        pesoMinimo: quickTipoForm.pesoMinimo !== "" ? Number(quickTipoForm.pesoMinimo) : undefined,
-        pesoMaximo: quickTipoForm.pesoMaximo !== "" ? Number(quickTipoForm.pesoMaximo) : undefined,
+        pesoMinimo,
+        pesoMaximo: Number(quickTipoForm.pesoMaximo),
       })
       await mutateTipos()
       if (nuevo) set("tipoVehiculoId", nuevo.id)
@@ -247,7 +249,7 @@ function VehiculosTab() {
     }
   }
 
-  const canSaveQuickTipo = !!quickTipoForm.descripcion.trim()
+  const canSaveQuickTipo = !!quickTipoForm.descripcion.trim() && !!quickTipoForm.pesoMaximo.trim()
 
   return (
     <>
@@ -410,11 +412,11 @@ function VehiculosTab() {
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">
-            Peso mínimo (kg) <span className="text-muted-foreground font-normal">(opcional)</span>
+            Peso mínimo (kg) <span className="text-muted-foreground font-normal">(por defecto 1)</span>
           </label>
           <Input
             inputMode="decimal"
-            placeholder="Ej: 10"
+            placeholder="1"
             value={quickTipoForm.pesoMinimo}
             onChange={(e) => {
               setQuickTipoForm((f) => ({
@@ -430,7 +432,7 @@ function VehiculosTab() {
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">
-            Peso máximo (kg) <span className="text-muted-foreground font-normal">(opcional)</span>
+            Peso máximo (kg) *
           </label>
           <Input
             inputMode="decimal"
@@ -443,9 +445,10 @@ function VehiculosTab() {
               }))
               clearTipoError("pesoMaximo")
             }}
+            onBlur={() => { if (!quickTipoForm.pesoMaximo.trim()) toast.error(AVISO_PESO_MAXIMO, { toastId: "peso-maximo" }) }}
             className={cn(tipoErrors.pesoMaximo && "border-destructive focus-visible:ring-destructive")}
           />
-          <FieldError>{tipoErrors.pesoMaximo}</FieldError>
+          <FieldError>{tipoErrors.pesoMaximo ?? (!quickTipoForm.pesoMaximo.trim() ? AVISO_PESO_MAXIMO : undefined)}</FieldError>
         </div>
       </FormModal>
     </>
@@ -530,21 +533,21 @@ function TiposTab() {
     if (!validate(form, {
       descripcion: [required("la descripción"), maxLengthValidator(DESCRIPCION_MAX)],
       pesoMinimo: [positiveNumber(), maxDigits(PESO_MINIMO_MAX_DIGITS)],
-      pesoMaximo: [positiveNumber(), maxDigits(PESO_MAXIMO_MAX_DIGITS)],
-    })) return
-    if (
-      form.pesoMinimo !== "" &&
-      form.pesoMaximo !== "" &&
-      Number(form.pesoMinimo) > Number(form.pesoMaximo)
-    ) {
+      pesoMaximo: [required("el peso máximo"), positiveNumber(), maxDigits(PESO_MAXIMO_MAX_DIGITS)],
+    })) {
+      if (!form.pesoMaximo.trim()) toast.error(AVISO_PESO_MAXIMO, { toastId: "peso-maximo" })
+      return
+    }
+    const pesoMinimo = form.pesoMinimo !== "" ? Number(form.pesoMinimo) : PESO_MINIMO_POR_DEFECTO
+    if (pesoMinimo > Number(form.pesoMaximo)) {
       toast.error("El peso mínimo no puede ser mayor al peso máximo")
       return
     }
     try {
       const payload = {
         descripcion: form.descripcion.trim(),
-        pesoMinimo: form.pesoMinimo !== "" ? Number(form.pesoMinimo) : undefined,
-        pesoMaximo: form.pesoMaximo !== "" ? Number(form.pesoMaximo) : undefined,
+        pesoMinimo,
+        pesoMaximo: Number(form.pesoMaximo),
       }
       if (editing) {
         await updateTipo({ id: editing.id, ...payload })
@@ -570,7 +573,7 @@ function TiposTab() {
     }
   }
 
-  const canSave = !!form.descripcion.trim()
+  const canSave = !!form.descripcion.trim() && !!form.pesoMaximo.trim()
 
   return (
     <>
@@ -624,11 +627,11 @@ function TiposTab() {
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">
-            Peso mínimo (kg) <span className="text-muted-foreground font-normal">(opcional)</span>
+            Peso mínimo (kg) <span className="text-muted-foreground font-normal">(por defecto 1)</span>
           </label>
           <Input
             inputMode="decimal"
-            placeholder="Ej: 10"
+            placeholder="1"
             value={form.pesoMinimo}
             onChange={(e) => {
               setForm((f) => ({ ...f, pesoMinimo: enforceDecimalInput(e.target.value, PESO_MINIMO_MAX_DIGITS, "El peso mínimo") }))
@@ -641,7 +644,7 @@ function TiposTab() {
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">
-            Peso máximo (kg) <span className="text-muted-foreground font-normal">(opcional)</span>
+            Peso máximo (kg) *
           </label>
           <Input
             inputMode="decimal"
@@ -651,9 +654,10 @@ function TiposTab() {
               setForm((f) => ({ ...f, pesoMaximo: enforceDecimalInput(e.target.value, PESO_MAXIMO_MAX_DIGITS, "El peso máximo") }))
               clearError("pesoMaximo")
             }}
+            onBlur={() => { if (!isViewing && !form.pesoMaximo.trim()) toast.error(AVISO_PESO_MAXIMO, { toastId: "peso-maximo" }) }}
             className={cn(errors.pesoMaximo && "border-destructive focus-visible:ring-destructive")}
           />
-          <FieldError>{errors.pesoMaximo}</FieldError>
+          {!isViewing && <FieldError>{errors.pesoMaximo ?? (!form.pesoMaximo.trim() ? AVISO_PESO_MAXIMO : undefined)}</FieldError>}
         </div>
       </FormModal>
     </>
