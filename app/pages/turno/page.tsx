@@ -796,6 +796,7 @@ export default function TurnoPage() {
           </label>
           <Input
             placeholder="Observaciones del turno..."
+            maxLength={255}
             value={form.descripcion}
             onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
           />

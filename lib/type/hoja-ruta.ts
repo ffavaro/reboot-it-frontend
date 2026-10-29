@@ -24,6 +24,18 @@ export interface PuntoRecorrido {
   donante: string | null
 }
 
+export interface ClimaDia {
+  fecha: string
+  // Código WMO del pronóstico (0 = despejado, 61 = lluvia, 95 = tormenta...)
+  codigo: number
+  descripcion: string
+  tempMin: number
+  tempMax: number
+  probLluvia: number | null
+  lluviaMm: number | null
+  vientoMaxKmh: number | null
+}
+
 export interface HojaRutaInfo {
   id: number
   estado: EstadoHojaRuta
@@ -44,6 +56,10 @@ export interface HojaRutaDia {
   paradas: ParadaHojaRuta[]
   cantidadPedidos: number
   kmEstimados: number | null
+  // Tiempo de manejo estimado del recorrido, sin contar el tiempo en cada parada
+  duracionMinutos: number | null
+  // Pronóstico del día de la ruta (null si no está disponible)
+  clima: ClimaDia | null
   mapsUrl: string | null
   // URL del mapa embebido (iframe) con la ruta
   embedUrl: string | null

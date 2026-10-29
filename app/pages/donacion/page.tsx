@@ -963,6 +963,7 @@ export default function DonacionPage() {
             <textarea
               rows={2}
               placeholder="Descripción general de la donación..."
+              maxLength={255}
               value={form.descripcion}
               onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
               className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"

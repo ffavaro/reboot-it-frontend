@@ -46,6 +46,7 @@ function CampoContrasena({
           type={visible ? 'text' : 'password'}
           required
           autoComplete={autoComplete}
+          maxLength={12}
           className="w-full px-4 py-2.5 pr-11 border border-gray-300 rounded-lg"
           value={value}
           onChange={(e) => onChange(e.target.value)}

@@ -60,7 +60,7 @@ export default function RootLayout({
     <SidebarProvider defaultOpen={false}>
       <ThemeProvider defaultTheme="light">
         <AppSidebar />
-        <SidebarInset className="bg-slate-200/70">
+        <SidebarInset className="bg-slate-50">
            <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 bg-slate-900 border-b border-white/10 shadow-sm transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
             <div className="flex items-center gap-3 px-4">
               <SidebarTrigger className="-ml-1 text-white hover:bg-white/10 hover:text-white" />
@@ -104,7 +104,7 @@ export default function RootLayout({
               )}
             </div>
           </header>
-          <main className="p-4 md:p-6">
+          <main>
             {/* No se monta la pantalla hasta confirmar el acceso, así no dispara llamadas que el backend rechazaría */}
             {!permisos && errorPermisos ? (
               <div className="flex flex-col items-center gap-3 py-16 text-center">

@@ -133,7 +133,7 @@ export function GenerarCertificadoModal({
             value={terminos}
             onChange={(e) => setTerminos(e.target.value)}
             placeholder="Ej: Material procesado conforme normativa vigente"
-            maxLength={500}
+            maxLength={300}
           />
         </div>
       </div>

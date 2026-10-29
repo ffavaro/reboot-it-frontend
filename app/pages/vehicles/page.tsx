@@ -24,7 +24,7 @@ import {
   useDeleteTipoVehiculo,
 } from "@/hooks/use-vehicles"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import { required, requiredSelect, maxLength as maxLengthValidator, positiveNumber, maxDigits, integerNonNegative } from "@/lib/form-validators"
+import { required, requiredSelect, maxLength as maxLengthValidator, positiveNumber, maxDigits, integerNonNegative, patenteArgentina } from "@/lib/form-validators"
 import { enforceMaxLength } from "@/lib/utils/text-limit"
 import { enforceDecimalInput } from "@/lib/utils/number-limit"
 import type { Vehiculo, TipoVehiculo } from "@/lib/type/vehicle"
@@ -176,7 +176,7 @@ function VehiculosTab() {
 
   async function handleSave() {
     if (!validate(form, {
-      patente: [required("la patente")],
+      patente: [required("la patente"), patenteArgentina()],
       marca: [required("la marca")],
       modelo: [required("el modelo")],
       tipoVehiculoId: [requiredSelect("un tipo de vehículo")],

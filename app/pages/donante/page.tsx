@@ -27,7 +27,7 @@ import {
 } from "@/hooks/use-donantes"
 import { useUsuarios } from "@/hooks/use-users"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import { required, requiredSelect, maxLength as maxLengthValidator, emailFormat, minLength, dniOCuit, soloLetras, direccionConAltura } from "@/lib/form-validators"
+import { required, requiredSelect, maxLength as maxLengthValidator, emailFormat, minLength, dniOCuit, soloLetras, direccionConAltura, telefonoArgentino } from "@/lib/form-validators"
 import { CuitDniField } from "@/components/empleado-fields"
 import { DireccionMapa } from "@/components/direccion-mapa"
 import { isLegalEntity, isOrganismo, JURISDICCIONES } from "@/lib/donante-tipo"
@@ -213,9 +213,10 @@ function DonantesTab() {
         respApellido: [required("el apellido del responsable"), soloLetras("El apellido", MAX_NOMBRE)],
         respNombre: [required("el nombre del responsable"), soloLetras("El nombre", MAX_NOMBRE)],
         cargoResponsable: [required("el cargo del responsable"), maxLengthValidator(DEFAULT_TEXT_MAX)],
-        telefono: [required("el teléfono de contacto")],
+        telefono: [required("el teléfono de contacto"), telefonoArgentino()],
       } : {}),
       direccion: [...(editing ? [] : [required("la dirección")]), maxLengthValidator(DEFAULT_TEXT_MAX), direccionConAltura()],
+      ...(esOrganismo ? {} : { telefono: [telefonoArgentino()] }),
       // el usuario se crea junto con el donante, así que sus datos solo se piden al crear
       ...(!editing ? {
         email: [required("el email"), emailFormat(), maxLengthValidator(EMAIL_MAX)],

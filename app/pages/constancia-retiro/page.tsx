@@ -301,6 +301,7 @@ export default function ConstanciaRetiroPage() {
             value={form.observaciones}
             onChange={(e) => setForm((f) => ({ ...f, observaciones: e.target.value }))}
             placeholder="Ej: Material recibido conforme. Sin observaciones."
+            maxLength={300}
             rows={4}
             className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
           />

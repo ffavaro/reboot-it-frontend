@@ -279,6 +279,7 @@ export default function RegisterPage() {
                             id="razonSocial"
                             type="text"
                             placeholder={esOrganismo ? 'Ministerio de Ambiente' : 'Empresa S.A.'}
+                            maxLength={150}
                             className={`h-9 text-sm ${err('razonSocial')}`}
                             {...field('razonSocial')}
                           />
@@ -454,6 +455,7 @@ export default function RegisterPage() {
                           id="email"
                           type="email"
                           placeholder="correo@ejemplo.com"
+                          maxLength={150}
                           className={`h-9 text-sm ${err('email')}`}
                           {...field('email')}
                         />
@@ -469,6 +471,7 @@ export default function RegisterPage() {
                           id="password"
                           type="password"
                           placeholder="••••••••"
+                          maxLength={12}
                           className={`h-9 text-sm ${err('password')}`}
                           {...field('password')}
                         />
@@ -484,6 +487,7 @@ export default function RegisterPage() {
                           id="confirmPassword"
                           type="password"
                           placeholder="••••••••"
+                          maxLength={12}
                           className={`h-9 text-sm ${err('confirmPassword')}`}
                           {...field('confirmPassword')}
                         />
@@ -494,9 +498,7 @@ export default function RegisterPage() {
 
                   <div className="text-center text-xs text-gray-500 mt-1">
                     <p className="text-xs text-gray-400">
-                      Al registrarte aceptás nuestros{' '}
-                      <a href="#" className="underline">Términos</a> y{' '}
-                      <a href="#" className="underline">Política de Privacidad</a>
+                      Al registrarte aceptás nuestros Términos y Política de Privacidad
                     </p>
                   </div>
 
