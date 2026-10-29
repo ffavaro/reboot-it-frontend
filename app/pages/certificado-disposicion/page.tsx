@@ -426,7 +426,7 @@ export default function CertificadoDisposicionPage() {
             value={form.terminosCondiciones}
             onChange={(e) => setForm((f) => ({ ...f, terminosCondiciones: e.target.value }))}
             placeholder="Ej: Material procesado conforme normativa vigente"
-            maxLength={500}
+            maxLength={300}
           />
         </div>
       </FormModal>

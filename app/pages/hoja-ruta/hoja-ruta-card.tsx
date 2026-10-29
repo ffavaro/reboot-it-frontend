@@ -1,12 +1,31 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { CheckCircle2 } from "lucide-react"
+import { CheckCircle2, Cloud, CloudFog, CloudLightning, CloudRain, CloudSun, Snowflake, Sun } from "lucide-react"
 import { EstadoHojaBadge } from "@/components/ui/estado-hoja-badge"
 import { MapaRuta } from "@/components/mapa-ruta"
 import { formatFechaISO, formatHora, formatKm } from "@/lib/utils/helpers"
 import { cn } from "@/lib/utils"
 import type { HojaRutaDia, ParadaHojaRuta } from "@/lib/type/hoja-ruta"
+
+// 95 min -> "1 h 35 min"
+export function formatDuracion(minutos: number): string {
+  const h = Math.floor(minutos / 60)
+  const m = minutos % 60
+  return h === 0 ? `${m} min` : m === 0 ? `${h} h` : `${h} h ${m} min`
+}
+
+function IconoClima({ codigo }: { codigo: number }) {
+  const clase = "size-6 shrink-0"
+  if (codigo === 0) return <Sun className={clase} />
+  if (codigo <= 2) return <CloudSun className={clase} />
+  if (codigo === 3) return <Cloud className={clase} />
+  if (codigo === 45 || codigo === 48) return <CloudFog className={clase} />
+  if (codigo >= 95) return <CloudLightning className={clase} />
+  if (codigo >= 71 && codigo <= 77) return <Snowflake className={clase} />
+  if (codigo === 85 || codigo === 86) return <Snowflake className={clase} />
+  return <CloudRain className={clase} />
+}
 
 export function nombreTransportista(h: HojaRutaDia): string {
   return h.transportista ? `${h.transportista.nombre} ${h.transportista.apellido}` : `Transportista #${h.empleadoTransportistaId}`
@@ -20,6 +39,8 @@ export function buildWhatsAppUrl(h: HojaRutaDia): string {
     h.vehiculo ? `Vehículo: ${h.vehiculo.patente} (${h.vehiculo.marca} ${h.vehiculo.modelo})` : "Vehículo: sin asignar",
     `Estado: ${h.estado}`,
     ...(h.kmEstimados !== null ? [`Km estimados: ${formatKm(h.kmEstimados)}`] : []),
+    ...(h.duracionMinutos !== null ? [`Tiempo estimado de manejo: ${formatDuracion(h.duracionMinutos)}`] : []),
+    ...(h.clima ? [`Clima: ${h.clima.descripcion}, ${h.clima.tempMin}°–${h.clima.tempMax}°C${h.clima.probLluvia !== null ? `, lluvia ${h.clima.probLluvia}%` : ""}`] : []),
     "",
     `Paradas (${h.paradas.length}):`,
     ...h.paradas.map(
@@ -64,34 +85,57 @@ export function HojaRutaCard({
         <div className="flex flex-wrap gap-2">{actions}</div>
       </div>
 
-      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-        <span className="text-muted-foreground">
-          Turnos: <span className="font-medium text-foreground">{hoja.paradas.length}</span>
+      <div className="grid grid-cols-2 gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 lg:grid-cols-4">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-xs font-medium uppercase tracking-wide text-foreground/75">Turnos</span>
+          <span className="text-2xl font-semibold tabular-nums">{hoja.paradas.length}</span>
           {hoja.estado !== "Pendiente" && (
-            <span className="ml-1 text-xs">({retirados} retirado{retirados !== 1 ? "s" : ""})</span>
+            <span className="text-xs text-foreground/75">{retirados} retirado{retirados !== 1 ? "s" : ""}</span>
           )}
-        </span>
-        <span className="text-muted-foreground">
-          Km estimados{hoja.origen ? " (ida y vuelta)" : ""}:{" "}
-          <span className="font-medium text-foreground">{hoja.kmEstimados !== null ? formatKm(hoja.kmEstimados) : "—"}</span>
-          {hoja.rutaOptimizada && <span className="ml-1 text-xs">(ruta optimizada)</span>}
-        </span>
-        {info?.kmInicial != null && (
-          <span className="text-muted-foreground">
-            Km inicial: <span className="font-medium text-foreground">{formatKm(info.kmInicial)}</span>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-xs font-medium uppercase tracking-wide text-foreground/75">
+            Km estimados{hoja.origen ? " (ida y vuelta)" : ""}
           </span>
+          <span className="text-2xl font-semibold tabular-nums">{hoja.kmEstimados !== null ? formatKm(hoja.kmEstimados) : "—"}</span>
+          {hoja.rutaOptimizada && <span className="text-xs text-foreground/75">Ruta optimizada</span>}
+        </div>
+        {hoja.duracionMinutos !== null && (
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs font-medium uppercase tracking-wide text-foreground/75">Tiempo estimado</span>
+            <span className="text-2xl font-semibold tabular-nums">{formatDuracion(hoja.duracionMinutos)}</span>
+            <span className="text-xs text-foreground/75">Solo manejo, sin contar cada retiro</span>
+          </div>
         )}
-        {info?.kmFinal != null && (
-          <span className="text-muted-foreground">
-            Km final: <span className="font-medium text-foreground">{formatKm(info.kmFinal)}</span>
-          </span>
-        )}
-        {hoja.origen && (
-          <span className="text-muted-foreground">
-            Base: <span className="font-medium text-foreground">{hoja.origen}</span>
-          </span>
+        {hoja.clima && (
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs font-medium uppercase tracking-wide text-foreground/75">Clima</span>
+            <span className="flex items-center gap-2 text-2xl font-semibold">
+              <IconoClima codigo={hoja.clima.codigo} />
+              {hoja.clima.descripcion}
+            </span>
+            <span className="text-xs tabular-nums text-foreground/75">
+              {hoja.clima.tempMin}° / {hoja.clima.tempMax}°C
+              {hoja.clima.probLluvia !== null && ` · lluvia ${hoja.clima.probLluvia}%`}
+              {hoja.clima.vientoMaxKmh !== null && ` · viento ${hoja.clima.vientoMaxKmh} km/h`}
+            </span>
+          </div>
         )}
       </div>
+
+      {(info?.kmInicial != null || info?.kmFinal != null || hoja.origen) && (
+        <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground">
+          {info?.kmInicial != null && (
+            <span>Km inicial: <span className="font-medium text-foreground">{formatKm(info.kmInicial)}</span></span>
+          )}
+          {info?.kmFinal != null && (
+            <span>Km final: <span className="font-medium text-foreground">{formatKm(info.kmFinal)}</span></span>
+          )}
+          {hoja.origen && (
+            <span>Base: <span className="font-medium text-foreground">{hoja.origen}</span></span>
+          )}
+        </div>
+      )}
 
       {hoja.advertencia && (
         <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{hoja.advertencia}</p>

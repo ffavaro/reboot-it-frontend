@@ -94,3 +94,9 @@ export const soloLetras = (label: string, max: number): Validator => (value) => 
   if (s.length > max) return `Máximo ${max} caracteres`
   return /^[\p{L} ]+$/u.test(s) ? null : `${label} solo puede contener letras`
 }
+
+// Patente argentina: formato viejo (ABC123) o Mercosur (AB123CD)
+export const patenteArgentina = (): Validator => (value) => {
+  const s = String(value ?? "").trim()
+  return s && !/^([A-Za-z]{3} ?\d{3}|[A-Za-z]{2} ?\d{3} ?[A-Za-z]{2})$/.test(s) ? "Formato inválido (ej. ABC123 o AB123CD)" : null
+}

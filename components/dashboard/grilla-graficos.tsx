@@ -150,6 +150,7 @@ export function GrillaGraficos({ items }: { items: ItemGrilla[] }) {
             cols={COLS}
             rowHeight={ALTO_FILA}
             margin={MARGEN}
+            containerPadding={[0, 0]}
             dragConfig={{ enabled: organizando, handle: ".asa-grafico" }}
             resizeConfig={{ enabled: organizando }}
             onBreakpointChange={(bp) => setColumnaUnica(bp === "sm")}

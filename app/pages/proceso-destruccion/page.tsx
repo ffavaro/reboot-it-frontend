@@ -818,7 +818,7 @@ export default function ProcesoDestruccionPage() {
             value={quickMedioForm.terminosUso}
             onChange={(e) => setQuickMedioForm((f) => ({ ...f, terminosUso: e.target.value }))}
             placeholder="Ej: Uso en ambiente seco, temperatura controlada..."
-            maxLength={500}
+            maxLength={300}
           />
         </div>
       </FormModal>

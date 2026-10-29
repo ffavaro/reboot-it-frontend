@@ -294,7 +294,7 @@ export default function MedioAlmacenamientoPage() {
             value={form.terminosUso}
             onChange={(e) => setForm((f) => ({ ...f, terminosUso: e.target.value }))}
             placeholder="Ej: Uso en ambiente seco, temperatura controlada..."
-            maxLength={500}
+            maxLength={300}
           />
         </div>
       </FormModal>

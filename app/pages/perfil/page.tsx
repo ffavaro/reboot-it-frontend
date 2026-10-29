@@ -9,8 +9,9 @@ import { getUser } from "@/lib/auth-utils"
 import { useMisPermisos } from "@/hooks/use-permisos"
 import { puedeVerPantalla } from "@/lib/nav"
 import type { Donante } from "@/lib/type/donante"
+import { telefonoArgentino } from "@/lib/form-validators"
 
-type FormErrors = Partial<{ nombre: string; razonSocial: string; direccion: string }>
+type FormErrors = Partial<{ nombre: string; razonSocial: string; direccion: string; telefono: string }>
 
 function isLegalEntity(descripcion: string | undefined): boolean {
   if (!descripcion) return false
@@ -61,11 +62,14 @@ export default function PerfilPage() {
     }
     if (!f.direccion.trim()) e.direccion = "La dirección es obligatoria"
     else if (f.direccion.trim().length < 5) e.direccion = "Ingresá una dirección válida"
+    const errTel = telefonoArgentino()(f.telefono)
+    if (errTel) e.telefono = errTel
     return e
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
+    const { name } = e.target
+    const value = name === "telefono" ? e.target.value.replace(/\D/g, "") : e.target.value
     const updated = { ...form, [name]: value }
     setForm(updated)
     if (touched[name as keyof typeof form]) setErrors(validate(updated))
@@ -182,6 +186,7 @@ export default function PerfilPage() {
               <Input
                 name="razonSocial"
                 type="text"
+                maxLength={150}
                 placeholder="Empresa S.A."
                 className={`h-9 text-sm ${err("razonSocial")}`}
                 value={form.razonSocial}
@@ -198,6 +203,7 @@ export default function PerfilPage() {
               <Input
                 name="nombre"
                 type="text"
+                maxLength={100}
                 placeholder="Juan Pérez"
                 className={`h-9 text-sm ${err("nombre")}`}
                 value={form.nombre}
@@ -216,6 +222,7 @@ export default function PerfilPage() {
             <Input
               name="direccion"
               type="text"
+              maxLength={255}
               placeholder="Av. Corrientes 1234, CABA"
               className={`h-9 text-sm ${err("direccion")}`}
               value={form.direccion}
@@ -233,12 +240,15 @@ export default function PerfilPage() {
             <Input
               name="telefono"
               type="tel"
-              placeholder="+54 11 1234-5678"
-              className="h-9 text-sm"
+              inputMode="numeric"
+              maxLength={13}
+              placeholder="1123456789"
+              className={`h-9 text-sm ${err("telefono")}`}
               value={form.telefono}
               onChange={handleChange}
               onBlur={handleBlur}
             />
+            <FieldError name="telefono" />
           </div>
 
           <Button onClick={handleSave} disabled={isSaving} className="w-full mt-1">

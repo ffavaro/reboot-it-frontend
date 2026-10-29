@@ -353,6 +353,7 @@ export default function RetiroPage() {
           </label>
           <Input
             placeholder="Ej: Av. Corrientes 1234, CABA"
+            maxLength={255}
             value={form.direccion}
             onChange={(e) => setForm((f) => ({ ...f, direccion: e.target.value }))}
           />

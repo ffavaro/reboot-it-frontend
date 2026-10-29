@@ -88,6 +88,7 @@ export function LoginForm({
             placeholder="m@example.com"
             required
             autoComplete="email"
+            maxLength={150}
             value={email}
             suppressHydrationWarning
             onChange={(e) => { setEmail(e.target.value); e.currentTarget.setCustomValidity("") }}
@@ -107,6 +108,7 @@ export function LoginForm({
               className="pr-10"
               type={verPassword ? "text" : "password"}
               autoComplete="current-password"
+              maxLength={72}
               required
               suppressHydrationWarning
               value={password}
