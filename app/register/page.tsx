@@ -329,9 +329,7 @@ export default function RegisterPage() {
                   </div>
                   <div className="text-center text-xs text-gray-500 mt-1">
                     <p className="text-xs text-gray-400">
-                      Al registrarte aceptás nuestros{' '}
-                      <a href="#" className="underline">Términos</a> y{' '}
-                      <a href="#" className="underline">Política de Privacidad</a>
+                      Al registrarte aceptás nuestros Términos y Política de Privacidad
                     </p>
                   </div>
 

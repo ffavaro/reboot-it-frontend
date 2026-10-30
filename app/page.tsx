@@ -2,7 +2,6 @@
 
 import { Recycle, Zap, Shield, TrendingUp, ArrowRight } from "lucide-react"
 import Link from "next/link"
-import { ChatWidget } from "@/components/chat-widget"
 
 export default function HomePage() {
   return (
@@ -51,9 +50,6 @@ export default function HomePage() {
               <Link href="/login" className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors font-medium">
                 Comenzar ahora
                 <ArrowRight className="size-5" />
-              </Link>
-              <Link href="#" className="inline-flex items-center justify-center px-6 py-3 rounded-full border border-red-300 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-medium">
-                Saber más
               </Link>
             </div>
           </div>
@@ -127,7 +123,7 @@ export default function HomePage() {
             {[
               {
                 step: "1",
-                title: "Solicita Recogida",
+                title: "Solicita retiro",
                 description: "Completa el formulario indicando qué dispositivos deseas reciclar"
               },
               {
@@ -137,7 +133,7 @@ export default function HomePage() {
               },
               {
                 step: "3",
-                title: "Recogemos",
+                title: "Retiramos",
                 description: "Pasamos por tu dirección para recoger los componentes"
               },
               {
@@ -158,8 +154,8 @@ export default function HomePage() {
                     {item.description}
                   </p>
                 </div>
-                {idx < 3 && (
-                  <div className="hidden lg:block absolute top-8 left-1/2 w-full h-0.5 bg-linear-to-r from-red-300 to-transparent transform -translate-y-1/2 -translate-x-full"></div>
+                {idx < 4 && (
+                  <div className="hidden lg:block absolute top-8 left-1/2 w-full h-0.5 bg-linear-to-r from-red-500 to-transparent transform -translate-y-1/2 -translate-x-full"></div>
                 )}
               </div>
             ))}
@@ -181,9 +177,6 @@ export default function HomePage() {
               Crear cuenta 
               <ArrowRight className="size-5" />
             </Link>
-            <Link href="#contact" className="inline-flex items-center justify-center px-6 py-3 rounded-full border-2 border-white text-white hover:bg-white/10 transition-colors font-medium">
-              Contactar soporte
-            </Link>
           </div>
         </div>
       </section>
@@ -191,7 +184,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="bg-gray-900 dark:bg-black text-gray-400 py-12">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
+          <div className="mb-8">
             <div>
               <div className="flex items-center gap-2 font-bold text-white mb-4">
                 <div className="flex size-6 items-center justify-center rounded-lg bg-red-600">
@@ -201,41 +194,14 @@ export default function HomePage() {
               </div>
               <p className="text-sm">Reciclaje responsable de componentes electrónicos</p>
             </div>
-            <div>
-              <h3 className="text-white font-semibold mb-4">Producto</h3>
-              <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-white transition">Características</a></li>
-                <li><a href="#" className="hover:text-white transition">Precios</a></li>
-                <li><a href="#" className="hover:text-white transition">Documentación</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-white font-semibold mb-4">Empresa</h3>
-              <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-white transition">Sobre nosotros</a></li>
-                <li><a href="#" className="hover:text-white transition">Blog</a></li>
-                <li><a href="#" className="hover:text-white transition">Contacto</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-white font-semibold mb-4">Legal</h3>
-              <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-white transition">Privacidad</a></li>
-                <li><a href="#" className="hover:text-white transition">Términos</a></li>
-                <li><a href="#" className="hover:text-white transition">Cookies</a></li>
-              </ul>
-            </div>
           </div>
           <div className="border-t border-gray-800 pt-8">
             <p className="text-center text-sm">
-              © 2025 Reboot IT. Todos los derechos reservados.
+              © {new Date().getFullYear()} Reboot IT. Todos los derechos reservados.
             </p>
           </div>
         </div>
       </footer>
-
-      {/* Chat Widget */}
-      <ChatWidget />
     </div>
   )
 }
