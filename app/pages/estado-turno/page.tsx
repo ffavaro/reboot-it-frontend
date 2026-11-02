@@ -1,182 +1,48 @@
 "use client"
-import { Plus } from "lucide-react"
 
-import { useState } from "react"
-import { toast } from "react-toastify"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { SearchInput } from "@/components/ui/search-input"
-import { DataTable } from "@/components/ui/data-table"
-import { FormModal } from "@/components/ui/form-modal"
-import {
-  useEstadosTurno,
-  useCreateEstadoTurno,
-  useUpdateEstadoTurno,
-  useDeleteEstadoTurno,
-} from "@/hooks/use-estado-turno"
-import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
-import type { EstadoTurno } from "@/lib/type/estado-turno"
+import { ListadoSoloLectura } from "@/components/listado-solo-lectura"
+import type { CampoDetalle } from "@/components/listado-solo-lectura"
 import type { TableColumn } from "@/components/ui/data-table"
+import { useEstadosTurno } from "@/hooks/use-estado-turno"
+import type { EstadoTurno } from "@/lib/type/estado-turno"
 
-const ESTADO_COLORS: Record<string, string> = {
+const TONOS: Record<string, string> = {
   pendiente: "bg-yellow-100 text-yellow-800",
   confirmado: "bg-blue-100 text-blue-800",
   completado: "bg-green-100 text-green-800",
   cancelado: "bg-red-100 text-red-800",
 }
 
-function EstadoBadge({ descripcion }: { descripcion: string }) {
-  const key = descripcion.toLowerCase()
-  const color = ESTADO_COLORS[key] ?? "bg-muted text-muted-foreground"
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}>
-      {descripcion}
-    </span>
-  )
+function Etiqueta({ texto }: { texto: string }) {
+  const tono = TONOS[texto.trim().toLowerCase()] ?? "bg-muted text-muted-foreground"
+  return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${tono}`}>{texto}</span>
 }
 
-const EMPTY_FORM = { descripcion: "" }
+const columnas: TableColumn<EstadoTurno>[] = [
+  { key: "descripcion", header: "Descripción", cell: (e) => <Etiqueta texto={e.descripcion} /> },
+]
 
-const COLUMNS: TableColumn<EstadoTurno>[] = [
-  {
-    key: "descripcion",
-    header: "Descripción",
-    cell: (e) => <EstadoBadge descripcion={e.descripcion} />,
-  },
+const detalle: CampoDetalle<EstadoTurno>[] = [
+  { etiqueta: "Descripción", valor: (e) => <Etiqueta texto={e.descripcion} /> },
 ]
 
 export default function EstadoTurnoPage() {
-  const { estadosTurno, isLoading, mutate } = useEstadosTurno()
-  const { createEstadoTurno, isLoading: isCreating } = useCreateEstadoTurno()
-  const { updateEstadoTurno, isLoading: isUpdating } = useUpdateEstadoTurno()
-  const { deleteEstadoTurno, isLoading: isDeleting } = useDeleteEstadoTurno()
-
-  const [search, setSearch] = useState("")
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editing, setEditing] = useState<EstadoTurno | null>(null)
-  const [isViewing, setIsViewing] = useState(false)
-  const [form, setForm] = useState(EMPTY_FORM)
-
-  const filtered = estadosTurno.filter((e: EstadoTurno) =>
-    e.descripcion.toLowerCase().includes(search.toLowerCase()),
-  )
-
-  function openCreate() {
-    setIsViewing(false)
-    setEditing(null)
-    setForm(EMPTY_FORM)
-    setModalOpen(true)
-  }
-
-  function openEdit(e: EstadoTurno) {
-    setIsViewing(false)
-    setEditing(e)
-    setForm({ descripcion: e.descripcion })
-    setModalOpen(true)
-  }
-
-  function openView(e: EstadoTurno) {
-    setIsViewing(true)
-    setEditing(e)
-    setForm({ descripcion: e.descripcion })
-    setModalOpen(true)
-  }
-
-  async function handleSave() {
-    if (!form.descripcion.trim()) {
-      toast.error("La descripción es obligatoria")
-      return
-    }
-    try {
-      if (editing) {
-        await updateEstadoTurno({ id: editing.id, descripcion: form.descripcion.trim() })
-        toast.success("Estado de turno actualizado")
-      } else {
-        await createEstadoTurno({ descripcion: form.descripcion.trim() })
-        toast.success("Estado de turno creado")
-      }
-      await mutate()
-      setModalOpen(false)
-    } catch {
-      toast.error("Error al guardar el estado de turno")
-    }
-  }
-
-  async function handleDelete(id: number | string) {
-    try {
-      await deleteEstadoTurno(id as number)
-      await mutate()
-      toast.success("Estado de turno desactivado")
-    } catch {
-      toast.error("Error al eliminar el estado de turno")
-    }
-  }
-
-  const canSave = !!form.descripcion.trim()
+  const { estadosTurno, isLoading } = useEstadosTurno()
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Estados de Turno</h1>
-        <p className="text-sm text-muted-foreground">
-          Administrá los estados posibles de un turno (Pendiente, Confirmado, Completado, etc.).
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          placeholder="Buscar por descripción..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} estado{filtered.length !== 1 ? "s" : ""}
-        </span>
-        <Button className="ml-auto" onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Nuevo estado
-        </Button>
-      </div>
-
-      <DataTable
-        data={filtered}
-        columns={COLUMNS}
-        isLoading={isLoading}
-        loadingText="Cargando estados de turno..."
-        emptyText="No hay estados de turno registrados."
-        emptySearchText="No se encontraron estados con ese criterio."
-        search={search}
-        onView={openView}
-        onEdit={openEdit}
-        onDelete={handleDelete}
-        isDeleting={isDeleting}
-      />
-
-      <FormModal
-        open={modalOpen}
-        onOpenChange={(open) => !open && setModalOpen(false)}
-        title={isViewing ? "Ver estado de turno" : editing ? "Editar estado de turno" : "Nuevo estado de turno"}
-        readOnly={isViewing}
-        description={
-          editing
-            ? `Modificá la descripción de "${editing.descripcion}".`
-            : "Completá los datos del nuevo estado de turno."
-        }
-        onSave={handleSave}
-        isLoading={isCreating || isUpdating}
-        saveDisabled={!canSave}
-        saveLabel={editing ? "Guardar cambios" : "Crear estado"}
-      >
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Descripción *</label>
-          <Input
-            value={form.descripcion}
-            onChange={(e) => setForm({ descripcion: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción") })}
-            placeholder="Ej: Pendiente, Confirmado, Completado, Cancelado..."
-          />
-        </div>
-      </FormModal>
-    </div>
+    <ListadoSoloLectura<EstadoTurno>
+      titulo="Estados de Turno"
+      descripcion="Estados por los que pasa un turno a lo largo del circuito."
+      aviso="Estos estados los usa el sistema por su nombre exacto, por eso no se pueden crear, editar ni dar de baja."
+      filas={estadosTurno}
+      cargando={isLoading}
+      columnas={columnas}
+      detalle={detalle}
+      textoBusqueda={(e) => e.descripcion}
+      placeholderBusqueda="Buscar por descripción..."
+      nombreFila={(e) => e.descripcion}
+      singular="estado"
+      plural="estados"
+    />
   )
 }
