@@ -1,14 +1,16 @@
 "use client"
-import { Plus } from "lucide-react"
 
-import { useState, useEffect } from "react"
-import type { TokenPayload } from "@/lib/auth-utils"
+import { useMemo, useState } from "react"
+import { Plus } from "lucide-react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { FormModal } from "@/components/ui/form-modal"
 import { DateInput } from "@/components/ui/date-input"
+import { DataTable, type TableColumn } from "@/components/ui/data-table"
+import { AvisoDonante } from "@/components/aviso-donante"
+import { EnlaceArchivoFinal, SelectorArchivoFinal, validarArchivoFinal } from "@/components/archivo-certificado-final"
 import {
   useCertificadosDisposicion,
   useCreateCertificadoDisposicion,
@@ -19,47 +21,54 @@ import { useLotes } from "@/hooks/use-lote"
 import { useGestoresAmbientales } from "@/hooks/use-gestor-ambiental"
 import { useDonantes } from "@/hooks/use-donantes"
 import { useDonaciones } from "@/hooks/use-donacion"
+import { useDescargaDocumento } from "@/hooks/use-descarga-documento"
+import { useUsuarioSesion } from "@/hooks/use-usuario-sesion"
+import { certificadoDisposicionApi } from "@/lib/api/certificado-disposicion"
+import { uploadFoto } from "@/lib/api/client"
+import { descargarCertificadoDisposicion } from "@/lib/documentos/certificado-disposicion"
+import { dia, hoyIso } from "@/lib/documentos/formato"
 import type { CertificadoDisposicion } from "@/lib/type/certificado-disposicion"
-import type { Lote } from "@/lib/type/lote"
-import type { GestorAmbiental } from "@/lib/type/gestor-ambiental"
 import type { Donante } from "@/lib/type/donante"
-import { formatDate } from "@/lib/utils/helpers"
-import { DataTable, type TableColumn } from "@/components/ui/data-table"
-import { getUser } from "@/lib/auth-utils"
+import type { GestorAmbiental } from "@/lib/type/gestor-ambiental"
+import type { Lote } from "@/lib/type/lote"
 
-const EMPTY_FORM = {
-  loteId: "",
-  gestorAmbientalId: "",
-  fechaEmision: "",
-  numeroCertificado: "",
-  terminosCondiciones: "",
+type Modo = "crear" | "editar" | "ver"
+
+interface Campos {
+  loteId: string
+  gestorAmbientalId: string
+  fechaEmision: string
+  numeroCertificado: string
+  terminosCondiciones: string
 }
 
-function todayISO(): string {
-  const now = new Date()
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+const ESTADO_LISTO_PARA_CERTIFICAR = "Pendiente de emision certificado"
+const SELECT_CLASES =
+  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+const Guion = () => <span className="italic text-muted-foreground">—</span>
+
+function siguienteNumero(existentes: CertificadoDisposicion[]): string {
+  const prefijo = `CERT-${new Date().getFullYear()}-`
+  const usados = existentes.filter((c) => c.numeroCertificado?.startsWith(prefijo)).length
+  return prefijo + String(usados + 1).padStart(4, "0")
 }
 
-function previewNumeroCertificado(certificados: CertificadoDisposicion[]): string {
-  const anio = new Date().getFullYear()
-  const prefijo = `CERT-${anio}-`
-  const cantidad = certificados.filter((c) => c.numeroCertificado?.startsWith(prefijo)).length
-  return `${prefijo}${String(cantidad + 1).padStart(4, "0")}`
-}
+const camposDe = (c: CertificadoDisposicion): Campos => ({
+  loteId: String(c.loteId),
+  gestorAmbientalId: String(c.gestorAmbientalId),
+  fechaEmision: c.fechaEmision?.slice(0, 10) ?? "",
+  numeroCertificado: c.numeroCertificado ?? "",
+  terminosCondiciones: c.terminosCondiciones ?? "",
+})
 
-const columns: TableColumn<CertificadoDisposicion>[] = [
+const columnas: TableColumn<CertificadoDisposicion>[] = [
   {
     key: "numeroCertificado",
     header: "N° Certificado",
-    cell: (c) => c.numeroCertificado ?? <span className="italic text-muted-foreground">—</span>,
+    cell: (c) => c.numeroCertificado ?? <Guion />,
     className: "font-mono text-xs font-medium",
   },
-  {
-    key: "gestorAmbiental",
-    header: "Gestor ambiental",
-    cell: (c) => c.gestorAmbiental?.razonSocial ?? <span className="italic text-muted-foreground">—</span>,
-  },
+  { key: "gestorAmbiental", header: "Gestor ambiental", cell: (c) => c.gestorAmbiental?.razonSocial ?? <Guion /> },
   {
     key: "lote",
     header: "Lote",
@@ -69,13 +78,18 @@ const columns: TableColumn<CertificadoDisposicion>[] = [
   {
     key: "fechaEmision",
     header: "Fecha emisión",
-    cell: (c) => formatDate(c.fechaEmision) ?? <span className="italic">—</span>,
+    cell: (c) => (c.fechaEmision ? dia(c.fechaEmision) : <Guion />),
     className: "text-muted-foreground",
+  },
+  {
+    key: "archivoFinalUrl",
+    header: "Certificado final",
+    cell: (c) => <EnlaceArchivoFinal url={c.archivoFinalUrl} compacto />,
   },
   {
     key: "terminos",
     header: "Términos",
-    cell: (c) => c.terminosCondiciones ?? <span className="italic">—</span>,
+    cell: (c) => c.terminosCondiciones ?? <Guion />,
     className: "text-muted-foreground max-w-xs truncate",
   },
 ]
@@ -86,122 +100,125 @@ export default function CertificadoDisposicionPage() {
   const { gestores } = useGestoresAmbientales()
   const { donantes } = useDonantes()
   const { donaciones } = useDonaciones()
-  const { createCertificado, isLoading: isCreating } = useCreateCertificadoDisposicion()
-  const { updateCertificado, isLoading: isUpdating } = useUpdateCertificadoDisposicion()
-  const { deleteCertificado, isLoading: isDeleting } = useDeleteCertificadoDisposicion()
+  const { createCertificado, isLoading: creando } = useCreateCertificadoDisposicion()
+  const { updateCertificado, isLoading: actualizando } = useUpdateCertificadoDisposicion()
+  const { deleteCertificado, isLoading: borrando } = useDeleteCertificadoDisposicion()
+  const { descargar } = useDescargaDocumento(
+    certificadoDisposicionApi.getDatosDocumento,
+    descargarCertificadoDisposicion,
+    "No se pudo generar el PDF del certificado",
+  )
 
-  const [search, setSearch] = useState("")
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const [editing, setEditing] = useState<CertificadoDisposicion | null>(null)
-  const [isViewing, setIsViewing] = useState(false)
-  const [form, setForm] = useState(EMPTY_FORM)
-  const [user, setUser] = useState<TokenPayload | null>(null)
+  const [busqueda, setBusqueda] = useState("")
+  const [modo, setModo] = useState<Modo | null>(null)
+  const [actual, setActual] = useState<CertificadoDisposicion | null>(null)
+  const [campos, setCampos] = useState<Campos | null>(null)
+  const [archivo, setArchivo] = useState<File | null>(null)
+  const [errorArchivo, setErrorArchivo] = useState<string | null>(null)
+  const [subiendo, setSubiendo] = useState(false)
 
-  useEffect(() => { setUser(getUser()) }, [])
+  const { usuario, esDonante } = useUsuarioSesion()
 
-  const isDonante = user?.rol?.nombre?.toLowerCase() === "donante"
-  const myDonante = isDonante
-    ? donantes.find((d: Donante) => d.usuarioId === user?.id) ?? null
-    : null
-  const myLoteIds = isDonante
-    ? new Set(
-        donaciones
-          .filter((d) => d.donanteId === myDonante?.id)
-          .flatMap((d) => lotes.filter((l: Lote) => l.donacionId === d.id).map((l: Lote) => l.id))
-      )
-    : null
+  const propios = useMemo(() => {
+    if (!esDonante) return certificados
+    const donante = donantes.find((d: Donante) => d.usuarioId === usuario?.id)
+    const donacionesPropias = new Set(donaciones.filter((d) => d.donanteId === donante?.id).map((d) => d.id))
+    const lotesPropios = new Set(lotes.filter((l: Lote) => donacionesPropias.has(l.donacionId)).map((l: Lote) => l.id))
+    return certificados.filter((c: CertificadoDisposicion) => lotesPropios.has(c.loteId))
+  }, [esDonante, certificados, donantes, donaciones, lotes, usuario])
 
-  const visibleCertificados = isDonante && myLoteIds
-    ? certificados.filter((c: CertificadoDisposicion) => myLoteIds.has(c.loteId))
-    : certificados
-
-  const filtered = visibleCertificados.filter((c: CertificadoDisposicion) => {
-    const q = search.toLowerCase()
-    return (
-      (c.numeroCertificado ?? "").toLowerCase().includes(q) ||
-      (c.gestorAmbiental?.razonSocial ?? "").toLowerCase().includes(q) ||
-      String(c.loteId).includes(q)
+  const visibles = useMemo(() => {
+    const q = busqueda.trim().toLowerCase()
+    if (!q) return propios
+    return propios.filter((c: CertificadoDisposicion) =>
+      [c.numeroCertificado ?? "", c.gestorAmbiental?.razonSocial ?? "", String(c.loteId)].some((v) =>
+        v.toLowerCase().includes(q),
+      ),
     )
-  })
+  }, [propios, busqueda])
 
-  const lotesDisponibles = lotes.filter((l: Lote) => {
-    const don = donaciones.find((d) => d.id === l.donacionId)
-    return don?.estadoDonacion?.descripcion === "Pendiente de emision certificado"
-  })
+  const lotesParaCertificar = lotes.filter(
+    (l: Lote) => donaciones.find((d) => d.id === l.donacionId)?.estadoDonacion?.descripcion === ESTADO_LISTO_PARA_CERTIFICAR,
+  )
 
-  function openCreate() {
-    setIsViewing(false)
-    setEditing(null)
-    setForm({
-      ...EMPTY_FORM,
-      fechaEmision: todayISO(),
-      numeroCertificado: previewNumeroCertificado(certificados),
-    })
-    setSheetOpen(true)
+  function abrir(nuevoModo: Modo, certificado: CertificadoDisposicion | null) {
+    setModo(nuevoModo)
+    setActual(certificado)
+    setArchivo(null)
+    setErrorArchivo(null)
+    setCampos(
+      certificado
+        ? camposDe(certificado)
+        : {
+            loteId: "",
+            gestorAmbientalId: "",
+            fechaEmision: hoyIso(),
+            numeroCertificado: siguienteNumero(certificados),
+            terminosCondiciones: "",
+          },
+    )
   }
 
-  function openEdit(c: CertificadoDisposicion) {
-    setIsViewing(false)
-    setEditing(c)
-    setForm({
-      loteId: String(c.loteId),
-      gestorAmbientalId: String(c.gestorAmbientalId),
-      fechaEmision: c.fechaEmision ? c.fechaEmision.slice(0, 10) : "",
-      numeroCertificado: c.numeroCertificado ?? "",
-      terminosCondiciones: c.terminosCondiciones ?? "",
-    })
-    setSheetOpen(true)
-  }
+  const cerrar = () => setModo(null)
+  const cambiar = (parcial: Partial<Campos>) => setCampos((c) => (c ? { ...c, ...parcial } : c))
 
-  function openView(c: CertificadoDisposicion) {
-    setIsViewing(true)
-    setEditing(c)
-    setForm({
-      loteId: String(c.loteId),
-      gestorAmbientalId: String(c.gestorAmbientalId),
-      fechaEmision: c.fechaEmision ? c.fechaEmision.slice(0, 10) : "",
-      numeroCertificado: c.numeroCertificado ?? "",
-      terminosCondiciones: c.terminosCondiciones ?? "",
-    })
-    setSheetOpen(true)
-  }
-
-  async function handleSave() {
-    if (!form.loteId || !form.gestorAmbientalId) {
-      toast.error("El lote y el gestor ambiental son obligatorios")
+  function elegirArchivo(elegido: File | null) {
+    if (!elegido) {
+      setArchivo(null)
       return
     }
+    const problema = validarArchivoFinal(elegido)
+    setErrorArchivo(problema)
+    setArchivo(problema ? null : elegido)
+  }
+
+  const listoParaGuardar = !!campos?.loteId && !!campos.gestorAmbientalId && (modo !== "crear" || archivo !== null)
+
+  async function guardar() {
+    if (!campos || !listoParaGuardar) {
+      toast.error(modo === "crear" && !archivo ? "Adjuntá el certificado final (foto o PDF)" : "Elegí el lote y el gestor ambiental")
+      return
+    }
+    const base = {
+      loteId: Number(campos.loteId),
+      gestorAmbientalId: Number(campos.gestorAmbientalId),
+      terminosCondiciones: campos.terminosCondiciones.trim() || undefined,
+    }
     try {
-      const payload = {
-        loteId: Number(form.loteId),
-        gestorAmbientalId: Number(form.gestorAmbientalId),
-        terminosCondiciones: form.terminosCondiciones.trim() || undefined,
-      }
-      if (editing) {
-        await updateCertificado({ id: editing.id, ...payload })
+      if (modo === "editar" && actual) {
+        await updateCertificado({ id: actual.id, ...base })
         toast.success("Certificado actualizado")
       } else {
-        await createCertificado(payload)
+        setSubiendo(true)
+        const archivoFinalUrl = await uploadFoto(archivo as File)
+        await createCertificado({ ...base, archivoFinalUrl })
         toast.success("Certificado creado")
       }
       await mutate()
-      setSheetOpen(false)
-    } catch {
-      toast.error("Error al guardar el certificado")
+      cerrar()
+    } catch (error) {
+      const mensaje = (error as { message?: unknown })?.message
+      toast.error(typeof mensaje === "string" && mensaje ? mensaje : "No se pudo guardar el certificado")
+    } finally {
+      setSubiendo(false)
     }
   }
 
-  async function handleDelete(id: number | string) {
+  async function eliminar(id: number | string) {
     try {
       await deleteCertificado(Number(id))
       await mutate()
       toast.success("Certificado desactivado")
     } catch {
-      toast.error("Error al eliminar el certificado")
+      toast.error("No se pudo eliminar el certificado")
     }
   }
 
-  const canSave = !!form.loteId && !!form.gestorAmbientalId
+  const titulos: Record<Modo, string> = {
+    crear: "Nuevo certificado de disposición",
+    editar: "Editar certificado",
+    ver: "Ver certificado",
+  }
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -212,18 +229,24 @@ export default function CertificadoDisposicionPage() {
         </p>
       </div>
 
+      {esDonante && (
+        <AvisoDonante>
+          Los certificados de disposición final aparecen acá cuando tu donación está finalizada.
+        </AvisoDonante>
+      )}
+
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput
           placeholder="Buscar por número, gestor o lote..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
           className="max-w-sm"
         />
         <span className="text-sm text-muted-foreground">
-          {filtered.length} certificado{filtered.length !== 1 ? "s" : ""}
+          {visibles.length} {visibles.length === 1 ? "certificado" : "certificados"}
         </span>
-        {!isDonante && (
-          <Button  className="ml-auto" onClick={openCreate}>
+        {!esDonante && (
+          <Button className="ml-auto" onClick={() => abrir("crear", null)}>
             <Plus className="h-4 w-4" />
             Nuevo certificado
           </Button>
@@ -231,99 +254,104 @@ export default function CertificadoDisposicionPage() {
       </div>
 
       <DataTable
-        data={filtered}
-        columns={columns}
+        data={visibles}
+        columns={columnas}
         isLoading={isLoading}
         loadingText="Cargando certificados..."
-        emptyText="No hay certificados de disposición registrados."
+        emptyText={esDonante ? "Todavía no hay certificados disponibles para vos." : "No hay certificados de disposición registrados."}
         emptySearchText="No se encontraron certificados con ese criterio."
-        search={search}
-        onView={openView}
-        onEdit={isDonante ? undefined : openEdit}
-        onDelete={isDonante ? undefined : handleDelete}
-        isDeleting={isDeleting}
+        search={busqueda}
+        onView={(c) => abrir("ver", c)}
+        onEdit={esDonante ? undefined : (c) => abrir("editar", c)}
+        onDownload={(c) => descargar(c.id)}
+        onDelete={esDonante ? undefined : eliminar}
+        isDeleting={borrando}
       />
 
-      <FormModal
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        title={isViewing ? "Ver certificado" : editing ? "Editar certificado" : "Nuevo certificado de disposición"}
-        readOnly={isViewing}
-        description={
-          editing
-            ? `Modificá los datos del certificado "${editing.numeroCertificado ?? `#${editing.id}`}".`
-            : "Registrá un nuevo certificado de disposición final."
-        }
-        onSave={handleSave}
-        isLoading={isCreating || isUpdating}
-        saveDisabled={!canSave}
-        saveLabel={editing ? "Guardar cambios" : "Crear certificado"}
-      >
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Lote *</label>
-          <select
-            value={form.loteId}
-            onChange={(e) => setForm((f) => ({ ...f, loteId: e.target.value }))}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            <option value="">Seleccionar lote...</option>
-            {lotesDisponibles.map((l: Lote) => (
-              <option key={l.id} value={String(l.id)}>
-                Lote #{l.id}{l.pesoBrutoKg ? ` — ${l.pesoBrutoKg} kg` : ""}
-              </option>
-            ))}
-          </select>
-        </div>
+      {modo && campos && (
+        <FormModal
+          open
+          onOpenChange={(abierto) => !abierto && cerrar()}
+          title={titulos[modo]}
+          readOnly={modo === "ver"}
+          description={
+            actual
+              ? `Certificado ${actual.numeroCertificado ?? `#${actual.id}`}.`
+              : "Registrá un nuevo certificado de disposición final."
+          }
+          onSave={guardar}
+          isLoading={creando || actualizando || subiendo}
+          saveDisabled={!listoParaGuardar}
+          saveLabel={modo === "crear" ? "Crear certificado" : "Guardar cambios"}
+        >
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Lote *</label>
+            <select value={campos.loteId} onChange={(e) => cambiar({ loteId: e.target.value })} className={SELECT_CLASES}>
+              <option value="">Seleccionar lote...</option>
+              {(actual && !lotesParaCertificar.some((l: Lote) => l.id === actual.loteId)
+                ? [...lotesParaCertificar, ...lotes.filter((l: Lote) => l.id === actual.loteId)]
+                : lotesParaCertificar
+              ).map((l: Lote) => (
+                <option key={l.id} value={String(l.id)}>
+                  Lote #{l.id}
+                  {l.pesoBrutoKg ? ` — ${l.pesoBrutoKg} kg` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Gestor ambiental *</label>
-          <select
-            value={form.gestorAmbientalId}
-            onChange={(e) => setForm((f) => ({ ...f, gestorAmbientalId: e.target.value }))}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            <option value="">Seleccionar gestor...</option>
-            {gestores.map((g: GestorAmbiental) => (
-              <option key={g.id} value={String(g.id)}>
-                {g.razonSocial}{g.cuit ? ` — ${g.cuit}` : ""}
-              </option>
-            ))}
-          </select>
-        </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Gestor ambiental *</label>
+            <select
+              value={campos.gestorAmbientalId}
+              onChange={(e) => cambiar({ gestorAmbientalId: e.target.value })}
+              className={SELECT_CLASES}
+            >
+              <option value="">Seleccionar gestor...</option>
+              {gestores.map((g: GestorAmbiental) => (
+                <option key={g.id} value={String(g.id)}>
+                  {g.razonSocial}
+                  {g.cuit ? ` — ${g.cuit}` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
-            N° Certificado <span className="text-muted-foreground font-normal">(autogenerado)</span>
-          </label>
-          <Input
-            value={form.numeroCertificado}
-            readOnly
-            className="bg-muted cursor-not-allowed"
-          />
-        </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">
+                N° Certificado <span className="font-normal text-muted-foreground">(autogenerado)</span>
+              </label>
+              <Input value={campos.numeroCertificado} readOnly className="cursor-not-allowed bg-muted" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Fecha de emisión</label>
+              <DateInput value={campos.fechaEmision} onChange={() => {}} readOnly className="cursor-not-allowed bg-muted" />
+            </div>
+          </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Fecha de emisión</label>
-          <DateInput
-            value={form.fechaEmision}
-            onChange={() => {}}
-            readOnly
-            className="bg-muted cursor-not-allowed"
-          />
-        </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Certificado de disposición final {modo === "crear" && "*"}</label>
+            {modo === "crear" ? (
+              <SelectorArchivoFinal archivo={archivo} error={errorArchivo} onElegir={elegirArchivo} />
+            ) : (
+              <EnlaceArchivoFinal url={actual?.archivoFinalUrl ?? null} />
+            )}
+          </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
-            Términos COD <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
-          <Input
-            value={form.terminosCondiciones}
-            onChange={(e) => setForm((f) => ({ ...f, terminosCondiciones: e.target.value }))}
-            placeholder="Ej: Material procesado conforme normativa vigente"
-            maxLength={500}
-          />
-        </div>
-      </FormModal>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">
+              Términos COD <span className="font-normal text-muted-foreground">(opcional)</span>
+            </label>
+            <Input
+              value={campos.terminosCondiciones}
+              onChange={(e) => cambiar({ terminosCondiciones: e.target.value })}
+              placeholder="Ej: Material procesado conforme normativa vigente"
+              maxLength={300}
+            />
+          </div>
+        </FormModal>
+      )}
     </div>
   )
 }

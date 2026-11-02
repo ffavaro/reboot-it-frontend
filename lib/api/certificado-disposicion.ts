@@ -3,10 +3,14 @@ import type {
   CreateCertificadoDisposicionPayload,
   UpdateCertificadoDisposicionPayload,
 } from "@/lib/type/certificado-disposicion"
+import type { DatosCertificadoDisposicion } from "@/lib/type/certificado-disposicion"
 import { request } from "./client"
 
 export const certificadoDisposicionApi = {
   getAll: () => request<CertificadoDisposicion[]>("/certificado-disposicion"),
+
+  getDatosDocumento: (id: number) =>
+    request<DatosCertificadoDisposicion>(`/certificado-disposicion/${id}/datos`),
 
   create: (data: CreateCertificadoDisposicionPayload) =>
     request<CertificadoDisposicion>("/certificado-disposicion", { method: "POST", body: JSON.stringify(data) }),

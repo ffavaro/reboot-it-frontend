@@ -2,6 +2,7 @@ import { getUser } from "@/lib/auth-utils"
 import type { Donante } from "@/lib/type/donante"
 import type { Usuario } from "@/lib/type/user"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
+import { dia, hoyIso } from "@/lib/documentos/formato"
 
 export function getDonanteActual(donantes: Donante[]) {
   const user = getUser()
@@ -46,3 +47,33 @@ export const validateCuitDni = (v: string) => {
   const digits = v.replace(/\D/g, '');
   return digits.length === 8 || digits.length === 11;
 }
+
+export interface Periodo {
+  fechaDesde?: string
+  fechaHasta?: string
+}
+
+function isoLocal(fecha: Date) {
+  const dos = (n: number) => String(n).padStart(2, "0")
+  return `${fecha.getFullYear()}-${dos(fecha.getMonth() + 1)}-${dos(fecha.getDate())}`
+}
+
+export function periodoUltimoMes(): Required<Periodo> {
+  const desde = new Date()
+  const diaDelMes = desde.getDate()
+  desde.setDate(1)
+  desde.setMonth(desde.getMonth() - 1)
+  const ultimoDiaMesAnterior = new Date(desde.getFullYear(), desde.getMonth() + 1, 0).getDate()
+  desde.setDate(Math.min(diaDelMes, ultimoDiaMesAnterior))
+  return { fechaDesde: isoLocal(desde), fechaHasta: hoyIso() }
+}
+
+export function describirPeriodo({ fechaDesde, fechaHasta }: Periodo): string {
+  if (!fechaDesde && !fechaHasta) return "Período: sin límite de fechas"
+  const desde = fechaDesde ? dia(fechaDesde) : "el inicio"
+  const hasta = fechaHasta ? dia(fechaHasta) : "hoy"
+  return `Período: desde ${desde} hasta ${hasta}`
+}
+
+export const periodoInvalido = ({ fechaDesde, fechaHasta }: Periodo) =>
+  !!fechaDesde && !!fechaHasta && fechaDesde > fechaHasta

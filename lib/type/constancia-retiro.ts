@@ -23,3 +23,18 @@ export interface UpdateConstanciaRetiroPayload {
   observaciones?: string | null
   tecnicoId?: number | null
 }
+
+export interface DatosConstanciaRetiro {
+  constanciaId: number
+  turnoId: number | null
+  donacionId: number | null
+  fechaEmision: string | null
+  fechaRetiro: string | null
+  observaciones: string | null
+  donante: { nombre: string; telefono: string | null }
+  direccion: string | null
+  transportista: { nombre: string; apellido: string; cuitDni: string | null } | null
+  vehiculo: { patente: string; marca: string; modelo: string } | null
+  pesoEstimadoKg: number | string | null
+  materiales: { tipo: string; cantidad: number | null }[]
+}
