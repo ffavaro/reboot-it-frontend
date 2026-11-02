@@ -1,6 +1,10 @@
 import useSWRMutation from "swr/mutation"
 import { authApi } from "@/lib/api"
 import { LoginPayload } from "@/lib/type"
+import { useSyncExternalStore } from "react"
+import { getUser } from "@/lib/auth-utils"
+import { perfilDeUsuario } from "@/lib/type/menu"
+import type { Perfil } from "@/lib/type/sidebar"
 
 export function useLogin() {
   const { trigger, isMutating, error } = useSWRMutation(
@@ -41,4 +45,12 @@ export function useForgotPassword() {
     isLoading: isMutating,
     error,
   }
+}
+
+const sinSuscripcion = () => () => {}
+const leerPerfil = (): Perfil => perfilDeUsuario(getUser())
+const perfilEnServidor = (): Perfil | null => null
+
+export function usePerfil(): Perfil | null {
+  return useSyncExternalStore(sinSuscripcion, leerPerfil, perfilEnServidor)
 }

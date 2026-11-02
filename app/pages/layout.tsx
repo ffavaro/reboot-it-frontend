@@ -2,6 +2,7 @@
 import { ThemeProvider } from "@/components/theme-provider"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { PestanasSeccion } from "@/components/pestanas-seccion";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb";
 import {
   DropdownMenu,
@@ -79,9 +80,9 @@ export default function RootLayout({
             </div>
           </header>
           <main className="p-4 md:p-6">
+            <PestanasSeccion />
             {children}
-          </main>{/*
-          <ChatWidget /> ver de poner en el otro layout */}
+          </main>
         </SidebarInset>
       </ThemeProvider>
     </SidebarProvider>

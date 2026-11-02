@@ -1,13 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { useState, useEffect } from "react"
+import Link from "next/link"
 import { usePathname } from "next/navigation"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
+import { ChevronRight } from "lucide-react"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Sidebar,
   SidebarContent,
@@ -18,164 +16,151 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
-import {
-  BarChart2, Bookmark, Box, Boxes, CalendarCheck, CalendarDays, Camera, Car,
-  Circle, Clock, FileCheck, FileText, HardDrive, Heart,
-  LayoutList, Layers, Leaf, List, MapPin, Package, PackageOpen,
-  Server, Shield, Tag, Trash2, Truck, User, UserCog, Users,
-} from "lucide-react"
-import { getUser } from "@/lib/auth-utils"
-import { NavSection, NavItem } from "@/lib/type/sidebar"
+import { cn } from "@/lib/utils"
+import { accesosParaPerfil, gruposParaPerfil, rutaInicial, ubicarRuta } from "@/lib/type/menu"
+import { usePerfil } from "@/hooks/use-auth"
+import type { EntradaMenu, GrupoMenu } from "@/lib/type/sidebar"
 
-// Si allowedRoles está definido, solo esos roles pueden verlo.
-// Si no está definido, es visible para todos los roles.
-const DONANTE = ["donante"]
-const TRANSPORTISTA = ["transportista"]
+const estiloOpcion = cn(
+  "border-l-2 border-transparent text-white/80",
+  "hover:border-red-500/50 hover:bg-white/5 hover:text-white",
+  "data-[active=true]:border-red-500 data-[active=true]:bg-white/5 data-[active=true]:font-medium data-[active=true]:text-white",
+)
 
-const navMain: NavSection[] = [
-  {
-    title: "Gestion de Donantes",
-    url: "#",
-    items: [
-      { title: "Dashboard", url: "/pages/dashboard", icon: BarChart2 },
-      { title: "Agenda", url: "/pages/agenda", icon: CalendarDays },
-      { title: "Certificado de disposicion", url: "/pages/certificado-disposicion", allowedRoles: DONANTE, icon: FileCheck },
-      { title: "Constancia de retiro", url: "/pages/constancia-retiro", allowedRoles: DONANTE, icon: FileText },
-      { title: "Donaciones", url: "/pages/donacion", allowedRoles: DONANTE, icon: Heart },
-      { title: "Registro fotográfico", url: "/pages/registro-fotografico", icon: Camera },
-      { title: "Turnos", url: "/pages/turno", allowedRoles: [...DONANTE, ...TRANSPORTISTA], icon: Clock },
-    ],
-  },
-  {
-    title: "Logistica y Distribucion",
-    url: "#",
-    items: [
-      { title: "Vehiculos", url: "/pages/vehicles", allowedRoles: TRANSPORTISTA, icon: Truck },
-      { title: "Retiros", url: "/pages/retiro", allowedRoles: TRANSPORTISTA, icon: PackageOpen },
-      { title: "Hoja de ruta", url: "/pages/hoja-ruta", allowedRoles: TRANSPORTISTA, icon: MapPin },
-      { title: "Empleado Transportista", url: "/pages/empleado-transportista", icon: Car },
-    ],
-  },
-  {
-    title: "Gestion de Clasificacion",
-    url: "#",
-    items: [
-      { title: "Materiales", url: "/pages/material", icon: Layers },
-      { title: "Condicion de Material", url: "/pages/material/material-condition", icon: Circle },
-      { title: "Tipos de Material", url: "/pages/material/material-type", icon: Tag },
-      { title: "Proceso de destrucción", url: "/pages/proceso-destruccion", icon: Trash2 },
-    ],
-  },
-  {
-    title: "Inventario y almacenamiento",
-    url: "#",
-    items: [
-      { title: "Medio de Almacenamiento", url: "/pages/medio-almacenamiento", icon: HardDrive },
-      { title: "Tipos", url: "/pages/medio-almacenamiento/types", icon: List },
-      { title: "Marcas", url: "/pages/medio-almacenamiento/brands", icon: Bookmark },
-      { title: "Modelos", url: "/pages/medio-almacenamiento/models", icon: Box },
-      { title: "Racks", url: "/pages/rack", icon: Server },
-      { title: "Pallets", url: "/pages/pallet", icon: Boxes },
-      { title: "Lotes", url: "/pages/lote", icon: Package },
-    ],
-  },
-  {
-    title: "Reportes y Analitica",
-    url: "#",
-    items: [
-      { title: "Reporte de Donaciones", url: "/pages/reportes/donaciones", icon: BarChart2 },
-      { title: "Reporte de Retiros", url: "/pages/reportes/retiros", icon: BarChart2 },
-      { title: "Reporte de Inventario", url: "/pages/reportes/inventario", icon: BarChart2 },
-      { title: "Reporte de Procesos de Destrucción", url: "/pages/reportes/procesos-destruccion", icon: BarChart2 },
-    ],
-  },
-  {
-    title: "Configuracion",
-    url: "#",
-    items: [
-      { title: "Donantes", url: "/pages/donante", icon: Users },
-      { title: "Empleados", url: "/pages/employees", icon: User },
-      { title: "Estado de turno", url: "/pages/estado-turno", icon: CalendarCheck },
-      { title: "Estado de proceso de destrucción", url: "/pages/estado-proceso-destruccion", icon: Layers },
-      { title: "Gestora Ambiental", url: "/pages/gestor-ambiental", icon: Leaf },
-      { title: "Metodos de destrucción", url: "/pages/metodo-destruccion", icon: LayoutList },
-      { title: "Roles", url: "/pages/roles", icon: Shield },
-      { title: "Usuarios", url: "/pages/user-management", icon: UserCog },
-    ],
-  }
-]
+function OpcionMenu({ entrada, activa }: { entrada: EntradaMenu; activa: boolean }) {
+  const Icono = entrada.icono
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        isActive={activa}
+        tooltip={entrada.etiqueta}
+        className={estiloOpcion}
+        render={<Link href={rutaInicial(entrada)} />}
+      >
+        <Icono className="h-4 w-4 shrink-0" />
+        <span>{entrada.etiqueta}</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  )
+}
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+function GrupoDesplegable({ grupo, activa }: { grupo: GrupoMenu; activa: string | null }) {
+  const Icono = grupo.icono
+  const contieneActiva = grupo.entradas.some((e) => e.etiqueta === activa)
+  return (
+    <Collapsible defaultOpen={contieneActiva} className="group/collapsible">
+      <SidebarGroup>
+        <SidebarGroupLabel
+          className="text-sm text-white/70 hover:bg-white/5 hover:text-white"
+          render={<CollapsibleTrigger />}
+        >
+          <Icono className="mr-2 h-4 w-4 shrink-0" />
+          {grupo.etiqueta}
+          <ChevronRight className="ml-auto h-4 w-4 transition-transform group-data-open/collapsible:rotate-90" />
+        </SidebarGroupLabel>
+        <CollapsibleContent>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {grupo.entradas.map((entrada) => (
+                <OpcionMenu key={entrada.etiqueta} entrada={entrada} activa={entrada.etiqueta === activa} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </CollapsibleContent>
+      </SidebarGroup>
+    </Collapsible>
+  )
+}
+
+function GrupoCompacto({ grupo, activa }: { grupo: GrupoMenu; activa: string | null }) {
+  const Icono = grupo.icono
+  return (
+    <SidebarMenuItem>
+      <Popover>
+        <PopoverTrigger
+          render={
+            <SidebarMenuButton
+              isActive={grupo.entradas.some((e) => e.etiqueta === activa)}
+              aria-label={grupo.etiqueta}
+              title={grupo.etiqueta}
+              className={estiloOpcion}
+            />
+          }
+        >
+          <Icono className="h-4 w-4 shrink-0" />
+          <span>{grupo.etiqueta}</span>
+        </PopoverTrigger>
+        <PopoverContent side="right" align="start" sideOffset={12} className="w-60 p-2">
+          <p className="px-2 pb-2 pt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {grupo.etiqueta}
+          </p>
+          <ul className="flex flex-col gap-0.5">
+            {grupo.entradas.map((entrada) => {
+              const IconoEntrada = entrada.icono
+              const actual = entrada.etiqueta === activa
+              return (
+                <li key={entrada.etiqueta}>
+                  <Link
+                    href={rutaInicial(entrada)}
+                    aria-current={actual ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent",
+                      actual && "bg-accent font-medium",
+                    )}
+                  >
+                    <IconoEntrada className="h-4 w-4 shrink-0" />
+                    {entrada.etiqueta}
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </PopoverContent>
+      </Popover>
+    </SidebarMenuItem>
+  )
+}
+
+export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
-  const [user, setUser] = useState<ReturnType<typeof getUser>>(null)
-  useEffect(() => { setUser(getUser()) }, [])
-  const rolNombre = user?.rol?.nombre?.toLowerCase() ?? ""
-  const isDonante = rolNombre === "donante"
-  const isTransportista = rolNombre === "transportista"
+  const perfil = usePerfil()
+  const { state, isMobile } = useSidebar()
 
-  const canSeeItem = (item: NavItem): boolean => {
-    if (isDonante) {
-      return item.allowedRoles?.includes("donante") ?? false
-    }
-    if (isTransportista) {
-      return item.allowedRoles?.includes("transportista") ?? false
-    }
-    return true
-  }
-
-  const visibleSections = navMain
-    .map((section) => ({
-      ...section,
-      items: section.items.filter(canSeeItem),
-    }))
-    .filter((section) => section.items.length > 0)
+  const accesos = perfil ? accesosParaPerfil(perfil) : []
+  const grupos = perfil ? gruposParaPerfil(perfil) : []
+  const activa = perfil ? ubicarRuta(pathname, perfil)?.entrada.etiqueta ?? null : null
+  const compacto = state === "collapsed" && !isMobile
 
   return (
-    <Sidebar {...props}>
+    <Sidebar collapsible="icon" {...props}>
       <SidebarContent className="gap-0 bg-slate-900">
-        {visibleSections.map((item) => (
-          <Collapsible
-            key={item.title}
-            title={item.title}
-            defaultOpen={item.items.some((subItem) => subItem.url === pathname)}
-            className="group/collapsible"
-          >
-            <SidebarGroup>
-              <SidebarGroupLabel
-                className="group/label text-sm text-white/70 hover:bg-white/5 hover:text-white"
-                render={<CollapsibleTrigger />}
-              >
-                {item.title}{" "}
-                <HugeiconsIcon
-                  icon={ArrowRight01Icon}
-                  strokeWidth={2}
-                  className="ml-auto transition-transform group-data-open/collapsible:rotate-90"
-                />
-              </SidebarGroupLabel>
-              <CollapsibleContent>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {item.items.map((subItem) => (
-                      <SidebarMenuItem key={subItem.title}>
-                        <SidebarMenuButton
-                          isActive={pathname === subItem.url}
-                          className="border-l-2 border-transparent text-white/80 hover:border-red-500/50 hover:bg-white/5 hover:text-white data-[active=true]:border-red-500 data-[active=true]:bg-white/5 data-[active=true]:text-white data-[active=true]:font-medium"
-                          render={<a href={subItem.url} />}
-                        >
-                          {subItem.icon && <subItem.icon className="h-4 w-4 shrink-0" />}
-                          {subItem.title}
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </CollapsibleContent>
-            </SidebarGroup>
-          </Collapsible>
-        ))}
+        {accesos.length > 0 && (
+          <SidebarGroup className="pb-0">
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {accesos.map((entrada) => (
+                  <OpcionMenu key={entrada.etiqueta} entrada={entrada} activa={entrada.etiqueta === activa} />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {compacto ? (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {grupos.map((grupo) => (
+                  <GrupoCompacto key={grupo.etiqueta} grupo={grupo} activa={activa} />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ) : (
+          grupos.map((grupo) => <GrupoDesplegable key={grupo.etiqueta} grupo={grupo} activa={activa} />)
+        )}
       </SidebarContent>
       <SidebarRail />
     </Sidebar>

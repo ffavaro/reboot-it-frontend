@@ -2,7 +2,6 @@
 
 import { Recycle, Zap, Shield, TrendingUp, ArrowRight } from "lucide-react"
 import Link from "next/link"
-import { ChatWidget } from "@/components/chat-widget"
 
 export default function HomePage() {
   return (
@@ -52,9 +51,6 @@ export default function HomePage() {
                 Comenzar ahora
                 <ArrowRight className="size-5" />
               </Link>
-              <Link href="#" className="inline-flex items-center justify-center px-6 py-3 rounded-full border border-red-300 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-medium">
-                Saber más
-              </Link>
             </div>
           </div>
         </div>
@@ -81,7 +77,7 @@ export default function HomePage() {
               },
               {
                 icon: Zap,
-                title: "Recogida Rápida",
+                title: "Retiro Rápido",
                 description: "Recoger tus dispositivos en casa sin costo adicional"
               },
               {
@@ -127,7 +123,7 @@ export default function HomePage() {
             {[
               {
                 step: "1",
-                title: "Solicita Recogida",
+                title: "Solicita Retiro",
                 description: "Completa el formulario indicando qué dispositivos deseas reciclar"
               },
               {
@@ -137,7 +133,7 @@ export default function HomePage() {
               },
               {
                 step: "3",
-                title: "Recogemos",
+                title: "Retiramos",
                 description: "Pasamos por tu dirección para recoger los componentes"
               },
               {
@@ -181,9 +177,6 @@ export default function HomePage() {
               Crear cuenta 
               <ArrowRight className="size-5" />
             </Link>
-            <Link href="#contact" className="inline-flex items-center justify-center px-6 py-3 rounded-full border-2 border-white text-white hover:bg-white/10 transition-colors font-medium">
-              Contactar soporte
-            </Link>
           </div>
         </div>
       </section>
@@ -204,38 +197,35 @@ export default function HomePage() {
             <div>
               <h3 className="text-white font-semibold mb-4">Producto</h3>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-white transition">Características</a></li>
-                <li><a href="#" className="hover:text-white transition">Precios</a></li>
-                <li><a href="#" className="hover:text-white transition">Documentación</a></li>
+                <li><label className="hover:text-white transition">Características</label></li>
+                <li><label className="hover:text-white transition">Precios</label></li>
+                <li><label className="hover:text-white transition">Documentación</label></li>
               </ul>
             </div>
             <div>
               <h3 className="text-white font-semibold mb-4">Empresa</h3>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-white transition">Sobre nosotros</a></li>
-                <li><a href="#" className="hover:text-white transition">Blog</a></li>
-                <li><a href="#" className="hover:text-white transition">Contacto</a></li>
+                <li><label className="hover:text-white transition">Sobre nosotros</label></li>
+                <li><label className="hover:text-white transition">Blog</label></li>
+                <li><label className="hover:text-white transition">Contacto</label></li>
               </ul>
             </div>
             <div>
               <h3 className="text-white font-semibold mb-4">Legal</h3>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-white transition">Privacidad</a></li>
-                <li><a href="#" className="hover:text-white transition">Términos</a></li>
-                <li><a href="#" className="hover:text-white transition">Cookies</a></li>
+                <li><label className="hover:text-white transition">Privacidad</label></li>
+                <li><label className="hover:text-white transition">Términos</label></li>
+                <li><label className="hover:text-white transition">Cookies</label></li>
               </ul>
             </div>
           </div>
           <div className="border-t border-gray-800 pt-8">
             <p className="text-center text-sm">
-              © 2025 Reboot IT. Todos los derechos reservados.
+              © {new Date().getFullYear()} Reboot IT. Todos los derechos reservados.
             </p>
           </div>
         </div>
       </footer>
-
-      {/* Chat Widget */}
-      <ChatWidget />
     </div>
   )
 }
