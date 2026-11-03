@@ -1,4 +1,4 @@
-import type { DatosConstanciaRetiro } from "@/lib/type/documentos"
+import type { DatosConstanciaRetiro } from "@/lib/type/constancia-retiro"
 import { EMPRESA } from "./empresa"
 import { dia, diaYHora, kilos, numeroDocumento, texto } from "./formato"
 import { DocumentoPdf } from "./pdf"
