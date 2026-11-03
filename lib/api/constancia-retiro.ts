@@ -3,10 +3,14 @@ import type {
   CreateConstanciaRetiroPayload,
   UpdateConstanciaRetiroPayload,
 } from "@/lib/type/constancia-retiro"
+import type { DatosConstanciaRetiro } from "@/lib/type/constancia-retiro"
 import { request } from "./client"
 
 export const constanciaRetiroApi = {
   getAll: () => request<ConstanciaRetiro[]>("/constancia-retiro"),
+
+  getDatosDocumento: (id: number) =>
+    request<DatosConstanciaRetiro>(`/constancia-retiro/${id}/datos`),
 
   create: (data: CreateConstanciaRetiroPayload) =>
     request<ConstanciaRetiro>("/constancia-retiro", { method: "POST", body: JSON.stringify(data) }),

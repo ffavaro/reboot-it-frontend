@@ -10,4 +10,7 @@ export const authApi = {
 
   forgotPassword: (data: { email: string }) =>
     request<{ message: string }>("/auth/forgot-password", { method: "POST", body: JSON.stringify(data) }),
+
+  resetPassword: (data: { email: string; code: string; newPassword: string; confirmPassword: string }) =>
+    request<{ message: string }>("/auth/reset-password", { method: "POST", body: JSON.stringify(data) }),
 }

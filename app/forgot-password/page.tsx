@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { showToast } from './../../lib/toast';
 import { useRouter } from 'next/navigation';
+import { useForgotPassword, useResetPassword } from '@/hooks/use-auth';
 
 export default function ForgetPasswordPage() {
   const [step, setStep] = useState<'email' | 'verify' | 'reset'>('email');
@@ -14,59 +15,54 @@ export default function ForgetPasswordPage() {
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { sendReset, isLoading: enviando } = useForgotPassword();
+  const { resetPassword, isLoading: actualizando } = useResetPassword();
+  const loading = enviando || actualizando;
   const router = useRouter();
 
-  const handleEmailSubmit = (e: React.FormEvent) => {
+  const mensajeDeError = (err: any, porDefecto: string) => {
+    const mensaje = err?.message;
+    if (Array.isArray(mensaje)) return mensaje[0] ?? porDefecto;
+    if (err?.statusCode === 429) return 'Demasiados intentos. Probá de nuevo más tarde';
+    return typeof mensaje === 'string' ? mensaje : porDefecto;
+  };
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
       showToast.error('Por favor ingresa tu correo');
       return;
     }
-    setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await sendReset({ email });
       setStep('verify');
-    }, 1500);
+    } catch (err) {
+      showToast.error(mensajeDeError(err, 'No se pudo enviar el código'));
+    }
   };
 
   const handleVerifySubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!code) {
-      showToast.error('Por favor ingresa el código');
+    if (code.length !== 6) {
+      showToast.error('El código tiene que ser de 6 dígitos');
       return;
     }
-    setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
-      setStep('reset');
-    }, 1500);
+    setStep('reset');
   };
 
-  const handleResetSubmit = (e: React.FormEvent) => {
+  const handleResetSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
       showToast.error('Las contraseñas no coinciden');
       return;
     }
-    if (newPassword.length < 6) {
-      showToast.error('La contraseña debe tener al menos 6 caracteres');
-      return;
-    }
-    setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await resetPassword({ email, code, newPassword, confirmPassword });
       showToast.success('Contraseña actualizada correctamente');
-      setStep('email');
-      setEmail('');
-      setCode('');
-      setNewPassword('');
-      setConfirmPassword('');
       router.push('/login');
-    }, 1500);
+    } catch (err) {
+      showToast.error(mensajeDeError(err, 'No se pudo actualizar la contraseña'));
+    }
   };
 
   return (
@@ -155,7 +151,7 @@ export default function ForgetPasswordPage() {
                   disabled={loading}
                   className="w-full mt-6 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-semibold py-2.5 rounded-lg transition duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? 'Verificando...' : 'Verificar Código'}
+                  Continuar
                 </Button>
 
                 <button
@@ -202,7 +198,7 @@ export default function ForgetPasswordPage() {
                     onInvalid={(e) => e.currentTarget.setCustomValidity(e.currentTarget.value ? '' : 'Por favor confirma tu nueva contraseña')}
                   />
                   <p className="text-xs text-gray-500 mt-2">
-                    Mínimo 6 caracteres
+                    Entre 8 y 12 caracteres, con mayúscula, minúscula y número
                   </p>
                 </div>
 

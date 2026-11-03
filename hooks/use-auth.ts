@@ -47,6 +47,20 @@ export function useForgotPassword() {
   }
 }
 
+export function useResetPassword() {
+  const { trigger, isMutating, error } = useSWRMutation(
+    "/auth/reset-password",
+    (_key: string, { arg }: { arg: Parameters<typeof authApi.resetPassword>[0] }) =>
+      authApi.resetPassword(arg),
+  )
+
+  return {
+    resetPassword: trigger,
+    isLoading: isMutating,
+    error,
+  }
+}
+
 const sinSuscripcion = () => () => {}
 const leerPerfil = (): Perfil => perfilDeUsuario(getUser())
 const perfilEnServidor = (): Perfil | null => null
