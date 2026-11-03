@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react"
 
-export type Perfil = "equipo" | "donante" | "transportista"
+export type Perfil = "admin" | "equipo" | "donante" | "transportista"
 
 export interface Destino {
   etiqueta: string

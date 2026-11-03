@@ -1,5 +1,5 @@
 import {
-  BarChart2, Briefcase, CalendarDays, Factory, FileBarChart, FileCheck, Heart, Layers, Library, Lock, MapPin,
+  BarChart2, Briefcase, CalendarDays, Factory, FileBarChart, FileCheck, Heart, History, Layers, Library, Lock, MapPin,
   Package, PackageOpen, Recycle, Route, Shield, Trash2, Truck, User, UserCog, Users, Warehouse,
 } from "lucide-react"
 import type { TokenPayload } from "@/lib/auth-utils"
@@ -7,6 +7,7 @@ import type { Destino, EntradaMenu, GrupoMenu, Perfil, Ubicacion } from "@/lib/t
 
 const EQUIPO: Perfil[] = ["equipo"]
 const SOLO_DONANTE: Perfil[] = ["donante"]
+const SOLO_ADMIN: Perfil[] = ["admin"]
 const CON_TRANSPORTISTA: Perfil[] = ["equipo", "transportista"]
 
 const destino = (etiqueta: string, ruta: string, perfiles?: Perfil[]): Destino => ({ etiqueta, ruta, perfiles })
@@ -150,18 +151,21 @@ export const GRUPOS_MENU: GrupoMenu[] = [
     entradas: [
       simple("Usuarios", "/pages/user-management", UserCog),
       simple("Roles y permisos", "/pages/roles", Shield),
+      simple("Auditoría", "/pages/auditoria", History, SOLO_ADMIN),
     ],
   },
 ]
 
 export function perfilDeUsuario(usuario: TokenPayload | null): Perfil {
   const rol = usuario?.rol?.nombre?.trim().toLowerCase()
-  if (rol === "donante" || rol === "transportista") return rol
+  if (rol === "donante" || rol === "transportista" || rol === "admin") return rol
   return "equipo"
 }
 
+const equivalentes = (perfil: Perfil): Perfil[] => (perfil === "admin" ? ["admin", "equipo"] : [perfil])
+
 const habilitado = (perfiles: Perfil[] | undefined, perfil: Perfil) =>
-  perfiles ? perfiles.includes(perfil) : perfil === "equipo"
+  equivalentes(perfil).some((p) => (perfiles ?? EQUIPO).includes(p))
 
 function recortarEntrada(entrada: EntradaMenu, perfil: Perfil): EntradaMenu | null {
   if (!habilitado(entrada.perfiles, perfil)) return null
