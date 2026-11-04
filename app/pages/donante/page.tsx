@@ -32,10 +32,6 @@ type Tab = "donantes" | "tipos"
 const EMPTY_DONANTE = { usuarioId: 0, tipoDonanteId: 0, nombre: "", razonSocial: "", telefono: "", direccion: "" }
 const EMPTY_TIPO = { descripcion: "" }
 
-// ---------------------------------------------------------------------------
-// Donantes tab
-// ---------------------------------------------------------------------------
-
 const donanteColumns: TableColumn<Donante>[] = [
   {
     key: "nombre",
@@ -47,7 +43,7 @@ const donanteColumns: TableColumn<Donante>[] = [
     header: "Razón social",
     cell: (d) => (
       <span className="text-muted-foreground">
-        {d.razonSocial ?? <span className="italic">—</span>}
+        {d.razonSocial ?? <span className="italic"></span>}
       </span>
     ),
   },
@@ -56,7 +52,7 @@ const donanteColumns: TableColumn<Donante>[] = [
     header: "Tipo",
     cell: (d) => (
       <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
-        {d.tipoDonante?.descripcion ?? "—"}
+        {d.tipoDonante?.descripcion ?? ""}
       </span>
     ),
   },
@@ -65,7 +61,7 @@ const donanteColumns: TableColumn<Donante>[] = [
     header: "Teléfono",
     cell: (d) => (
       <span className="text-muted-foreground">
-        {d.telefono ?? <span className="italic">—</span>}
+        {d.telefono ?? <span className="italic"></span>}
       </span>
     ),
   },
@@ -75,7 +71,7 @@ const donanteColumns: TableColumn<Donante>[] = [
     className: "max-w-45 truncate",
     cell: (d) => (
       <span className="text-muted-foreground">
-        {d.direccion ?? <span className="italic">—</span>}
+        {d.direccion ?? <span className="italic"></span>}
       </span>
     ),
   },
@@ -272,7 +268,7 @@ function DonantesTab() {
             onChange={(e) => set("usuarioId", Number(e.target.value))}
             className={selectCls(errors.usuarioId)}
           >
-            <option value={0}>— Seleccionar usuario —</option>
+            <option value={0}> Seleccionar usuario </option>
             {usuarios.map((u) => (
               <option key={u.id} value={u.id}>
                 {u.nombre} ({u.email})
@@ -289,7 +285,7 @@ function DonantesTab() {
             onChange={(e) => set("tipoDonanteId", Number(e.target.value))}
             className={selectCls(errors.tipoDonanteId)}
           >
-            <option value={0}>— Seleccionar tipo —</option>
+            <option value={0}> Seleccionar tipo </option>
             {tipos.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.descripcion}
@@ -328,9 +324,6 @@ function DonantesTab() {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Tipos de donante tab
-// ---------------------------------------------------------------------------
 
 const tipoDonanteColumns: TableColumn<TipoDonante>[] = [
   {
@@ -458,10 +451,6 @@ function TiposTab() {
     </>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
 
 export default function DonantePage() {
   const [activeTab, setActiveTab] = useState<Tab>("donantes")

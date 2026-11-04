@@ -77,7 +77,7 @@ function isFechaValida(d: Date): boolean {
 
 function EmpleadoAsignadoBadge({ turno }: { turno: Turno }) {
   if (turno.necesitaRetiro) {
-    if (!turno.empleadoTransportistaId) return <span className="italic text-muted-foreground">—</span>
+    if (!turno.empleadoTransportistaId) return <span className="italic text-muted-foreground"></span>
     const et = turno.empleadoTransportista
     const nombre = et?.empleado
       ? `${et.empleado.nombre} ${et.empleado.apellido}`
@@ -88,7 +88,7 @@ function EmpleadoAsignadoBadge({ turno }: { turno: Turno }) {
       </span>
     )
   }
-  if (!turno.empleadoId) return <span className="italic text-muted-foreground">—</span>
+  if (!turno.empleadoId) return <span className="italic text-muted-foreground"></span>
   const nombre = turno.empleado
     ? `${turno.empleado.nombre} ${turno.empleado.apellido}`
     : `Empleado #${turno.empleadoId}`
@@ -124,7 +124,7 @@ export default function TurnoPage() {
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [asignarForm, setAsignarForm] = useState(EMPTY_ASIGNAR)
-  // Estado para el file input del modal de finalización
+ 
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [fotoPreviewUrl, setFotoPreviewUrl] = useState<string | null>(null)
   const [fileInputKey, setFileInputKey] = useState(0)
@@ -138,7 +138,6 @@ export default function TurnoPage() {
 
   useEffect(() => { setUser(getUser()) }, [])
 
-  // Limpia la object URL al cambiar la preview para evitar memory leaks
   useEffect(() => {
     return () => { if (fotoPreviewUrl) URL.revokeObjectURL(fotoPreviewUrl) }
   }, [fotoPreviewUrl])
@@ -180,7 +179,7 @@ export default function TurnoPage() {
             {t.estadoTurno.descripcion}
           </span>
         ) : (
-          <span className="italic text-muted-foreground">—</span>
+          <span className="italic text-muted-foreground"></span>
         ),
     },
     {
@@ -205,7 +204,7 @@ export default function TurnoPage() {
       header: "Fecha y hora",
       cell: (t) => (
         <span className="text-muted-foreground">
-          {formatDateTime(t.fechaHora) ?? <span className="italic">—</span>}
+          {formatDateTime(t.fechaHora) ?? <span className="italic"></span>}
         </span>
       ),
     },
@@ -215,7 +214,7 @@ export default function TurnoPage() {
       className: "max-w-[220px] truncate",
       cell: (t) => (
         <span className="text-muted-foreground">
-          {t.descripcion ?? <span className="italic">—</span>}
+          {t.descripcion ?? <span className="italic"></span>}
         </span>
       ),
     },
@@ -456,8 +455,6 @@ export default function TurnoPage() {
       const pesoEstimado = donacion?.pesoEstimadoKg
 
       if (tipoVehiculo?.pesoMinimo != null && tipoVehiculo?.pesoMaximo != null && pesoEstimado != null) {
-        // pesoMinimo/pesoMaximo/pesoEstimado llegan como string desde columnas DECIMAL de MySQL:
-        // comparar sin convertir a Number hace comparación lexicográfica ("85.00" > "150.00" == true)
         const pesoEstimadoNum = Number(pesoEstimado)
         const pesoMinimoNum = Number(tipoVehiculo.pesoMinimo)
         const pesoMaximoNum = Number(tipoVehiculo.pesoMaximo)
@@ -700,7 +697,7 @@ export default function TurnoPage() {
           {selectedDate && (
             <div className="flex flex-col gap-2">
               <span className="text-xs font-medium text-muted-foreground">
-                Horarios —{" "}
+                Horarios {" "}
                 {selectedDate.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}
               </span>
               <div className="flex flex-wrap gap-1.5">
@@ -785,13 +782,13 @@ export default function TurnoPage() {
                           {d.tipoMaterial?.nombre ?? `#${d.tipoMaterialId}`}
                         </td>
                         <td className="px-3 py-2 text-muted-foreground">
-                          {d.descripcion ?? <span className="italic">—</span>}
+                          {d.descripcion ?? <span className="italic"></span>}
                         </td>
                         <td className="px-3 py-2 text-right tabular-nums">
-                          {d.cantidadConfirmada ?? <span className="italic text-muted-foreground">—</span>}
+                          {d.cantidadConfirmada ?? <span className="italic text-muted-foreground"></span>}
                         </td>
                         <td className="px-3 py-2 text-muted-foreground">
-                          {d.observaciones ?? <span className="italic">—</span>}
+                          {d.observaciones ?? <span className="italic"></span>}
                         </td>
                       </tr>
                     ))}
@@ -856,7 +853,7 @@ export default function TurnoPage() {
                 })
                 .map((emp: Empleado) => (
                   <option key={emp.id} value={emp.id}>
-                    {emp.nombre} {emp.apellido}{emp.cargo ? ` — ${emp.cargo}` : ""}
+                    {emp.nombre} {emp.apellido}{emp.cargo ? `  ${emp.cargo}` : ""}
                   </option>
                 ))}
               </select>
@@ -914,7 +911,7 @@ export default function TurnoPage() {
             <label className="text-sm font-medium">
               {fotosDelTurno.length > 0 ? "Agregar otra foto" : "Subir foto"}
               {fotosDelTurno.length === 0 && <span className="ml-1 text-destructive">*</span>}
-              <span className="ml-1 text-xs text-muted-foreground font-normal">(jpg, jpeg, png, webp — máx. 5 MB)</span>
+              <span className="ml-1 text-xs text-muted-foreground font-normal">(jpg, jpeg, png, webp  máx. 5 MB)</span>
             </label>
             <div className="flex gap-2 items-center">
               <input

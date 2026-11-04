@@ -40,7 +40,7 @@ const COLUMNS: TableColumn<MetodoDestruccion>[] = [
     cell: (m) =>
       m.descripcion
         ? <span className="text-sm text-muted-foreground">{m.descripcion}</span>
-        : <span className="italic text-muted-foreground">—</span>,
+        : <span className="italic text-muted-foreground"></span>,
   },
 ]
 

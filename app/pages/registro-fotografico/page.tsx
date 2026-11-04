@@ -36,7 +36,7 @@ const columns: TableColumn<RegistroFotografico>[] = [
     cell: (r) => (
       r.loteId
         ? <span className="font-mono text-xs font-medium">#{r.loteId}</span>
-        : <span className="italic text-muted-foreground text-xs">—</span>
+        : <span className="italic text-muted-foreground text-xs"></span>
     ),
   },
   {
@@ -58,7 +58,7 @@ const columns: TableColumn<RegistroFotografico>[] = [
     header: "Fecha",
     cell: (r) => (
       <span className="text-muted-foreground">
-        {formatDate(r.fecha) ?? <span className="italic">—</span>}
+        {formatDate(r.fecha) ?? <span className="italic"></span>}
       </span>
     ),
   },
@@ -134,7 +134,6 @@ export default function RegistroFotograficoPage() {
   }
 
   async function handleSave() {
-    // Al crear: necesita un archivo. Al editar: puede no cambiar la foto.
     if (!editing && !selectedFile) {
       toast.error("Seleccioná una foto para el registro")
       return
@@ -269,7 +268,7 @@ export default function RegistroFotograficoPage() {
               {editing ? "Reemplazar foto" : "Foto"}
               {!editing && <span className="ml-1 text-destructive">*</span>}
               <span className="ml-1 text-xs text-muted-foreground font-normal">
-                {editing ? "(opcional)" : "(jpg, jpeg, png, webp — máx. 5 MB)"}
+                {editing ? "(opcional)" : "(jpg, jpeg, png, webp  máx. 5 MB)"}
               </span>
             </label>
             <input
@@ -301,7 +300,7 @@ export default function RegistroFotograficoPage() {
             <option value="">Seleccionar lote...</option>
             {lotes.map((l: Lote) => (
               <option key={l.id} value={l.id}>
-                Lote #{l.id}{l.pesoBrutoKg ? ` — ${l.pesoBrutoKg} kg` : ""}
+                Lote #{l.id}{l.pesoBrutoKg ? `  ${l.pesoBrutoKg} kg` : ""}
               </option>
             ))}
           </select>

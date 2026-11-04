@@ -35,7 +35,7 @@ const COLUMNS: TableColumn<GestorAmbiental>[] = [
     header: "CUIT",
     cell: (g) => (
       <span className="font-mono text-muted-foreground">
-        {g.cuit ?? <span className="italic">—</span>}
+        {g.cuit ?? <span className="italic"></span>}
       </span>
     ),
   },
@@ -48,7 +48,7 @@ const COLUMNS: TableColumn<GestorAmbiental>[] = [
           {g.habilitacion}
         </span>
       ) : (
-        <span className="text-muted-foreground italic">—</span>
+        <span className="text-muted-foreground italic"></span>
       ),
   },
   {
@@ -56,7 +56,7 @@ const COLUMNS: TableColumn<GestorAmbiental>[] = [
     header: "Contacto",
     cell: (g) => (
       <span className="text-muted-foreground">
-        {g.contacto ?? <span className="italic">—</span>}
+        {g.contacto ?? <span className="italic"></span>}
       </span>
     ),
   },

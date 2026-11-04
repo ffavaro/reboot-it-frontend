@@ -30,7 +30,7 @@ const COLUMNS: TableColumn<Rol>[] = [
     header: "Descripción",
     cell: (r) => (
       <span className="text-muted-foreground">
-        {r.descripcion ?? <span className="italic">—</span>}
+        {r.descripcion ?? <span className="italic"></span>}
       </span>
     ),
     className: "max-w-md truncate",

@@ -67,7 +67,7 @@ function getCalendarDays(year: number, month: number): (Date | null)[] {
       days.push(current.getMonth() === month ? new Date(current) : null)
       current.setDate(current.getDate() + 1)
     }
-    current.setDate(current.getDate() + 2) // salta sáb + dom
+    current.setDate(current.getDate() + 2)
   }
   return days
 }
@@ -76,8 +76,6 @@ function getMinSelectableDate(): Date {
   const now = new Date()
   const minDate = new Date(now)
   minDate.setHours(0, 0, 0, 0)
-  // El día actual nunca se puede elegir; si ya pasaron las 17hs, se corre
-  // un día más para dar margen de coordinación con el equipo de retiro.
   minDate.setDate(minDate.getDate() + (now.getHours() >= 17 ? 2 : 1))
   return minDate
 }
@@ -137,7 +135,6 @@ export default function DonacionPage() {
     : null
   const isDonante = user?.rol?.nombre?.toLowerCase() === "donante" || myDonante !== null
 
-  // Condición por defecto de todo material cargado: se define recién al clasificarlo
   const condicionADefinir = condiciones.find(
     (c: CondicionMaterial) => c.condicion.toLowerCase() === "a definir",
   )
@@ -396,7 +393,7 @@ export default function DonacionPage() {
       header: "Estado",
       cell: (d) => {
         const desc = d.estadoDonacion?.descripcion
-        if (!desc) return <span className="italic text-muted-foreground">—</span>
+        if (!desc) return <span className="italic text-muted-foreground"></span>
         const color = ESTADO_COLORS[desc.toLowerCase()] ?? "bg-gray-100 text-gray-800"
         return (
           <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}>
@@ -435,7 +432,7 @@ export default function DonacionPage() {
       key: "descripcion",
       header: "Descripción",
       cell: (d) =>
-        d.descripcion ?? <span className="italic text-muted-foreground">—</span>,
+        d.descripcion ?? <span className="italic text-muted-foreground"></span>,
       className: "max-w-[220px] truncate text-muted-foreground",
     },
   ]
@@ -507,14 +504,14 @@ export default function DonacionPage() {
                 <option value="">Seleccionar donante...</option>
                 {donantes.map((d: Donante) => (
                   <option key={d.id} value={d.id}>
-                    {d.nombre}{d.razonSocial ? ` — ${d.razonSocial}` : ""}
+                    {d.nombre}{d.razonSocial ? `  ${d.razonSocial}` : ""}
                   </option>
                 ))}
               </select>
             </div>
           )}
 
-          {/* Fecha del turno — solo en creación */}
+          {/* Fecha del turno  solo en creación */}
           {!editing && (
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium">Fecha del turno *</label>
@@ -591,7 +588,7 @@ export default function DonacionPage() {
               {selectedDate && (
                 <div className="flex flex-col gap-2">
                   <span className="text-xs font-medium text-muted-foreground">
-                    Horarios —{" "}
+                    Horarios {" "}
                     {selectedDate.toLocaleDateString("es-AR", {
                       weekday: "long", day: "numeric", month: "long",
                     })}
@@ -640,7 +637,7 @@ export default function DonacionPage() {
             </div>
           )}
 
-          {/* Estado — solo visible al editar */}
+          {/* Estado  solo visible al editar */}
           {!!editing && (
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Estado</label>
@@ -753,7 +750,7 @@ export default function DonacionPage() {
             )}
           </div>
 
-          {/* Materiales — tabla */}
+          {/* Materiales  tabla */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Materiales a donar *</span>
@@ -800,7 +797,7 @@ export default function DonacionPage() {
                           <Input
                             type="number"
                             min={1}
-                            placeholder="—"
+                            placeholder=""
                             value={det.cantidadEstimada}
                             onChange={(e) => updateDetalleField(idx, "cantidadEstimada", e.target.value)}
                             className="h-8 text-xs"

@@ -51,7 +51,7 @@ const COLUMNS: TableColumn<CondicionMaterial>[] = [
     header: "Descripción",
     cell: (c) => (
       <span className="text-muted-foreground">
-        {c.descripcion ?? <span className="italic">—</span>}
+        {c.descripcion ?? <span className="italic"></span>}
       </span>
     ),
     className: "max-w-md truncate",

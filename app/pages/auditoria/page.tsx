@@ -214,19 +214,19 @@ export default function AuditoriaPage() {
                         {persona.detalle && <span className="text-xs text-muted-foreground">{persona.detalle}</span>}
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{e.rol ?? "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">{e.rol ?? ""}</TableCell>
                     <TableCell className="font-medium">{e.accion}</TableCell>
                     <TableCell>
                       <Resultado evento={e} />
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {e.entidad ? `${e.entidad}${e.entidadId ? ` #${e.entidadId}` : ""}` : "—"}
+                      {e.entidad ? `${e.entidad}${e.entidadId ? ` #${e.entidadId}` : ""}` : ""}
                     </TableCell>
                     <TableCell className="max-w-64 truncate font-mono text-xs text-muted-foreground" title={e.ruta ?? undefined}>
-                      {e.metodo ? `${e.metodo} ${e.ruta ?? ""}` : "—"}
+                      {e.metodo ? `${e.metodo} ${e.ruta ?? ""}` : ""}
                     </TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground" title={e.userAgent ?? undefined}>
-                      {e.ip ?? "—"}
+                      {e.ip ?? ""}
                     </TableCell>
                   </TableRow>
                 )

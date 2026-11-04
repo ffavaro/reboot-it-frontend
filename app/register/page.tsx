@@ -84,7 +84,6 @@ export default function RegisterPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     const updated = { ...formData, [name]: value };
-    // Si cambia el tipo, limpiar name/razonSocial para evitar datos cruzados
     if (name === 'tipoDonanteId') {
       updated.name = '';
       updated.razonSocial = '';
@@ -181,7 +180,7 @@ export default function RegisterPage() {
           <div className="px-6 py-6">
             <form className="space-y-4" onSubmit={handleSubmit} noValidate>
 
-              {/* 1. Tipo de donante — primer campo */}
+              {/* 1. Tipo de donante  primer campo */}
               <div>
                 <label htmlFor="tipoDonanteId" className="block text-xs font-semibold text-gray-600 mb-1">
                   Tipo de donante
@@ -202,7 +201,7 @@ export default function RegisterPage() {
                 <FieldError name="tipoDonanteId" />
               </div>
 
-              {/* 2a. Razón Social — empresa u organismo */}
+              {/* 2a. Razón Social  empresa u organismo */}
               {tipoSeleccionado && usesRazonSocial && (
                 <div>
                   <label htmlFor="razonSocial" className="block text-xs font-semibold text-gray-600 mb-1">
@@ -219,7 +218,7 @@ export default function RegisterPage() {
                 </div>
               )}
 
-              {/* 2b. Nombre Completo — particular */}
+              {/* 2b. Nombre Completo  particular */}
               {tipoSeleccionado && !usesRazonSocial && (
                 <div>
                   <label htmlFor="name" className="block text-xs font-semibold text-gray-600 mb-1">
@@ -236,7 +235,7 @@ export default function RegisterPage() {
                 </div>
               )}
 
-              {/* Resto de campos — solo aparecen una vez seleccionado el tipo */}
+              {/* Resto de campos  solo aparecen una vez seleccionado el tipo */}
               {tipoSeleccionado && (
                 <>
                   {/* Email */}

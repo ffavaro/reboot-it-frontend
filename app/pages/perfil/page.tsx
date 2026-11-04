@@ -119,7 +119,7 @@ export default function PerfilPage() {
         </p>
       </div>
 
-      {/* Datos de cuenta — solo lectura */}
+      {/* Datos de cuenta  solo lectura */}
       <div className="rounded-2xl bg-card shadow-sm ring-1 ring-foreground/5 p-5 flex flex-col gap-3">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
           Datos de cuenta
@@ -131,7 +131,7 @@ export default function PerfilPage() {
           </div>
           <div>
             <p className="text-xs text-muted-foreground mb-1">Rol</p>
-            <p className="text-sm font-medium capitalize">{user.rol?.nombre ?? "—"}</p>
+            <p className="text-sm font-medium capitalize">{user.rol?.nombre ?? ""}</p>
           </div>
           {donante?.tipoDonante && (
             <div>

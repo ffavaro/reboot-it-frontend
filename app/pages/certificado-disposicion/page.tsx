@@ -45,7 +45,7 @@ interface Campos {
 const ESTADO_LISTO_PARA_CERTIFICAR = "Pendiente de emision certificado"
 const SELECT_CLASES =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-const Guion = () => <span className="italic text-muted-foreground">—</span>
+const Guion = () => <span className="italic text-muted-foreground"></span>
 
 function siguienteNumero(existentes: CertificadoDisposicion[]): string {
   const prefijo = `CERT-${new Date().getFullYear()}-`
@@ -294,7 +294,7 @@ export default function CertificadoDisposicionPage() {
               ).map((l: Lote) => (
                 <option key={l.id} value={String(l.id)}>
                   Lote #{l.id}
-                  {l.pesoBrutoKg ? ` — ${l.pesoBrutoKg} kg` : ""}
+                  {l.pesoBrutoKg ? `  ${l.pesoBrutoKg} kg` : ""}
                 </option>
               ))}
             </select>
@@ -311,7 +311,7 @@ export default function CertificadoDisposicionPage() {
               {gestores.map((g: GestorAmbiental) => (
                 <option key={g.id} value={String(g.id)}>
                   {g.razonSocial}
-                  {g.cuit ? ` — ${g.cuit}` : ""}
+                  {g.cuit ? `  ${g.cuit}` : ""}
                 </option>
               ))}
             </select>

@@ -17,7 +17,7 @@ function Etiqueta({ texto }: { texto: string }) {
   return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${tono}`}>{texto}</span>
 }
 
-const SinDato = () => <span className="italic text-muted-foreground">—</span>
+const SinDato = () => <span className="italic text-muted-foreground"></span>
 
 const columnas: TableColumn<EstadoProcesoDestruccion>[] = [
   { key: "nombre", header: "Nombre", cell: (e) => <Etiqueta texto={e.nombre} /> },

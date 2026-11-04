@@ -56,7 +56,7 @@ const columns: TableColumn<Material>[] = [
     header: "Tipo de material",
     cell: (m) =>
       m.tipoMaterial?.nombre ?? (
-        <span className="italic text-muted-foreground">—</span>
+        <span className="italic text-muted-foreground"></span>
       ),
   },
   {
@@ -68,7 +68,7 @@ const columns: TableColumn<Material>[] = [
           {m.condicionMaterial.condicion}
         </span>
       ) : (
-        <span className="italic text-muted-foreground">—</span>
+        <span className="italic text-muted-foreground"></span>
       ),
   },
   {
@@ -77,7 +77,7 @@ const columns: TableColumn<Material>[] = [
     className: "max-w-[240px] truncate",
     cell: (m) => (
       <span className="text-muted-foreground">
-        {m.descripcion ?? <span className="italic">—</span>}
+        {m.descripcion ?? <span className="italic"></span>}
       </span>
     ),
   },
@@ -114,7 +114,6 @@ export default function MaterialPage() {
   const [quickTipoForm, setQuickTipoForm] = useState(EMPTY_QUICK_TIPO)
   const [quickLoteForm, setQuickLoteForm] = useState(EMPTY_QUICK_LOTE)
 
-  // Filtra modelos según la marca seleccionada
   const modelosFiltrados = destruccionMarcaId
     ? modelos.filter((m: Modelo) => String(m.marcaId) === destruccionMarcaId)
     : modelos
@@ -131,14 +130,12 @@ export default function MaterialPage() {
     )
   })
 
-  // Resuelve si el tipo seleccionado actualmente es "Almacenamiento"
   const tipoSeleccionado = tipoMateriales.find(
     (t: TipoMaterial) => String(t.id) === form.tipoMaterialId,
   )
   const esAlmacenamiento =
     tipoSeleccionado?.nombre?.toLowerCase() === TIPO_ALMACENAMIENTO
 
-  // Condición por defecto de todo material nuevo: se define recién al clasificarlo
   const condicionADefinir = condiciones.find(
     (c: CondicionMaterial) => c.condicion.toLowerCase() === "a definir",
   )
@@ -216,7 +213,6 @@ export default function MaterialPage() {
 
       if (editing) {
         await updateMaterial({ id: editing.id, ...payload })
-        // Si es almacenamiento con destrucción, crear medio + proceso después de actualizar
         if (esAlmacenamiento && requiereDestruccion && payload.condicionMaterialId) {
           await clasificarMaterial({
             id: editing.id,
@@ -405,7 +401,6 @@ export default function MaterialPage() {
           </div>
         </div>
 
-        {/* Toggle destrucción — solo visible si tipo es Almacenamiento y no es vista */}
         {esAlmacenamiento && !isViewing && (
           <div className="flex flex-col gap-2 rounded-md border border-amber-200 bg-amber-50 p-3">
             <p className="text-sm font-medium text-amber-900">
@@ -500,7 +495,8 @@ export default function MaterialPage() {
           </label>
           <select
             value={form.condicionMaterialId}
-            disabled
+            onChange={(e) => setForm((f) => ({ ...f, condicionMaterialId: e.target.value }))}
+            disabled={isViewing}
             className="flex h-9 w-full rounded-md border border-input bg-muted px-3 py-1 text-sm shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {condiciones.map((c: CondicionMaterial) => (
@@ -523,7 +519,7 @@ export default function MaterialPage() {
               <option value="">Sin lote asignado</option>
               {lotes.map((l: Lote) => (
                 <option key={l.id} value={l.id}>
-                  #{l.id} — Donación #{l.donacionId}
+                  #{l.id}  Donación #{l.donacionId}
                   {l.pesoBrutoKg ? ` (${l.pesoBrutoKg} kg)` : ""}
                 </option>
               ))}

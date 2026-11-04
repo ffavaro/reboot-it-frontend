@@ -50,7 +50,7 @@ const columns: TableColumn<Lote>[] = [
       <span className="text-muted-foreground">
         {l.pesoBrutoKg !== null && l.pesoBrutoKg !== undefined
           ? `${l.pesoBrutoKg} kg`
-          : <span className="italic">—</span>}
+          : <span className="italic"></span>}
       </span>
     ),
   },
@@ -60,7 +60,7 @@ const columns: TableColumn<Lote>[] = [
     className: "max-w-[300px] truncate",
     cell: (l) => (
       <span className="text-muted-foreground">
-        {l.observaciones ?? <span className="italic">—</span>}
+        {l.observaciones ?? <span className="italic"></span>}
       </span>
     ),
   },

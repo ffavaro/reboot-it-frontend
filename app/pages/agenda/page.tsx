@@ -287,7 +287,7 @@ export default function AgendaPage() {
                   )
                 })()
               ) : (
-                <span className="italic text-muted-foreground">—</span>
+                <span className="italic text-muted-foreground"></span>
               )}
             </div>
             <div>
