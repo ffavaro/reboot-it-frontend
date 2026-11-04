@@ -35,7 +35,7 @@ const COLUMNS: TableColumn<TipoMaterial>[] = [
     header: "Descripción",
     cell: (t) => (
       <span className="text-muted-foreground">
-        {t.descripcion ?? <span className="italic">—</span>}
+        {t.descripcion ?? <span className="italic"></span>}
       </span>
     ),
     className: "max-w-md truncate",

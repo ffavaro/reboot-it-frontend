@@ -56,7 +56,7 @@ const COLUMNS: TableColumn<Empleado>[] = [
     header: "Cargo",
     cell: (emp) => (
       <span className="text-muted-foreground">
-        {emp.cargo ?? <span className="italic">—</span>}
+        {emp.cargo ?? <span className="italic"></span>}
       </span>
     ),
   },
@@ -65,7 +65,7 @@ const COLUMNS: TableColumn<Empleado>[] = [
     header: "Rol",
     cell: (emp) => (
       <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-        {emp.rol?.nombre ?? "—"}
+        {emp.rol?.nombre ?? ""}
       </span>
     ),
   },
@@ -74,7 +74,7 @@ const COLUMNS: TableColumn<Empleado>[] = [
     header: "Teléfono",
     cell: (emp) => (
       <span className="text-muted-foreground">
-        {emp.telefono ?? <span className="italic">—</span>}
+        {emp.telefono ?? <span className="italic"></span>}
       </span>
     ),
   },
@@ -271,7 +271,7 @@ export default function EmployeePage() {
               errors.rolId ? "border-destructive" : "border-input",
             )}
           >
-            <option value={0}>— Seleccionar rol —</option>
+            <option value={0}> Seleccionar rol </option>
             {roles.filter((r) => r.nombre.toLowerCase() !== "donante").map((r) => (
               <option key={r.id} value={r.id}>
                 {r.nombre}

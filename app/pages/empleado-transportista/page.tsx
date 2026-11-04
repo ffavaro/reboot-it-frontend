@@ -42,7 +42,7 @@ const COLUMNS: TableColumn<EmpleadoTransportista>[] = [
       t.empleado ? (
         <span className="font-medium">{t.empleado.nombre} {t.empleado.apellido}</span>
       ) : (
-        <span className="italic text-muted-foreground">—</span>
+        <span className="italic text-muted-foreground"></span>
       ),
   },
   {
@@ -283,7 +283,7 @@ export default function EmpleadoTransportistaPage() {
             <option value="">Seleccionar empleado...</option>
             {empleados.map((e: Empleado) => (
               <option key={e.id} value={e.id}>
-                {e.nombre} {e.apellido}{e.cargo ? ` — ${e.cargo}` : ""}
+                {e.nombre} {e.apellido}{e.cargo ? `  ${e.cargo}` : ""}
               </option>
             ))}
           </select>
@@ -304,7 +304,7 @@ export default function EmpleadoTransportistaPage() {
               <option value="">Seleccionar vehículo...</option>
               {vehiculos.map((v: Vehiculo) => (
                 <option key={v.id} value={v.id}>
-                  {v.patente} — {v.marca} {v.modelo}
+                  {v.patente}  {v.marca} {v.modelo}
                 </option>
               ))}
             </select>

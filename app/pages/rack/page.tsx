@@ -39,7 +39,7 @@ const columns: TableColumn<Rack>[] = [
     header: "Ubicación",
     cell: (r) => (
       <span className="text-muted-foreground">
-        {r.ubicacion ?? <span className="italic">—</span>}
+        {r.ubicacion ?? <span className="italic"></span>}
       </span>
     ),
   },

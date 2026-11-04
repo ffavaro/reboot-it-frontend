@@ -109,7 +109,7 @@ const columns: TableColumn<ProcesoDestruccion>[] = [
           {p.metodoDestruccion.nombre}
         </span>
       ) : (
-        <span className="italic text-muted-foreground">—</span>
+        <span className="italic text-muted-foreground"></span>
       ),
   },
   {
@@ -120,7 +120,7 @@ const columns: TableColumn<ProcesoDestruccion>[] = [
       const color = ESTADO_COLORS[nombre] ?? "bg-gray-100 text-gray-800"
       return (
         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}>
-          {nombre || "—"}
+          {nombre || ""}
         </span>
       )
     },
@@ -130,7 +130,7 @@ const columns: TableColumn<ProcesoDestruccion>[] = [
     header: "Fecha",
     cell: (p) => (
       <span className="text-muted-foreground">
-        {formatDate(p.fecha) ?? <span className="italic">—</span>}
+        {formatDate(p.fecha) ?? <span className="italic"></span>}
       </span>
     ),
   },
@@ -140,7 +140,7 @@ const columns: TableColumn<ProcesoDestruccion>[] = [
     cell: (p) =>
       p.empleado
         ? `${p.empleado.nombre} ${p.empleado.apellido}`
-        : <span className="italic text-muted-foreground">—</span>,
+        : <span className="italic text-muted-foreground"></span>,
   },
 ]
 
@@ -475,7 +475,7 @@ export default function ProcesoDestruccionPage() {
             <option value="">Seleccionar empleado...</option>
             {empleadosTecnicos.map((e: Empleado) => (
               <option key={e.id} value={e.id}>
-                {e.nombre} {e.apellido}{e.cargo ? ` — ${e.cargo}` : ""}
+                {e.nombre} {e.apellido}{e.cargo ? `  ${e.cargo}` : ""}
               </option>
             ))}
           </select>
@@ -503,7 +503,7 @@ export default function ProcesoDestruccionPage() {
             <option value="">Seleccionar material...</option>
             {materiales.map((m: Material) => (
               <option key={m.id} value={m.id}>
-                #{m.id}{m.tipoMaterial ? ` — ${m.tipoMaterial.nombre}` : ""}{m.descripcion ? ` (${m.descripcion})` : ""}
+                #{m.id}{m.tipoMaterial ? `  ${m.tipoMaterial.nombre}` : ""}{m.descripcion ? ` (${m.descripcion})` : ""}
               </option>
             ))}
           </select>

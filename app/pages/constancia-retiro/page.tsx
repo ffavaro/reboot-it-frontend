@@ -38,7 +38,7 @@ interface Campos {
 
 const SELECT_CLASES =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-const Guion = () => <span className="italic text-muted-foreground">—</span>
+const Guion = () => <span className="italic text-muted-foreground"></span>
 const nombreCompleto = (p?: { nombre: string; apellido: string } | null) => (p ? `${p.nombre} ${p.apellido}` : "")
 
 const camposVacios = (): Campos => ({ retiroId: "", fechaEmision: hoyIso(), observaciones: "", tecnicoId: "" })
@@ -239,8 +239,8 @@ export default function ConstanciaRetiroPage() {
               <option value="">Seleccionar retiro...</option>
               {opcionesRetiro.map((r: Retiro) => (
                 <option key={r.id} value={String(r.id)}>
-                  #{r.id} — Donación #{r.donacionId}
-                  {r.direccion ? ` — ${r.direccion}` : ""}
+                  #{r.id}  Donación #{r.donacionId}
+                  {r.direccion ? `  ${r.direccion}` : ""}
                 </option>
               ))}
             </select>

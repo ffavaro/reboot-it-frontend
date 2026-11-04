@@ -43,28 +43,28 @@ const COLUMNS: TableColumn<MedioAlmacenamiento>[] = [
     key: "tipo",
     header: "Tipo",
     cell: (m) => (
-      <span className="text-muted-foreground">{m.tipo?.nombre ?? <span className="italic">—</span>}</span>
+      <span className="text-muted-foreground">{m.tipo?.nombre ?? <span className="italic"></span>}</span>
     ),
   },
   {
     key: "marca",
     header: "Marca",
     cell: (m) => (
-      <span className="text-muted-foreground">{m.marca?.nombre ?? <span className="italic">—</span>}</span>
+      <span className="text-muted-foreground">{m.marca?.nombre ?? <span className="italic"></span>}</span>
     ),
   },
   {
     key: "modelo",
     header: "Modelo",
     cell: (m) => (
-      <span className="text-muted-foreground">{m.modelo?.nombre ?? <span className="italic">—</span>}</span>
+      <span className="text-muted-foreground">{m.modelo?.nombre ?? <span className="italic"></span>}</span>
     ),
   },
   {
     key: "terminosUso",
     header: "Términos de uso",
     cell: (m) => (
-      <span className="text-muted-foreground">{m.terminosUso ?? <span className="italic">—</span>}</span>
+      <span className="text-muted-foreground">{m.terminosUso ?? <span className="italic"></span>}</span>
     ),
     className: "max-w-xs truncate",
   },
@@ -229,7 +229,7 @@ export default function MedioAlmacenamientoPage() {
             <option value="">Seleccionar material...</option>
             {materiales.map((m: Material) => (
               <option key={m.id} value={m.id}>
-                #{m.id}{m.tipoMaterial ? ` — ${m.tipoMaterial.nombre}` : ""}{m.descripcion ? ` (${m.descripcion})` : ""}
+                #{m.id}{m.tipoMaterial ? `  ${m.tipoMaterial.nombre}` : ""}{m.descripcion ? ` (${m.descripcion})` : ""}
               </option>
             ))}
           </select>

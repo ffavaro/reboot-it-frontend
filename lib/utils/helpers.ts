@@ -13,9 +13,6 @@ export function getDonanteActual(donantes: Donante[]) {
   return { user, isDonante, myDonante }
 }
 
-// El vínculo usuario↔empleado se guarda en usuario.empleadoId (no al revés en
-// empleado.usuarioId, que ningún formulario completa), así que hay que pasar
-// por el usuario logueado para encontrar su ficha de Empleado Transportista.
 export function getTransportistaActual(usuarios: Usuario[], transportistas: EmpleadoTransportista[]) {
   const user = getUser()
   const isTransportista = user?.rol?.nombre?.toLowerCase() === "transportista"
@@ -39,7 +36,29 @@ export const formatDateTime = (iso: string | null) => {
   })
 }
 
-export const validateEmail = (v: string) => {
+export const formatFechaISO = (iso: string | null | undefined) => dia(iso)
+
+export const formatHora = (iso: string): string => {
+  const fecha = new Date(iso)
+  const dos = (n: number) => String(n).padStart(2, "0")
+  return `${dos(fecha.getHours())}:${dos(fecha.getMinutes())}`
+}
+
+export const formatKm = (km: number) => `${km.toLocaleString("es-AR", { maximumFractionDigits: 1 })} km`
+
+export function sumarDias(cantidad: number): string {
+  const fecha = new Date()
+  fecha.setDate(fecha.getDate() + cantidad)
+  return isoLocal(fecha)
+}
+
+export const getErrorMessage = (error: unknown, fallback: string) => {
+  const message = (error as { message?: string | string[] } | null)?.message
+  if (Array.isArray(message)) return message[0] ?? fallback
+  return message || fallback
+}
+
+export const validateEmail =(v: string) => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 }
 
@@ -77,3 +96,57 @@ export function describirPeriodo({ fechaDesde, fechaHasta }: Periodo): string {
 
 export const periodoInvalido = ({ fechaDesde, fechaHasta }: Periodo) =>
   !!fechaDesde && !!fechaHasta && fechaDesde > fechaHasta
+
+export const KM_TOPE = 9_999_999
+
+const DIGITOS_KM = String(KM_TOPE).length
+
+export const soloDigitosKm = (texto: string) => texto.replace(/\D/g, "").slice(0, DIGITOS_KM)
+
+export const kmLegible = (km: number) => `${Math.round(km).toLocaleString("es-AR")} km`
+
+export function problemaKm(texto: string, minimo: number | null = null): string | null {
+  if (texto.trim() === "") return "Ingresá el kilometraje"
+  const km = Number(texto)
+  if (!Number.isInteger(km) || km < 0) return "El kilometraje debe ser un número entero"
+  if (km > KM_TOPE) return `No puede superar los ${kmLegible(KM_TOPE)}`
+  if (minimo !== null && km < minimo) return `No puede ser menor al registrado (${kmLegible(minimo)})`
+  return null
+}
+
+export function textoDeError(error: unknown, alternativo: string): string {
+  const mensaje = (error as { message?: unknown } | null)?.message
+  if (Array.isArray(mensaje) && mensaje.length) return mensaje.join(". ")
+  return typeof mensaje === "string" && mensaje.trim() ? mensaje : alternativo
+}
+
+export function sinClave<T extends object>(objeto: T, clave: keyof T): T {
+  const copia = { ...objeto }
+  delete copia[clave]
+  return copia
+}
+
+const FORMATO_PATENTE = /^([A-Z]{3} ?\d{3}|[A-Z]{2} ?\d{3} ?[A-Z]{2})$/i
+
+export function problemaPatente(texto: string): string | null {
+  const patente = texto.trim()
+  if (!patente) return "Ingresá la patente"
+  return FORMATO_PATENTE.test(patente) ? null : "Formato inválido (ej. ABC123 o AB123CD)"
+}
+
+const dosCifras = (n: number) => String(n).padStart(2, "0")
+
+function hoy(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${dosCifras(d.getMonth() + 1)}-${dosCifras(d.getDate())}`
+}
+
+export const estaVigente = (iso: string) => iso.slice(0, 10) >= hoy()
+
+export const fechaCorta = (iso: string) => iso.slice(0, 10).split("-").reverse().join("/")
+
+export function pesoLegible(valor: number | string | null | undefined): string {
+  if (valor === null || valor === undefined || valor === "") return ""
+  const numero = Number(valor)
+  return Number.isNaN(numero) ? String(valor) : String(numero)
+}

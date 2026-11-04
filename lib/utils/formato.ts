@@ -1,0 +1,199 @@
+
+import type { ReporteInventario } from "@/lib/type/material"
+
+export const entero = (n: number) => n.toLocaleString("es-AR")
+
+export const decimal = (n: number) => n.toLocaleString("es-AR", { maximumFractionDigits: 1 })
+
+export const kilometros = (n: number) => `${decimal(n)} km`
+
+export const porcentaje = (parte: number, total: number) => (total > 0 ? `${Math.round((parte / total) * 100)} %` : "—")
+
+export const plural = (n: number, singular: string, varios = `${singular}s`) => `${entero(n)} ${n === 1 ? singular : varios}`
+
+export function nombreDeMes(isoMes: string, conAnio: boolean) {
+  const [anio, mes] = isoMes.split("-").map(Number)
+  const texto = new Date(anio, mes - 1, 1).toLocaleDateString("es-AR", { month: "long" })
+  const capital = texto.charAt(0).toUpperCase() + texto.slice(1)
+  return conAnio ? `${capital} ${anio}` : capital
+}
+
+export function mesCorto(isoMes: string) {
+  const [anio, mes] = isoMes.split("-").map(Number)
+  return new Date(anio, mes - 1, 1).toLocaleDateString("es-AR", { month: "short", year: "2-digit" }).replace(".", "")
+}
+
+export function isoDe(fecha: Date) {
+  return [fecha.getFullYear(), fecha.getMonth() + 1, fecha.getDate()].map((n, i) => String(n).padStart(i ? 2 : 4, "0")).join("-")
+}
+
+export function mesesAtras(cantidad: number, referencia = new Date()) {
+  const d = new Date(referencia)
+  d.setMonth(d.getMonth() - cantidad)
+  return isoDe(d)
+}
+
+export function mesEnCurso(referencia = new Date()) {
+  const y = referencia.getFullYear()
+  const m = referencia.getMonth()
+  return { desde: isoDe(new Date(y, m, 1)), hasta: isoDe(new Date(y, m + 1, 0)) }
+}
+
+export function diaCorto(iso: string) {
+  const [y, m, d] = iso.slice(0, 10).split("-")
+  return y && m && d ? `${d}/${m}/${y}` : "—"
+}
+
+export const sinClasificar = (condicion: string | null | undefined) => {
+  const c = (condicion ?? "").trim().toLowerCase()
+  return !c || c === "a definir" || c.includes("pendiente")
+}
+
+export type Periodo = "mes" | "trimestre" | "semestre" | "año"
+
+export const PERIODO_LABELS: Record<Periodo, string> = {
+  mes: "Mensual",
+  trimestre: "Trimestral",
+  semestre: "Semestral",
+  año: "Anual",
+}
+
+export const MESES_CORTOS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+
+export type RangoFechas = {
+  fechaDesde: string
+  fechaHasta: string
+  label: string
+  meses: number[]
+}
+
+function pad(n: number) {
+  return String(n).padStart(2, "0")
+}
+
+function toISODate(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+export function getRangoFechas(periodo: Periodo, ref: Date = new Date()): RangoFechas {
+  const year = ref.getFullYear()
+  const month = ref.getMonth()
+
+  if (periodo === "mes") {
+    const start = new Date(year, month, 1)
+    const end = new Date(year, month + 1, 0)
+    return { fechaDesde: toISODate(start), fechaHasta: toISODate(end), label: `${MESES_CORTOS[month]} ${year}`, meses: [month] }
+  }
+
+  if (periodo === "trimestre") {
+    const q = Math.floor(month / 3)
+    const startMonth = q * 3
+    const start = new Date(year, startMonth, 1)
+    const end = new Date(year, startMonth + 3, 0)
+    const meses = [startMonth, startMonth + 1, startMonth + 2]
+    return { fechaDesde: toISODate(start), fechaHasta: toISODate(end), label: `T${q + 1} ${year} (${MESES_CORTOS[startMonth]}–${MESES_CORTOS[startMonth + 2]})`, meses }
+  }
+
+  if (periodo === "semestre") {
+    const s = month < 6 ? 0 : 1
+    const startMonth = s * 6
+    const start = new Date(year, startMonth, 1)
+    const end = new Date(year, startMonth + 6, 0)
+    const meses = Array.from({ length: 6 }, (_, i) => startMonth + i)
+    return { fechaDesde: toISODate(start), fechaHasta: toISODate(end), label: `${s === 0 ? "1er" : "2do"} semestre ${year}`, meses }
+  }
+
+  const start = new Date(year, 0, 1)
+  const end = new Date(year, 11, 31)
+  const meses = Array.from({ length: 12 }, (_, i) => i)
+  return { fechaDesde: toISODate(start), fechaHasta: toISODate(end), label: `Año ${year}`, meses }
+}
+
+export function getRangoCustom(fechaDesde: string, fechaHasta: string): RangoFechas {
+  return { fechaDesde, fechaHasta, label: `${fechaDesde} al ${fechaHasta}`, meses: [] }
+}
+
+export function getRangoAnteriorCustom(fechaDesde: string, fechaHasta: string): RangoFechas {
+  const start = new Date(fechaDesde)
+  const end = new Date(fechaHasta)
+  const diffDays = Math.round((end.getTime() - start.getTime()) / 86400000) + 1
+  const prevEnd = new Date(start)
+  prevEnd.setDate(prevEnd.getDate() - 1)
+  const prevStart = new Date(prevEnd)
+  prevStart.setDate(prevStart.getDate() - diffDays + 1)
+  return { fechaDesde: toISODate(prevStart), fechaHasta: toISODate(prevEnd), label: "período anterior", meses: [] }
+}
+
+export function getBucketOrderCustom(fechaDesde: string, fechaHasta: string): string[] {
+  const start = new Date(fechaDesde)
+  const end = new Date(fechaHasta)
+  const diffDays = Math.round((end.getTime() - start.getTime()) / 86400000)
+  if (diffDays <= 35) {
+    const weeks = Math.ceil((diffDays + 1) / 7)
+    return Array.from({ length: weeks }, (_, i) => `Sem ${i + 1}`)
+  }
+  const buckets: string[] = []
+  const cur = new Date(start.getFullYear(), start.getMonth(), 1)
+  while (cur <= end) {
+    const sufijo = cur.getFullYear() !== start.getFullYear() ? ` '${String(cur.getFullYear()).slice(2)}` : ""
+    buckets.push(`${MESES_CORTOS[cur.getMonth()]}${sufijo}`)
+    cur.setMonth(cur.getMonth() + 1)
+  }
+  return buckets
+}
+
+export function getBucketKeyCustom(iso: string, fechaDesde: string, fechaHasta: string): string {
+  const start = new Date(fechaDesde)
+  const end = new Date(fechaHasta)
+  const diffDays = Math.round((end.getTime() - start.getTime()) / 86400000)
+  const d = new Date(iso)
+  if (diffDays <= 35) {
+    const offsetDays = Math.floor((d.getTime() - start.getTime()) / 86400000)
+    return `Sem ${Math.floor(offsetDays / 7) + 1}`
+  }
+  const sufijo = d.getFullYear() !== start.getFullYear() ? ` '${String(d.getFullYear()).slice(2)}` : ""
+  return `${MESES_CORTOS[d.getMonth()]}${sufijo}`
+}
+
+export function getRangoAnterior(periodo: Periodo, ref: Date = new Date()): RangoFechas {
+  const year = ref.getFullYear()
+  const month = ref.getMonth()
+  if (periodo === "mes") return getRangoFechas("mes", new Date(year, month - 1, 1))
+  if (periodo === "trimestre") return getRangoFechas("trimestre", new Date(year, month - 3, 1))
+  if (periodo === "semestre") return getRangoFechas("semestre", new Date(year, month - 6, 1))
+  return getRangoFechas("año", new Date(year - 1, month, 1))
+}
+
+export function getBucketOrder(periodo: Periodo, rango: RangoFechas): string[] {
+  if (periodo === "mes") {
+    const ultimoDia = Number(rango.fechaHasta.slice(-2))
+    const semanas = Math.ceil(ultimoDia / 7)
+    return Array.from({ length: semanas }, (_, i) => `Sem ${i + 1}`)
+  }
+  return rango.meses.map(m => MESES_CORTOS[m])
+}
+
+export function getBucketKey(iso: string, periodo: Periodo): string {
+  const d = new Date(iso)
+  if (periodo === "mes") return `Sem ${Math.ceil(d.getDate() / 7)}`
+  return MESES_CORTOS[d.getMonth()]
+}
+
+export type ClasificacionCounts = { reutilizable: number; reciclable: number; desecho: number; pendiente: number }
+
+export function clasificarMateriales(materiales: ReporteInventario[], condicionPorId: Map<number, string>): ClasificacionCounts {
+  const counts: ClasificacionCounts = { reutilizable: 0, reciclable: 0, desecho: 0, pendiente: 0 }
+  materiales.forEach(m => {
+    const nombre = (condicionPorId.get(m.condicionMaterialId ?? -1) ?? "").toLowerCase()
+    if (nombre.includes("reutil")) counts.reutilizable++
+    else if (nombre.includes("recicl")) counts.reciclable++
+    else if (nombre.includes("desecho")) counts.desecho++
+    else counts.pendiente++
+  })
+  return counts
+}
+
+export function pctChange(actual: number, anterior: number): number {
+  if (anterior === 0) return actual === 0 ? 0 : 100
+  return Math.round(((actual - anterior) / anterior) * 100)
+}

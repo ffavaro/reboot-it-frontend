@@ -484,7 +484,7 @@ export default function UserManagementPage() {
             disabled={isViewing}
             className={SELECT_CLASS(!!errors.rolId)}
           >
-            <option value="">— Seleccionar rol —</option>
+            <option value=""> Seleccionar rol </option>
             {roles.map((r) => (
               <option key={r.id} value={r.id}>
                 {r.nombre.charAt(0).toUpperCase() + r.nombre.slice(1)}
@@ -494,7 +494,7 @@ export default function UserManagementPage() {
           <FieldError>{errors.rolId}</FieldError>
         </div>
 
-        {/* Select de donante — solo cuando el rol es donante */}
+        {/* Select de donante  solo cuando el rol es donante */}
         {form.rolId && esDonante && (
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Donante *</label>
@@ -505,10 +505,10 @@ export default function UserManagementPage() {
                 disabled={isViewing}
                 className={SELECT_CLASS(!!errors.donanteId)}
               >
-                <option value="">— Seleccionar donante —</option>
+                <option value=""> Seleccionar donante </option>
                 {donantes.map((d: Donante) => (
                   <option key={d.id} value={d.id}>
-                    {d.nombre}{d.razonSocial ? ` — ${d.razonSocial}` : ""}
+                    {d.nombre}{d.razonSocial ? `  ${d.razonSocial}` : ""}
                   </option>
                 ))}
               </select>
@@ -528,7 +528,7 @@ export default function UserManagementPage() {
           </div>
         )}
 
-        {/* Select de empleado — cualquier otro rol */}
+        {/* Select de empleado  cualquier otro rol */}
         {form.rolId && !esDonante && (
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Empleado asociado *</label>
@@ -539,7 +539,7 @@ export default function UserManagementPage() {
                 disabled={isViewing}
                 className={SELECT_CLASS(!!errors.empleadoId)}
               >
-                <option value="">— Seleccionar empleado —</option>
+                <option value=""> Seleccionar empleado </option>
                 {empleados.map((emp) => (
                   <option key={emp.id} value={emp.id}>
                     {emp.nombre} {emp.apellido}
@@ -614,7 +614,7 @@ export default function UserManagementPage() {
             onChange={(e) => setEmpleadoField("rolId", e.target.value)}
             className={SELECT_CLASS(!!empleadoErrors.rolId)}
           >
-            <option value="">— Seleccionar rol —</option>
+            <option value=""> Seleccionar rol </option>
             {roles.filter((r) => r.nombre.toLowerCase() !== "donante").map((r) => (
               <option key={r.id} value={r.id}>
                 {r.nombre.charAt(0).toUpperCase() + r.nombre.slice(1)}
@@ -679,7 +679,7 @@ export default function UserManagementPage() {
             onChange={(e) => setDonanteField("tipoDonanteId", e.target.value)}
             className={SELECT_CLASS(!!donanteErrors.tipoDonanteId)}
           >
-            <option value="">— Seleccionar tipo —</option>
+            <option value=""> Seleccionar tipo </option>
             {tiposDonante.map((t) => (
               <option key={t.id} value={t.id}>{t.descripcion}</option>
             ))}

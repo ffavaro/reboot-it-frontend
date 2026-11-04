@@ -47,7 +47,7 @@ const columns: TableColumn<Retiro>[] = [
     cell: (r) =>
       r.empleadoTransportista?.empleado
         ? `${r.empleadoTransportista.empleado.nombre} ${r.empleadoTransportista.empleado.apellido}`
-        : <span className="italic text-muted-foreground">—</span>,
+        : <span className="italic text-muted-foreground"></span>,
   },
   {
     key: "vehiculo",
@@ -55,14 +55,14 @@ const columns: TableColumn<Retiro>[] = [
     cell: (r) =>
       r.vehiculo
         ? <span className="font-mono text-xs">{r.vehiculo.patente}</span>
-        : <span className="italic text-muted-foreground">—</span>,
+        : <span className="italic text-muted-foreground"></span>,
   },
   {
     key: "fechaInicio",
     header: "Fecha inicio",
     cell: (r) => (
       <span className="text-muted-foreground">
-        {formatDate(r.fechaInicio) ?? <span className="italic">—</span>}
+        {formatDate(r.fechaInicio) ?? <span className="italic"></span>}
       </span>
     ),
   },
@@ -72,7 +72,7 @@ const columns: TableColumn<Retiro>[] = [
     className: "max-w-[200px] truncate",
     cell: (r) => (
       <span className="text-muted-foreground">
-        {r.direccion ?? <span className="italic">—</span>}
+        {r.direccion ?? <span className="italic"></span>}
       </span>
     ),
   },
@@ -92,7 +92,6 @@ export default function RetiroPage() {
   const { updateRetiro, isLoading: isUpdating } = useUpdateRetiro()
   const { deleteRetiro, isLoading: isDeleting } = useDeleteRetiro()
 
-  // Compatibilidad de peso: null = sin datos suficientes para evaluar
   function esCompatible(t: EmpleadoTransportista, pesoKg: number | null): boolean | null {
     const tipo = t.vehiculo?.tipoVehiculo
     if (pesoKg == null || !tipo || tipo.pesoMinimo == null || tipo.pesoMaximo == null) return null
@@ -266,7 +265,7 @@ export default function RetiroPage() {
             <option value="">Seleccionar donación...</option>
             {donacionesEnProceso.map((d: Donacion) => (
               <option key={d.id} value={d.id}>
-                #{d.id} — {d.donante?.nombre ?? `Donante #${d.donanteId}`}
+                #{d.id}  {d.donante?.nombre ?? `Donante #${d.donanteId}`}
               </option>
             ))}
           </select>
@@ -284,7 +283,7 @@ export default function RetiroPage() {
               const donacionSeleccionada = donaciones.find((d: Donacion) => String(d.id) === form.donacionId)
               const compatible = esCompatible(t, donacionSeleccionada?.pesoEstimadoKg ?? null)
               const nombre = t.empleado ? `${t.empleado.nombre} ${t.empleado.apellido}` : `#${t.id}`
-              const sufijo = compatible === false ? " — vehículo no soporta el peso estimado" : compatible === true ? " ✓ compatible" : ""
+              const sufijo = compatible === false ? "  vehículo no soporta el peso estimado" : compatible === true ? " ✓ compatible" : ""
               return (
                 <option key={t.id} value={t.id}>
                   {nombre}{sufijo}
@@ -311,7 +310,7 @@ export default function RetiroPage() {
             <option value="">Sin vehículo asignado</option>
             {vehiculos.map((v: Vehiculo) => (
               <option key={v.id} value={v.id}>
-                {v.patente} — {v.marca} {v.modelo}
+                {v.patente}  {v.marca} {v.modelo}
               </option>
             ))}
           </select>

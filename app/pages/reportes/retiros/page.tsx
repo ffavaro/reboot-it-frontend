@@ -16,7 +16,7 @@ import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 const nombreTransportista = (t?: { id: number; empleado?: { nombre: string; apellido: string } | null } | null) =>
   t?.empleado ? `${t.empleado.nombre} ${t.empleado.apellido}` : ""
 
-const donante = (r: ReporteRetiro) => r.donacion?.donante?.nombre ?? `Donante #${r.donacion?.donanteId ?? "—"}`
+const donante = (r: ReporteRetiro) => r.donacion?.donante?.nombre ?? `Donante #${r.donacion?.donanteId ?? ""}`
 const vehiculo = (r: ReporteRetiro) =>
   r.vehiculo ? [r.vehiculo.patente, r.vehiculo.marca, r.vehiculo.modelo].filter(Boolean).join(" ") : ""
 

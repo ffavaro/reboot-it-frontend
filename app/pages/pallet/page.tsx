@@ -52,7 +52,7 @@ const COLUMNS: TableColumn<Pallet>[] = [
     cell: (p) =>
       p.codigo
         ? <span className="font-mono text-xs">{p.codigo}</span>
-        : <span className="italic text-muted-foreground">—</span>,
+        : <span className="italic text-muted-foreground"></span>,
   },
   {
     key: "rack",
@@ -85,7 +85,7 @@ const COLUMNS: TableColumn<Pallet>[] = [
       ) : p.loteId ? (
         <span className="font-mono text-xs text-muted-foreground">#{p.loteId}</span>
       ) : (
-        <span className="italic text-muted-foreground">—</span>
+        <span className="italic text-muted-foreground"></span>
       ),
   },
   {
@@ -94,7 +94,7 @@ const COLUMNS: TableColumn<Pallet>[] = [
     cell: (p) =>
       p.peso_kg !== null && p.peso_kg !== undefined
         ? `${p.peso_kg} kg`
-        : <span className="italic text-muted-foreground">—</span>,
+        : <span className="italic text-muted-foreground"></span>,
   },
 ]
 
@@ -305,7 +305,7 @@ export default function PalletPage() {
             <option value="">Seleccionar rack...</option>
             {racks.map((r: Rack) => (
               <option key={r.id} value={r.id}>
-                {r.codigo}{r.ubicacion ? ` — ${r.ubicacion}` : ""}
+                {r.codigo}{r.ubicacion ? `  ${r.ubicacion}` : ""}
               </option>
             ))}
           </select>
@@ -335,7 +335,7 @@ export default function PalletPage() {
               <option value="">Seleccionar lote...</option>
               {lotes.map((l: Lote) => (
                 <option key={l.id} value={l.id}>
-                  Lote #{l.id}{l.pesoBrutoKg ? ` — ${l.pesoBrutoKg} kg` : ""}
+                  Lote #{l.id}{l.pesoBrutoKg ? `  ${l.pesoBrutoKg} kg` : ""}
                 </option>
               ))}
             </select>

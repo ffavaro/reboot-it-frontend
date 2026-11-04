@@ -29,12 +29,12 @@ const COLUMNS: TableColumn<Modelo>[] = [
   {
     key: "marca",
     header: "Marca",
-    cell: (m) => <span className="text-muted-foreground">{m.marca?.nombre ?? "—"}</span>,
+    cell: (m) => <span className="text-muted-foreground">{m.marca?.nombre ?? ""}</span>,
   },
   {
     key: "tipo",
     header: "Tipo",
-    cell: (m) => <span className="text-muted-foreground">{m.tipo?.nombre ?? "—"}</span>,
+    cell: (m) => <span className="text-muted-foreground">{m.tipo?.nombre ?? ""}</span>,
   },
 ]
 

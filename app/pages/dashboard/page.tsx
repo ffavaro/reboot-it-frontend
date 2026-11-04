@@ -1,627 +1,184 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { SearchInput } from "@/components/ui/search-input"
+import { useMemo, useState } from "react"
+import { ArrowDownRight, ArrowUpRight, RotateCcw } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { DateInput } from "@/components/ui/date-input"
+import { SelectorDonantes } from "@/components/dashboard/selector-donantes"
+import { IndicadoresCircuito, TrabajoPendiente } from "@/components/dashboard/resumen"
+import { Tablero } from "@/components/dashboard/tablero"
+import { tarjetasOperativas } from "@/components/dashboard/graficos/operacion"
+import { tarjetasDelCircuito } from "@/components/dashboard/graficos/circuito"
+import { UsoDeFlota } from "@/components/dashboard/graficos/flota"
+import { MovimientosDeLotes } from "@/components/dashboard/graficos/lotes"
+import { useResumenCircuito } from "@/hooks/use-dashboard"
+import { useTableroOperativo } from "@/hooks/use-tablero-operativo"
+import { diaCorto, entero, isoDe, mesesAtras } from "@/lib/utils/formato"  
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, ComposedChart, Line, Area
-} from "recharts"
-import { useLotes } from "@/hooks/use-lote"
-import { useDonantes } from "@/hooks/use-donantes"
-import { useDonacionReporte } from "@/hooks/use-donacion"
-import { useMateriales, useMaterialReporte } from "@/hooks/use-material"
-import { useCondicionesMaterial } from "@/hooks/use-condicion-material"
-import { exportToPdf, exportToExcel, type ExportColumn } from "@/lib/utils/export"
-import { formatDate } from "@/lib/utils/helpers"
-import {
-  type Periodo, PERIODO_LABELS, getRangoFechas, getRangoAnterior,
-  getRangoCustom, getRangoAnteriorCustom, getBucketOrder, getBucketKey,
-  getBucketOrderCustom, getBucketKeyCustom, clasificarMateriales, pctChange,
-} from "@/lib/utils/dashboard"
-import type { ReporteDonacionQuery } from "@/lib/type/donacion"
-import type { ReporteInventarioQuery } from "@/lib/type/material"
+  PERIODO_LABELS,
+  getRangoAnterior,
+  getRangoAnteriorCustom,
+  getRangoCustom,
+  getRangoFechas,
+  type Periodo,
+} from "@/lib/utils/formato"
+import { Tarjeta } from "@/lib/type/dashboard"
 
-const DONUT_COLORS = ["#639922", "#378ADD", "#E24B4A"]
-const DONUT_LABELS = ["Reacondicionamiento / Donación social", "Stock de componentes", "Disposición final / Scrap"]
+const PRESETS: Periodo[] = ["mes", "trimestre", "semestre", "año"]
 
-const RECEPCION_COLORS = ["#378ADD", "#F5A623"]
-const RECEPCION_LABELS = ["Entregado en sucursal", "Retirado a domicilio"]
+const rangoInicial = () => ({ desde: mesesAtras(3), hasta: isoDe(new Date()) })
 
-// ── Componente KPI Card ────────────────────────────────────────────────────
-function KpiCard({ label, value, sub, trend }: {
-  label: string; value: string | number; sub?: string; trend?: { text: string; up: boolean }
-}) {
+function Kpi({ etiqueta, valor, nota, variacion }: { etiqueta: string; valor: string; nota?: string; variacion?: { texto: string; sube: boolean } | null }) {
   return (
-    <div className="rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4 flex flex-col gap-1 min-w-0">
-      <p className="text-xs text-muted-foreground leading-tight">{label}</p>
-      <p className="text-2xl font-medium text-foreground leading-none">{value}</p>
-      {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
-      {trend && (
-        <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full w-fit mt-1 ${trend.up ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"}`}>
-          {trend.up ? "↑" : "↓"} {trend.text}
+    <div className="flex min-w-0 flex-col gap-1 rounded-xl bg-card p-4 shadow-sm ring-1 ring-foreground/5">
+      <span className="text-xs leading-tight text-muted-foreground">{etiqueta}</span>
+      <span className="text-2xl font-medium leading-none tabular-nums">{valor}</span>
+      {nota && <span className="text-xs text-muted-foreground">{nota}</span>}
+      {variacion && (
+        <span
+          className={cn(
+            "mt-1 inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+            variacion.sube ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+          )}
+        >
+          {variacion.sube ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
+          {variacion.texto}
         </span>
       )}
     </div>
   )
 }
 
-// ── Componente Badge de estado ─────────────────────────────────────────────
-function EstadoBadge({ estado }: { estado: string }) {
-  const styles: Record<string, string> = {
-    "En proceso":  "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
-    "Clasificado": "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-    "Desechado":   "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  }
-  return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[estado] ?? "bg-muted text-muted-foreground"}`}>
-      {estado}
-    </span>
-  )
-}
+const conSigno = (n: number) => `${n >= 0 ? "+" : ""}${n}`
 
-// Ventana por defecto al entrar al dashboard: últimos 3 meses hasta hoy
-function defaultDesde(): string {
-  const d = new Date()
-  d.setMonth(d.getMonth() - 3)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
-}
-function defaultHasta(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
-}
-
-// ── Página principal ───────────────────────────────────────────────────────
 export default function DashboardPage() {
-  // null = rango personalizado (por defecto, últimos 3 meses); si no, el preset queda aplicado
-  // y las fechas de customDesde/customHasta solo reflejan su rango para mostrarlas en los inputs
-  const [activePreset, setActivePreset] = useState<Periodo | null>(null)
-  const [donanteId, setDonanteId] = useState<number | "">("")
-  const [search, setSearch] = useState("")
-  const [customDesde, setCustomDesde] = useState(defaultDesde())
-  const [customHasta, setCustomHasta] = useState(defaultHasta())
+  const [preset, setPreset] = useState<Periodo | null>(null)
+  const [libre, setLibre] = useState(rangoInicial)
+  const [donanteIds, setDonanteIds] = useState<number[]>([])
+  const [version, setVersion] = useState(0)
 
-  const usaRangoCustom = activePreset === null
+  const { rango, anterior } = useMemo(
+    () =>
+      preset
+        ? { rango: getRangoFechas(preset), anterior: getRangoAnterior(preset) }
+        : { rango: getRangoCustom(libre.desde, libre.hasta), anterior: getRangoAnteriorCustom(libre.desde, libre.hasta) },
+    [preset, libre],
+  )
 
-  function elegirPeriodo(p: Periodo) {
+  const etiqueta = preset ? rango.label : `${diaCorto(rango.fechaDesde)} al ${diaCorto(rango.fechaHasta)}`
+
+  const { resumen } = useResumenCircuito({ fechaDesde: rango.fechaDesde, fechaHasta: rango.fechaHasta, donanteIds })
+  const operativo = useTableroOperativo({ rango, anterior, preset, donanteIds })
+  const { kpis, cargando } = operativo
+
+  function elegirPreset(p: Periodo) {
     const r = getRangoFechas(p)
-    setActivePreset(p)
-    setCustomDesde(r.fechaDesde)
-    setCustomHasta(r.fechaHasta)
+    setPreset(p)
+    setLibre({ desde: r.fechaDesde, hasta: r.fechaHasta })
   }
 
-  function handleCustomDesdeChange(v: string) {
-    setCustomDesde(v)
-    setActivePreset(null)
+  function cambiarFecha(campo: "desde" | "hasta", valor: string) {
+    if (!valor) return
+    setPreset(null)
+    setLibre((l) => ({ ...l, [campo]: valor }))
   }
 
-  function handleCustomHastaChange(v: string) {
-    setCustomHasta(v)
-    setActivePreset(null)
+  function restablecer() {
+    setPreset(null)
+    setLibre(rangoInicial())
+    setDonanteIds([])
+    setVersion((v) => v + 1)
   }
 
-  function limpiarFiltro() {
-    setActivePreset(null)
-    setCustomDesde(defaultDesde())
-    setCustomHasta(defaultHasta())
-  }
-
-  // Rango de fechas del período seleccionado y del período anterior (para comparar tendencias)
-  const rango = useMemo(
-    () => activePreset ? getRangoFechas(activePreset) : getRangoCustom(customDesde, customHasta),
-    [activePreset, customDesde, customHasta],
+  const tarjetas: Tarjeta[] = useMemo(
+    () => [
+      ...tarjetasOperativas(operativo, etiqueta, donanteIds.length > 0),
+      { id: "uso-flota", ancho: 6, alto: 11, contenido: <UsoDeFlota key={`flota-${version}`} /> },
+      {
+        id: "movimientos-lotes",
+        ancho: 6,
+        alto: 12,
+        contenido: <MovimientosDeLotes key={`lotes-${version}`} filas={operativo.filasLotes} periodo={rango} cargando={cargando} />,
+      },
+      ...tarjetasDelCircuito(resumen),
+    ],
+    [operativo, etiqueta, rango, donanteIds.length, version, cargando, resumen],
   )
-  const rangoAnterior = useMemo(
-    () => activePreset ? getRangoAnterior(activePreset) : getRangoAnteriorCustom(customDesde, customHasta),
-    [activePreset, customDesde, customHasta],
-  )
 
-  // ── Datos base ────────────────────────────────────────────────────────
-  const { lotes, isLoading: loadingLotes } = useLotes()
-  const { donantes, isLoading: loadingDonantes } = useDonantes()
-  const { condiciones, isLoading: loadingCondiciones } = useCondicionesMaterial()
-  const { materiales: todosMateriales, isLoading: loadingTodosMateriales } = useMateriales()
-
-  const reporteParams: ReporteDonacionQuery = useMemo(() => ({
-    fechaDesde: rango.fechaDesde, fechaHasta: rango.fechaHasta,
-    ...(donanteId !== "" ? { donanteId } : {}),
-  }), [rango, donanteId])
-
-  const reporteParamsAnterior: ReporteDonacionQuery = useMemo(() => ({
-    fechaDesde: rangoAnterior.fechaDesde, fechaHasta: rangoAnterior.fechaHasta,
-    ...(donanteId !== "" ? { donanteId } : {}),
-  }), [rangoAnterior, donanteId])
-
-  const { donaciones: donacionesActuales, isLoading: loadingDonacionesActuales } = useDonacionReporte(reporteParams)
-  const { donaciones: donacionesAnteriores, isLoading: loadingDonacionesAnteriores } = useDonacionReporte(reporteParamsAnterior)
-
-  const materialParams: ReporteInventarioQuery = useMemo(() => ({
-    fechaDesde: rango.fechaDesde, fechaHasta: rango.fechaHasta,
-  }), [rango])
-
-  const materialParamsAnterior: ReporteInventarioQuery = useMemo(() => ({
-    fechaDesde: rangoAnterior.fechaDesde, fechaHasta: rangoAnterior.fechaHasta,
-  }), [rangoAnterior])
-
-  const { materiales: materialesActualesRaw, isLoading: loadingMaterialesActuales } = useMaterialReporte(materialParams)
-  const { materiales: materialesAnterioresRaw, isLoading: loadingMaterialesAnteriores } = useMaterialReporte(materialParamsAnterior)
-
-  const isLoading = loadingLotes || loadingDonantes || loadingCondiciones || loadingTodosMateriales ||
-    loadingDonacionesActuales || loadingDonacionesAnteriores || loadingMaterialesActuales || loadingMaterialesAnteriores
-
-  // El endpoint de materiales no filtra por donante: se cruza vía lote → donación → donante
-  const loteDonanteMap = useMemo(() => {
-    const map = new Map<number, number>()
-    lotes.forEach(l => { if (l.donacion) map.set(l.id, l.donacion.donanteId) })
-    return map
-  }, [lotes])
-
-  const materialesActuales = useMemo(() => (
-    donanteId === "" ? materialesActualesRaw : materialesActualesRaw.filter(m => loteDonanteMap.get(m.loteId ?? -1) === donanteId)
-  ), [materialesActualesRaw, loteDonanteMap, donanteId])
-
-  const materialesAnteriores = useMemo(() => (
-    donanteId === "" ? materialesAnterioresRaw : materialesAnterioresRaw.filter(m => loteDonanteMap.get(m.loteId ?? -1) === donanteId)
-  ), [materialesAnterioresRaw, loteDonanteMap, donanteId])
-
-  const condicionPorId = useMemo(() => new Map(condiciones.map(c => [c.id, c.condicion])), [condiciones])
-  const donantePorId = useMemo(() => new Map(donantes.map(d => [d.id, d.nombre])), [donantes])
-
-  const clasifActual   = useMemo(() => clasificarMateriales(materialesActuales, condicionPorId), [materialesActuales, condicionPorId])
-  const clasifAnterior = useMemo(() => clasificarMateriales(materialesAnteriores, condicionPorId), [materialesAnteriores, condicionPorId])
-
-  const totalClasifActual   = clasifActual.reutilizable + clasifActual.reciclable + clasifActual.desecho
-  const totalClasifAnterior = clasifAnterior.reutilizable + clasifAnterior.reciclable + clasifAnterior.desecho
-
-  const recuperacionPct         = totalClasifActual > 0 ? Math.round(((clasifActual.reutilizable + clasifActual.reciclable) / totalClasifActual) * 100) : null
-  const recuperacionAnteriorPct = totalClasifAnterior > 0 ? Math.round(((clasifAnterior.reutilizable + clasifAnterior.reciclable) / totalClasifAnterior) * 100) : null
-
-  // KPIs con tendencia vs. el período anterior equivalente
-  const donacionesTrendPct = pctChange(donacionesActuales.length, donacionesAnteriores.length)
-  const trendDonaciones = { text: `${donacionesTrendPct >= 0 ? "+" : ""}${donacionesTrendPct}% vs período anterior`, up: donacionesTrendPct >= 0 }
-
-  const trendRecuperacion = recuperacionPct !== null && recuperacionAnteriorPct !== null
-    ? { text: `${recuperacionPct - recuperacionAnteriorPct >= 0 ? "+" : ""}${recuperacionPct - recuperacionAnteriorPct} pts vs período anterior`, up: recuperacionPct - recuperacionAnteriorPct >= 0 }
-    : undefined
-
-  // Lotes activos "en laboratorio" es una foto del presente, no depende del rango de fechas
-  const labCount = useMemo(() => lotes.filter(l => l.isActive && (donanteId === "" || l.donacion?.donanteId === donanteId)).length, [lotes, donanteId])
-
-  const lotesFiltrados = useMemo(() => lotes.filter(l => {
-    const matchDonante = donanteId === "" || l.donacion?.donanteId === donanteId
-    const fecha = l.createdAt?.slice(0, 10)
-    const matchFecha = !!fecha && fecha >= rango.fechaDesde && fecha <= rango.fechaHasta
-    return matchDonante && matchFecha
-  }), [lotes, donanteId, rango])
-
-  // pesoBrutoKg llega como string desde la columna DECIMAL de MySQL
-  const pesoTotalKg = useMemo(() => lotesFiltrados.reduce((acc, l) => acc + Number(l.pesoBrutoKg ?? 0), 0), [lotesFiltrados])
-
-  // Material no registra peso propio: se estima el peso desechado a partir de la proporción de materiales "Desecho" sobre el peso bruto ingresado
-  const raeeKg = totalClasifActual > 0 ? Math.round(pesoTotalKg * (clasifActual.desecho / totalClasifActual)) : 0
-
-  const donutData  = DONUT_LABELS.map((label, i) => ({
-    name: label,
-    value: i === 0 ? clasifActual.reutilizable : i === 1 ? clasifActual.reciclable : clasifActual.desecho,
-  }))
-  const donutTotal = totalClasifActual
-
-  // ── Gráfico de barras: ingresados vs. clasificados por sub-período ─────
-  const bucketKeyOf = (iso: string) =>
-    activePreset ? getBucketKey(iso, activePreset) : getBucketKeyCustom(iso, rango.fechaDesde, rango.fechaHasta)
-
-  const barData = useMemo(() => {
-    const order = activePreset ? getBucketOrder(activePreset, rango) : getBucketOrderCustom(rango.fechaDesde, rango.fechaHasta)
-    const ingresadosPorBucket = new Map<string, number>()
-    const clasificadosPorBucket = new Map<string, number>()
-
-    donacionesActuales.forEach(d => {
-      const key = bucketKeyOf(d.createdAt)
-      ingresadosPorBucket.set(key, (ingresadosPorBucket.get(key) ?? 0) + 1)
-    })
-
-    materialesActuales.forEach(m => {
-      const nombre = (condicionPorId.get(m.condicionMaterialId ?? -1) ?? "").toLowerCase()
-      if (!nombre || nombre.includes("pendiente")) return
-      const key = bucketKeyOf(m.createdAt)
-      clasificadosPorBucket.set(key, (clasificadosPorBucket.get(key) ?? 0) + 1)
-    })
-
-    return order.map(key => ({
-      name: key,
-      ingresados: ingresadosPorBucket.get(key) ?? 0,
-      clasificados: clasificadosPorBucket.get(key) ?? 0,
-    }))
-  }, [donacionesActuales, materialesActuales, activePreset, rango, condicionPorId])
-
-  // ── Gráfico de dona: modalidad de recepción (sucursal vs. retiro) ──────
-  const recepcionData = useMemo(() => {
-    let sucursal = 0, retiro = 0
-    donacionesActuales.forEach(d => { d.necesitaRetiro ? retiro++ : sucursal++ })
-    return RECEPCION_LABELS.map((name, i) => ({ name, value: i === 0 ? sucursal : retiro }))
-  }, [donacionesActuales])
-  const recepcionTotal = recepcionData[0].value + recepcionData[1].value
-
-  // ── Gráfico combinado (barra + línea + área) por sub-período ───────────
-  const comboData = useMemo(() => {
-    const pesoPorBucket = new Map<string, number>()
-    lotesFiltrados.forEach(l => {
-      if (!l.createdAt) return
-      const key = bucketKeyOf(l.createdAt)
-      pesoPorBucket.set(key, (pesoPorBucket.get(key) ?? 0) + Number(l.pesoBrutoKg ?? 0))
-    })
-    return barData.map(b => ({
-      ...b,
-      pesoKg: Math.round((pesoPorBucket.get(b.name) ?? 0) * 10) / 10,
-    }))
-  }, [barData, lotesFiltrados, activePreset, rango])
-
-  // ── Tabla de movimientos de lotes ───────────────────────────────────────
-  const materialesPorLote = useMemo(() => {
-    const map = new Map<number, typeof todosMateriales>()
-    todosMateriales.forEach(m => {
-      const loteId = m.loteId ?? -1
-      const arr = map.get(loteId) ?? []
-      arr.push(m)
-      map.set(loteId, arr)
-    })
-    return map
-  }, [todosMateriales])
-
-  type FilaTabla = { id: string; donante: string; fecha: string; pesoKg: number; estado: string }
-
-  const filasTabla: FilaTabla[] = useMemo(() => {
-    return [...lotesFiltrados]
-      .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
-      .map(l => {
-        const materiales = materialesPorLote.get(l.id) ?? []
-        const nombres = materiales.map(m => (condicionPorId.get(m.condicionMaterialId ?? -1) ?? "").toLowerCase())
-        let estado = "En proceso"
-        if (materiales.length > 0 && nombres.every(n => n.includes("desecho"))) estado = "Desechado"
-        else if (materiales.length > 0 && nombres.every(n => n && !n.includes("pendiente"))) estado = "Clasificado"
-
-        return {
-          id: `LOT-${String(l.id).padStart(4, "0")}`,
-          donante: (l.donacion ? donantePorId.get(l.donacion.donanteId) : undefined) ?? "—",
-          fecha: formatDate(l.createdAt ?? null) ?? "—",
-          pesoKg: Number(l.pesoBrutoKg ?? 0),
-          estado,
-        }
-      })
-  }, [lotesFiltrados, donantePorId, materialesPorLote, condicionPorId])
-
-  const filasBuscadas = useMemo(() => (
-    search ? filasTabla.filter(f => f.donante.toLowerCase().includes(search.toLowerCase())) : filasTabla
-  ), [filasTabla, search])
-
-  const filasVisibles = useMemo(() => filasBuscadas.slice(0, 25), [filasBuscadas])
-
-  const exportColumns: ExportColumn<FilaTabla>[] = [
-    { header: "ID Lote", accessor: f => f.id },
-    { header: "Donante", accessor: f => f.donante },
-    { header: "Fecha ingreso", accessor: f => f.fecha },
-    { header: "Peso (kg)", accessor: f => f.pesoKg },
-    { header: "Estado actual", accessor: f => f.estado },
-  ]
-
-  const handleExportPdf = () => {
-    exportToPdf(filasVisibles, exportColumns, {
-      fileName: "movimientos-lotes",
-      title: "Últimos movimientos de lotes",
-    })
-  }
-
-  const handleExportExcel = () => {
-    exportToExcel(filasVisibles, exportColumns, {
-      fileName: "movimientos-lotes",
-      sheetName: "Lotes",
-    })
-  }
+  const inicial = rangoInicial()
+  const fueraDeLoInicial = !preset && (libre.desde !== inicial.desde || libre.hasta !== inicial.hasta)
 
   return (
-    <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
-
-      {/* Toolbar global */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
+    <div className="mx-auto max-w-[1400px] space-y-6 p-6">
+      <div className="sticky top-14 z-20 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-card p-4 shadow-md ring-1 ring-foreground/5">
         <div>
-          <h1 className="text-xl font-medium text-foreground">RebootIT Analytics</h1>
-          <p className="text-sm text-muted-foreground">Panel de control operativo — {rango.label}</p>
+          <h1 className="text-xl font-medium">Reboot IT Analytics</h1>
+          <p className="text-sm text-muted-foreground">Panel de control operativo · {etiqueta}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {(["mes", "trimestre", "semestre", "año"] as Periodo[]).map(p => (
+          {PRESETS.map((p) => (
             <button
               key={p}
-              onClick={() => elegirPeriodo(p)}
-              className={`text-xs px-3 py-1.5 rounded-lg border transition-all duration-150 ${
-                activePreset === p
-                  ? "bg-blue-50 border-blue-400 text-blue-800 font-medium dark:bg-blue-900/30 dark:border-blue-500 dark:text-blue-300"
-                  : "border-border text-muted-foreground hover:bg-muted"
-              }`}
+              type="button"
+              aria-pressed={preset === p}
+              onClick={() => elegirPreset(p)}
+              className={cn(
+                "rounded-lg border px-3 py-1.5 text-xs transition-colors",
+                preset === p
+                  ? "border-blue-400 bg-blue-50 font-medium text-blue-800 dark:border-blue-500 dark:bg-blue-900/30 dark:text-blue-300"
+                  : "border-border text-muted-foreground hover:bg-muted",
+              )}
             >
               {PERIODO_LABELS[p]}
             </button>
           ))}
-          <div className={`flex items-center gap-1 rounded-lg border px-2 py-1 ${usaRangoCustom ? "border-blue-400 bg-blue-50 dark:bg-blue-900/30" : "border-border"}`}>
-            <input
-              type="date"
-              value={customDesde}
-              onChange={e => handleCustomDesdeChange(e.target.value)}
-              className="text-xs bg-transparent focus:outline-none"
-              aria-label="Fecha desde"
-            />
+          <div className={cn("flex items-center gap-1 rounded-lg border px-1 py-0.5", !preset ? "border-blue-400 bg-blue-50 dark:bg-blue-900/30" : "border-border")}>
+            <DateInput value={libre.desde} onChange={(v) => cambiarFecha("desde", v)} className="h-7 w-28 border-0 bg-transparent text-xs shadow-none" aria-label="Fecha desde" />
             <span className="text-xs text-muted-foreground">a</span>
-            <input
-              type="date"
-              value={customHasta}
-              min={customDesde || undefined}
-              onChange={e => handleCustomHastaChange(e.target.value)}
-              className="text-xs bg-transparent focus:outline-none"
-              aria-label="Fecha hasta"
-            />
-            {activePreset === null && (customDesde !== defaultDesde() || customHasta !== defaultHasta()) && (
-              <button
-                onClick={limpiarFiltro}
-                className="text-xs text-muted-foreground hover:text-foreground ml-1"
-                title="Volver al rango por defecto (últimos 3 meses)"
-              >
-                ✕
-              </button>
+            <DateInput value={libre.hasta} onChange={(v) => cambiarFecha("hasta", v)} className="h-7 w-28 border-0 bg-transparent text-xs shadow-none" aria-label="Fecha hasta" />
+          </div>
+          <SelectorDonantes opciones={operativo.donantes.map((d) => ({ id: d.id, nombre: d.nombre }))} elegidos={donanteIds} onCambio={setDonanteIds} />
+          <button
+            type="button"
+            onClick={restablecer}
+            title="Vuelve a los últimos 3 meses, todos los donantes y los filtros de cada gráfico"
+            className={cn(
+              "inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+              (preset || fueraDeLoInicial || donanteIds.length) && "border-foreground/30 text-foreground",
             )}
-          </div>
-          <select
-            value={donanteId}
-            onChange={e => setDonanteId(e.target.value === "" ? "" : Number(e.target.value))}
-            className="text-xs px-3 py-1.5 rounded-lg border border-border bg-background text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
-            <option value="">Todos los donantes</option>
-            {donantes.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
-          </select>
+            <RotateCcw className="size-3" />
+            Restablecer
+          </button>
         </div>
       </div>
 
-      {/* Nivel 1 — KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard
-          label="Total donaciones recibidas"
-          value={isLoading ? "…" : donacionesActuales.length}
-          trend={isLoading ? undefined : trendDonaciones}
+      <TrabajoPendiente resumen={resumen} />
+      <IndicadoresCircuito resumen={resumen} />
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        <Kpi
+          etiqueta="Donaciones recibidas"
+          valor={cargando ? "…" : entero(kpis.donaciones)}
+          variacion={cargando ? null : { texto: `${conSigno(kpis.variacionDonaciones)} % vs. período anterior`, sube: kpis.variacionDonaciones >= 0 }}
         />
-        <KpiCard
-          label="Hardware en laboratorio"
-          value={isLoading ? "…" : labCount}
-          sub="lotes activos pendientes de clasificación"
+        <Kpi
+          etiqueta="Efectividad de recuperación"
+          valor={cargando ? "…" : kpis.recuperacion !== null ? `${kpis.recuperacion} %` : ""}
+          variacion={
+            cargando || kpis.variacionRecuperacion === null
+              ? null
+              : { texto: `${conSigno(kpis.variacionRecuperacion)} pts vs. período anterior`, sube: kpis.variacionRecuperacion >= 0 }
+          }
         />
-        <KpiCard
-          label="Efectividad de recuperación"
-          value={isLoading ? "…" : recuperacionPct !== null ? `${recuperacionPct}%` : "—"}
-          trend={isLoading ? undefined : trendRecuperacion}
-        />
-        <KpiCard
-          label="Basura electrónica desechada (RAEE)"
-          value={isLoading ? "…" : `${raeeKg} kg`}
-          sub="estimado según % de descarte sobre el peso bruto ingresado"
+        <Kpi
+          etiqueta="Basura electrónica desechada (RAEE)"
+          valor={cargando ? "…" : `${entero(kpis.raeeKg)} kg`}
+          nota="Estimado con el % de descarte sobre el peso bruto ingresado"
         />
       </div>
 
-      {/* Nivel 2 — Gráficos */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-        {/* Gráfico de barras */}
-        <div className="rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
-          <p className="text-sm font-medium text-foreground mb-1">Ingreso vs. procesamiento</p>
-          <p className="text-xs text-muted-foreground mb-4">Donaciones ingresadas vs. materiales clasificados por el laboratorio — {rango.label}</p>
-          <div className="flex gap-4 mb-3">
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="w-3 h-3 rounded-sm inline-block" style={{background:"#378ADD"}}></span>Ingresados
-            </span>
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="w-3 h-3 rounded-sm inline-block" style={{background:"#639922"}}></span>Clasificados
-            </span>
-          </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={barData} barCategoryGap="30%" barGap={4}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.15)" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-              <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
-              <Tooltip
-                contentStyle={{ borderRadius: 8, border: "0.5px solid rgba(128,128,128,0.2)", fontSize: 12 }}
-                cursor={{ fill: "rgba(128,128,128,0.07)" }}
-              />
-              <Bar dataKey="ingresados"  name="Ingresados"  fill="#378ADD" radius={[4,4,0,0]} />
-              <Bar dataKey="clasificados" name="Clasificados" fill="#639922" radius={[4,4,0,0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Gráfico de dona */}
-        <div className="rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
-          <p className="text-sm font-medium text-foreground mb-1">Distribución de destino de materiales</p>
-          <p className="text-xs text-muted-foreground mb-4">Destino final de los materiales clasificados — {rango.label}</p>
-          {donutTotal === 0 ? (
-            <div className="h-[220px] flex items-center justify-center text-xs text-muted-foreground text-center px-6">
-              Sin materiales clasificados en este período{donanteId !== "" ? " para el donante seleccionado" : ""}.
-            </div>
-          ) : (
-            <>
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie
-                    data={donutData}
-                    cx="50%" cy="50%"
-                    innerRadius={60} outerRadius={95}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {donutData.map((_, i) => (
-                      <Cell key={i} fill={DONUT_COLORS[i]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value) => [`${value ?? 0} materiales`]}
-                    contentStyle={{ borderRadius: 8, border: "0.5px solid rgba(128,128,128,0.2)", fontSize: 12 }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex flex-col gap-1.5 mt-2">
-                {DONUT_LABELS.map((label, i) => (
-                  <span key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{background: DONUT_COLORS[i]}}></span>
-                    {label} — {donutData[i].value} ({Math.round(donutData[i].value / donutTotal * 100)}%)
-                  </span>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Nivel 2.5 — Recepción y tendencia combinada */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-        {/* Gráfico de dona: sucursal vs. retiro */}
-        <div className="rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
-          <p className="text-sm font-medium text-foreground mb-1">Modalidad de recepción</p>
-          <p className="text-xs text-muted-foreground mb-4">Donaciones entregadas en sucursal vs. retiradas a domicilio — {rango.label}</p>
-          {recepcionTotal === 0 ? (
-            <div className="h-[220px] flex items-center justify-center text-xs text-muted-foreground text-center px-6">
-              Sin donaciones registradas en este período{donanteId !== "" ? " para el donante seleccionado" : ""}.
-            </div>
-          ) : (
-            <>
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie
-                    data={recepcionData}
-                    cx="50%" cy="50%"
-                    innerRadius={60} outerRadius={95}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {recepcionData.map((_, i) => (
-                      <Cell key={i} fill={RECEPCION_COLORS[i]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value) => [`${value ?? 0} donaciones`]}
-                    contentStyle={{ borderRadius: 8, border: "0.5px solid rgba(128,128,128,0.2)", fontSize: 12 }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex flex-col gap-1.5 mt-2">
-                {RECEPCION_LABELS.map((label, i) => (
-                  <span key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{background: RECEPCION_COLORS[i]}}></span>
-                    {label} — {recepcionData[i].value} ({Math.round(recepcionData[i].value / recepcionTotal * 100)}%)
-                  </span>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Gráfico combinado: barra + línea + área */}
-        <div className="rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 p-4">
-          <p className="text-sm font-medium text-foreground mb-1">Tendencia combinada</p>
-          <p className="text-xs text-muted-foreground mb-4">Donaciones, materiales clasificados y peso ingresado por sub-período — {rango.label}</p>
-          <div className="flex flex-wrap gap-4 mb-3">
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="w-3 h-3 rounded-sm inline-block" style={{background:"#378ADD"}}></span>Donaciones
-            </span>
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="w-3 h-2.5 border-t-2 inline-block" style={{borderColor:"#E24B4A"}}></span>Clasificados
-            </span>
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="w-3 h-3 rounded-sm inline-block opacity-50" style={{background:"#639922"}}></span>Peso ingresado (kg)
-            </span>
-          </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <ComposedChart data={comboData} barCategoryGap="30%">
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.15)" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-              <YAxis yAxisId="left" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-              <Tooltip
-                contentStyle={{ borderRadius: 8, border: "0.5px solid rgba(128,128,128,0.2)", fontSize: 12 }}
-                cursor={{ fill: "rgba(128,128,128,0.07)" }}
-              />
-              <Area yAxisId="right" type="monotone" dataKey="pesoKg" name="Peso ingresado (kg)" fill="#639922" stroke="#639922" fillOpacity={0.18} />
-              <Bar yAxisId="left" dataKey="ingresados" name="Donaciones" fill="#378ADD" radius={[4,4,0,0]} />
-              <Line yAxisId="left" type="monotone" dataKey="clasificados" name="Clasificados" stroke="#E24B4A" strokeWidth={2} dot={{ r: 3 }} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Nivel 3 — Tabla */}
-      <div className="rounded-xl bg-card shadow-sm ring-1 ring-foreground/5 overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-border">
-          <p className="text-sm font-medium text-foreground">Últimos movimientos de lotes</p>
-          <div className="flex flex-wrap gap-2">
-            <SearchInput
-              placeholder="Buscar donante…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-48"
-            />
-            <button
-              onClick={handleExportPdf}
-              disabled={filasVisibles.length === 0}
-              className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              ↓ Exportar PDF
-            </button>
-            <button
-              onClick={handleExportExcel}
-              disabled={filasVisibles.length === 0}
-              className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              ↓ Exportar Excel
-            </button>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm" style={{ tableLayout: "fixed" }}>
-            <colgroup>
-              <col style={{ width: "100px" }} />
-              <col style={{ width: "180px" }} />
-              <col style={{ width: "140px" }} />
-              <col style={{ width: "120px" }} />
-              <col style={{ width: "140px" }} />
-            </colgroup>
-            <thead>
-              <tr className="bg-muted/60 text-xs text-muted-foreground">
-                <th className="px-4 py-2.5 text-left font-medium">ID Lote</th>
-                <th className="px-4 py-2.5 text-left font-medium">Donante</th>
-                <th className="px-4 py-2.5 text-left font-medium">Fecha ingreso</th>
-                <th className="px-4 py-2.5 text-left font-medium">Peso (kg)</th>
-                <th className="px-4 py-2.5 text-left font-medium">Estado actual</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {isLoading ? (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">Cargando…</td></tr>
-              ) : filasVisibles.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">No se encontraron resultados.</td></tr>
-              ) : (
-                filasVisibles.map(l => (
-                  <tr key={l.id} className="hover:bg-muted/30 transition-colors duration-100">
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{l.id}</td>
-                    <td className="px-4 py-3 text-foreground">{l.donante}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{l.fecha}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{l.pesoKg.toFixed(1)}</td>
-                    <td className="px-4 py-3"><EstadoBadge estado={l.estado} /></td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        {filasBuscadas.length > filasVisibles.length && (
-          <p className="text-xs text-muted-foreground px-4 py-2 border-t border-border">
-            Mostrando {filasVisibles.length} de {filasBuscadas.length} lotes. Ajustá los filtros para acotar la búsqueda.
-          </p>
-        )}
-      </div>
-
+      <Tablero tarjetas={tarjetas} />
     </div>
   )
 }
