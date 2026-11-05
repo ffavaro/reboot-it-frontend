@@ -13,6 +13,8 @@ services:
     ports:
       - "3001:3001"
     build: ./reboot-it-backend
+    env_file:
+      - ./reboot-it-backend/.env
     environment:
       PORT: 3001
       DATABASE_HOST: db
@@ -20,6 +22,8 @@ services:
       DATABASE_USER: root
       DATABASE_PASSWORD: root
       DATABASE_NAME: reboot_it
+    volumes:
+      - reboot-it-uploads:/app/public/uploads
     depends_on:
       - db
     networks:
@@ -43,3 +47,4 @@ networks:
 
 volumes:
   reboot-it-mysql:
+  reboot-it-uploads:
