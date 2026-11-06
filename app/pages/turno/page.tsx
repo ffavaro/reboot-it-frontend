@@ -37,13 +37,13 @@ import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import { getUser } from "@/lib/auth-utils"
 import type { TokenPayload } from "@/lib/auth-utils"
 import { formatDateTime, getTransportistaActual } from "@/lib/utils/helpers"
+import {  DIAS_CAL_CORTOS, MESES_ES } from "@/lib/utils/fechas"
+import Title from "@/components/ui/title"
 
 const EMPTY_FORM = { donanteId: "", estadoTurnoId: "", fechaHora: "", descripcion: "" }
 const EMPTY_ASIGNAR = { empleadoId: "", empleadoTransportistaId: "" }
 const ESTADO_RETIRO_CONFIRMADO = "retiro confirmado"
 
-const MESES_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
-const DIAS_CAL = ["Lu","Ma","Mi","Ju","Vi"]
 const TIME_SLOTS = Array.from({ length: 11 }, (_, i) => `${String(8 + i).padStart(2, "0")}:00`)
 
 function mismoDia(a: Date, b: Date): boolean {
@@ -554,30 +554,14 @@ export default function TurnoPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Turnos</h1>
-        <p className="text-sm text-muted-foreground">
-          Administrá los turnos asignados a donantes.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          placeholder="Buscar por donante, estado o descripción..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} turno{filtered.length !== 1 ? "s" : ""}
-        </span>
-        {!isReadOnly && (
-          <Button className="ml-auto" onClick={openCreate}>
-            <Plus className="h-4 w-4" />
-            Nuevo turno
-          </Button>
-        )}
-      </div>
+      <Title
+      titlePage="Turnos"
+      description="Administrá los turnos asignados a donantes."
+       search={search}
+       setSearch={setSearch}
+       filtered={filtered}
+       openCreate={openCreate}
+      />
 
       <DataTable
         data={filtered}
@@ -650,7 +634,7 @@ export default function TurnoPage() {
             </div>
 
             <div className="grid grid-cols-5 mb-1">
-              {DIAS_CAL.map((d) => (
+              {DIAS_CAL_CORTOS.map((d) => (
                 <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">{d}</div>
               ))}
             </div>

@@ -1,10 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Plus } from "lucide-react"
 import { toast } from "react-toastify"
-import { Button } from "@/components/ui/button"
-import { SearchInput } from "@/components/ui/search-input"
 import { FormModal } from "@/components/ui/form-modal"
 import { DateInput } from "@/components/ui/date-input"
 import { DataTable, type TableColumn } from "@/components/ui/data-table"
@@ -28,6 +25,9 @@ import type { Donacion } from "@/lib/type/donacion"
 import type { Donante } from "@/lib/type/donante"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import type { Retiro } from "@/lib/type/retiro"
+import Title from "@/components/ui/title"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface Campos {
   retiroId: string
@@ -140,7 +140,7 @@ export default function ConstanciaRetiroPage() {
     )
   }
 
-  async function crear() {
+  const crear =  async () => {
     if (!campos?.retiroId || !campos.tecnicoId) {
       toast.error("Elegí el retiro y el transportista")
       return
@@ -160,7 +160,7 @@ export default function ConstanciaRetiroPage() {
     }
   }
 
-  async function eliminar(id: number | string) {
+  const eliminar = async (id: number | string) => {
     try {
       await deleteConstancia(Number(id))
       await mutate()
@@ -172,36 +172,20 @@ export default function ConstanciaRetiroPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Constancias de Retiro</h1>
-        <p className="text-sm text-muted-foreground">
-          Constancias emitidas para cada retiro de materiales. Una vez emitidas no se modifican.
-        </p>
-      </div>
+      <Title
+        titlePage="Constancias de Retiro"
+        description="Constancias emitidas para cada retiro de materiales. Una vez emitidas no se modifican."
+        search={busqueda}
+        setSearch={setBusqueda}
+        filtered={visibles}
+        openCreate={abrirNueva}
+      />
 
       {esDonante && (
         <AvisoDonante>
           Las constancias de retiro aparecen acá cuando se confirma el retiro de tu donación.
         </AvisoDonante>
       )}
-
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          placeholder="Buscar por retiro, transportista u observaciones..."
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
-          {visibles.length} {visibles.length === 1 ? "constancia" : "constancias"}
-        </span>
-        {!esDonante && (
-          <Button className="ml-auto" onClick={abrirNueva}>
-            <Plus className="h-4 w-4" />
-            Nueva constancia
-          </Button>
-        )}
-      </div>
 
       <DataTable
         data={visibles}
@@ -234,43 +218,51 @@ export default function ConstanciaRetiroPage() {
           saveLabel="Crear constancia"
         >
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">Retiro *</label>
-            <select value={campos.retiroId} onChange={(e) => elegirRetiro(e.target.value)} className={SELECT_CLASES}>
-              <option value="">Seleccionar retiro...</option>
-              {opcionesRetiro.map((r: Retiro) => (
-                <option key={r.id} value={String(r.id)}>
-                  #{r.id}  Donación #{r.donacionId}
-                  {r.direccion ? `  ${r.direccion}` : ""}
-                </option>
-              ))}
-            </select>
+            <Label className="text-sm font-medium">Retiro *</Label>
+            <Select>
+              <SelectTrigger>
+                 <SelectValue placeholder="Seleccionar retiro..." />
+              </SelectTrigger>
+              <SelectContent>
+                {opcionesRetiro.map((r: Retiro) => (
+                  <SelectItem key={r.id} value={String(r.id)}>
+                    #{r.id}  Donación #{r.donacionId}
+                    {r.direccion ? `  ${r.direccion}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">Fecha de emisión</label>
+            <Label className="text-sm font-medium">Fecha de emisión</Label>
             <DateInput value={campos.fechaEmision} onChange={() => {}} disabled />
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">Transportista *</label>
-            <select
+            <Label className="text-sm font-medium">Transportista *</Label>
+            <Select
               value={campos.tecnicoId}
-              onChange={(e) => setCampos((c) => c && { ...c, tecnicoId: e.target.value })}
-              className={SELECT_CLASES}
+              onValueChange={(e:any) => setCampos((c) => c && { ...c, tecnicoId: e.target.value })}
+              
             >
-              <option value="">Seleccionar transportista...</option>
-              {transportistas.map((t: EmpleadoTransportista) => (
-                <option key={t.empleadoId} value={String(t.empleadoId)}>
-                  {nombreCompleto(t.empleado) || `#${t.empleadoId}`}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className={SELECT_CLASES}>
+                <SelectValue placeholder="Seleccionar transportista..." />
+              </SelectTrigger>
+              <SelectContent>
+                {transportistas.map((t: EmpleadoTransportista) => (
+                  <SelectItem key={t.empleadoId} value={String(t.empleadoId)}>
+                    {nombreCompleto(t.empleado) || `#${t.empleadoId}`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">
+            <Label className="text-sm font-medium">
               Observaciones <span className="font-normal text-muted-foreground">(opcional)</span>
-            </label>
+            </Label>
             <textarea
               value={campos.observaciones}
               onChange={(e) => setCampos((c) => c && { ...c, observaciones: e.target.value })}

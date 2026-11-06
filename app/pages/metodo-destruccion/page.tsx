@@ -1,12 +1,8 @@
 "use client"
-import { Plus } from "lucide-react"
-
 import { useState } from "react"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
@@ -21,6 +17,9 @@ import { useFormErrors } from "@/hooks/use-form-errors"
 import { required, maxLength as maxLengthValidator } from "@/lib/form-validators"
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { MetodoDestruccion } from "@/lib/type/metodo-destruccion"
+import Title from "@/components/ui/title"
+import { Label } from "@/components/ui/label"
+import { filterBySearch, set, openCreate, openEdit, openView } from "@/lib/utils/utils-modal"
 
 const EMPTY_FORM = { nombre: "", descripcion: "" }
 
@@ -57,41 +56,9 @@ export default function MetodoDestruccionPage() {
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
-  const filtered = metodos.filter((m: MetodoDestruccion) =>
-    m.nombre.toLowerCase().includes(search.toLowerCase()) ||
-    (m.descripcion ?? "").toLowerCase().includes(search.toLowerCase()),
-  )
+  const filtered = filterBySearch(metodos, search, ["nombre", "descripcion"])
 
-  function set(field: keyof typeof EMPTY_FORM, value: string) {
-    setForm((f) => ({ ...f, [field]: value }))
-    clearError(field)
-  }
-
-  function openCreate() {
-    setIsViewing(false)
-    setEditing(null)
-    setForm(EMPTY_FORM)
-    reset()
-    setModalOpen(true)
-  }
-
-  function openEdit(m: MetodoDestruccion) {
-    setIsViewing(false)
-    setEditing(m)
-    setForm({ nombre: m.nombre, descripcion: m.descripcion ?? "" })
-    reset()
-    setModalOpen(true)
-  }
-
-  function openView(m: MetodoDestruccion) {
-    setIsViewing(true)
-    setEditing(m)
-    setForm({ nombre: m.nombre, descripcion: m.descripcion ?? "" })
-    reset()
-    setModalOpen(true)
-  }
-
-  async function handleSave() {
+  const handleSave = async () => {
     if (!validate(form, {
       nombre: [required("el nombre"), maxLengthValidator(DEFAULT_TEXT_MAX)],
       descripcion: [maxLengthValidator(DEFAULT_TEXT_MAX)],
@@ -115,7 +82,7 @@ export default function MetodoDestruccionPage() {
     }
   }
 
-  async function handleDelete(id: number | string) {
+  const handleDelete =  async (id: number | string) => {
     try {
       await deleteMetodo(id as number)
       await mutate()
@@ -129,28 +96,21 @@ export default function MetodoDestruccionPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Métodos de Destrucción</h1>
-        <p className="text-sm text-muted-foreground">
-          Administrá los métodos de destrucción segura disponibles (Trituración, Desmagnetización, etc.).
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          placeholder="Buscar por nombre o descripción..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} método{filtered.length !== 1 ? "s" : ""}
-        </span>
-        <Button className="ml-auto" onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Nuevo método
-        </Button>
-      </div>
+      <Title
+        titlePage="Métodos de Destrucción"
+        description="Administrá los métodos de destrucción segura disponibles (Trituración, Desmagnetización, etc.)."
+        search={search}
+        setSearch={setSearch}
+        filtered={filtered}
+        openCreate={() => openCreate({
+          setIsViewing,
+          setEditing,
+          setForm,
+          reset,
+          setModalOpen,
+          EMPTY_FORM,
+        })}
+      />
 
       <DataTable
         data={filtered}
@@ -160,8 +120,24 @@ export default function MetodoDestruccionPage() {
         emptyText="No hay métodos de destrucción registrados."
         emptySearchText="No se encontraron métodos con ese criterio."
         search={search}
-        onView={openView}
-        onEdit={openEdit}
+        onView={() => openView({
+          t: null,
+          setIsViewing,
+          setEditing,
+          setForm,
+          reset,
+          setModalOpen,
+          jsonEntidad: { nombre: "", descripcion: "" },
+        })}
+        onEdit={() => openEdit({
+          t: null,
+          setIsViewing,
+          setEditing,
+          setForm,
+          reset,
+          setModalOpen,
+          jsonEntidad: { nombre: "", descripcion: "" },
+        })}
         onDelete={handleDelete}
         isDeleting={isDeleting}
       />
@@ -188,10 +164,17 @@ export default function MetodoDestruccionPage() {
         saveLabel={editing ? "Guardar cambios" : "Crear método"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Nombre *</label>
+          <Label className="text-sm font-medium">
+            Nombre <span className="text-destructive">*</span>
+          </Label>
           <Input
             value={form.nombre}
-            onChange={(e) => set("nombre", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"))}
+            onChange={(e) => set({
+              setFrom: setForm,
+              fileds: "nombre",
+              value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"),
+              clearError,
+            })}
             placeholder="Ej: Trituración física, Desmagnetización..."
             className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
           />
@@ -199,12 +182,17 @@ export default function MetodoDestruccionPage() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
+          <Label className="text-sm font-medium">
             Descripción <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
+          </Label>
           <Input
             value={form.descripcion}
-            onChange={(e) => set("descripcion", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción"))}
+            onChange={(e) => set({
+              setFrom: setForm,
+              fileds: "descripcion",
+              value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción"),
+              clearError,
+            })}
             placeholder="Descripción del método de destrucción..."
           />
           <FieldError>{errors.descripcion}</FieldError>

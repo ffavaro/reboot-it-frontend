@@ -1,12 +1,17 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ChevronLeft, ChevronRight, Truck, Building2, AlertTriangle, Plus } from "lucide-react"
+import {
+  ChevronLeft,
+  ChevronRight,
+  Truck,
+  Building2,
+  AlertTriangle,
+} from "lucide-react"
 import type { TokenPayload } from "@/lib/auth-utils"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { SearchInput } from "@/components/ui/search-input"
 import { FormModal } from "@/components/ui/form-modal"
 import { DataTable, TableColumn } from "@/components/ui/data-table"
 import {
@@ -27,25 +32,37 @@ import type { CondicionMaterial } from "@/lib/type/condicion-material"
 import type { Turno } from "@/lib/type/turno"
 import { getUser } from "@/lib/auth-utils"
 import { enforceDecimalInput } from "@/lib/utils/number-limit"
+import Title from "@/components/ui/title"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { ESTADO_DONACION_COLORS } from "@/lib/utils/estados"
+import { DIAS_CAL_CORTOS, MESES_ES } from "@/lib/utils/fechas"
 
-const EMPTY_FORM = { donanteId: "", fechaHora: "", estadoDonacionId: "", descripcion: "" }
-const EMPTY_DETALLE = { tipoMaterialId: "", condicionMaterialId: "", cantidadEstimada: "" }
+const EMPTY_FORM = {
+  donanteId: "",
+  fechaHora: "",
+  estadoDonacionId: "",
+  descripcion: "",
+}
+const EMPTY_DETALLE = {
+  tipoMaterialId: "",
+  condicionMaterialId: "",
+  cantidadEstimada: "",
+}
 type DetalleRow = typeof EMPTY_DETALLE
 const PESO_ESTIMADO_MAX_DIGITS = 3
 
-const MESES_ES = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
-]
-const DIAS_CAL = ["Lu", "Ma", "Mi", "Ju", "Vi"]
-const TIME_SLOTS = Array.from({ length: 10 }, (_, i) => `${String(8 + i).padStart(2, "0")}:00`)
 
-const ESTADO_COLORS: Record<string, string> = {
-  pendiente: "bg-yellow-100 text-yellow-800",
-  "en proceso": "bg-blue-100 text-blue-800",
-  completada: "bg-green-100 text-green-800",
-  cancelada: "bg-red-100 text-red-800",
-}
+const TIME_SLOTS = Array.from(
+  { length: 10 },
+  (_, i) => `${String(8 + i).padStart(2, "0")}:00`
+)
 
 function mismoDia(a: Date, b: Date): boolean {
   return (
@@ -131,19 +148,21 @@ export default function DonacionPage() {
   }, [])
 
   const myDonante = user
-    ? donantes.find((d: Donante) => d.usuarioId === user.id) ?? null
+    ? (donantes.find((d: Donante) => d.usuarioId === user.id) ?? null)
     : null
-  const isDonante = user?.rol?.nombre?.toLowerCase() === "donante" || myDonante !== null
+  const isDonante =
+    user?.rol?.nombre?.toLowerCase() === "donante" || myDonante !== null
 
   const condicionADefinir = condiciones.find(
-    (c: CondicionMaterial) => c.condicion.toLowerCase() === "a definir",
+    (c: CondicionMaterial) => c.condicion.toLowerCase() === "a definir"
   )
 
-  const visibleDonaciones = isDonante && myDonante
-    ? donaciones.filter((d: Donacion) => d.donanteId === myDonante.id)
-    : isDonante
-    ? []
-    : donaciones
+  const visibleDonaciones =
+    isDonante && myDonante
+      ? donaciones.filter((d: Donacion) => d.donanteId === myDonante.id)
+      : isDonante
+        ? []
+        : donaciones
 
   const filtered = visibleDonaciones.filter((d: Donacion) => {
     const q = search.toLowerCase()
@@ -166,17 +185,23 @@ export default function DonacionPage() {
   }
 
   function turnosEnDia(dia: Date): number {
-    return turnos.filter((t: Turno) => t.isActive && mismoDia(new Date(t.fechaHora), dia)).length
+    return turnos.filter(
+      (t: Turno) => t.isActive && mismoDia(new Date(t.fechaHora), dia)
+    ).length
   }
 
   function prevMonth() {
-    if (calMonth === 0) { setCalYear((y) => y - 1); setCalMonth(11) }
-    else setCalMonth((m) => m - 1)
+    if (calMonth === 0) {
+      setCalYear((y) => y - 1)
+      setCalMonth(11)
+    } else setCalMonth((m) => m - 1)
   }
 
   function nextMonth() {
-    if (calMonth === 11) { setCalYear((y) => y + 1); setCalMonth(0) }
-    else setCalMonth((m) => m + 1)
+    if (calMonth === 11) {
+      setCalYear((y) => y + 1)
+      setCalMonth(0)
+    } else setCalMonth((m) => m + 1)
   }
 
   function handleSelectDate(dia: Date) {
@@ -235,15 +260,20 @@ export default function DonacionPage() {
     setForm({
       donanteId: String(d.donanteId),
       fechaHora: "",
-      estadoDonacionId: d.estadoDonacionId != null ? String(d.estadoDonacionId) : "",
+      estadoDonacionId:
+        d.estadoDonacionId != null ? String(d.estadoDonacionId) : "",
       descripcion: d.descripcion ?? "",
     })
     setDetalles(
       (d.detalles ?? []).map((det) => ({
         tipoMaterialId: String(det.tipoMaterialId),
-        condicionMaterialId: det.condicionMaterialId != null ? String(det.condicionMaterialId) : "",
-        cantidadEstimada: det.cantidadEstimada != null ? String(det.cantidadEstimada) : "",
-      })),
+        condicionMaterialId:
+          det.condicionMaterialId != null
+            ? String(det.condicionMaterialId)
+            : "",
+        cantidadEstimada:
+          det.cantidadEstimada != null ? String(det.cantidadEstimada) : "",
+      }))
     )
     setSheetOpen(true)
   }
@@ -260,15 +290,20 @@ export default function DonacionPage() {
     setForm({
       donanteId: String(d.donanteId),
       fechaHora: "",
-      estadoDonacionId: d.estadoDonacionId != null ? String(d.estadoDonacionId) : "",
+      estadoDonacionId:
+        d.estadoDonacionId != null ? String(d.estadoDonacionId) : "",
       descripcion: d.descripcion ?? "",
     })
     setDetalles(
       (d.detalles ?? []).map((det) => ({
         tipoMaterialId: String(det.tipoMaterialId),
-        condicionMaterialId: det.condicionMaterialId != null ? String(det.condicionMaterialId) : "",
-        cantidadEstimada: det.cantidadEstimada != null ? String(det.cantidadEstimada) : "",
-      })),
+        condicionMaterialId:
+          det.condicionMaterialId != null
+            ? String(det.condicionMaterialId)
+            : "",
+        cantidadEstimada:
+          det.cantidadEstimada != null ? String(det.cantidadEstimada) : "",
+      }))
     )
     setSheetOpen(true)
   }
@@ -276,7 +311,12 @@ export default function DonacionPage() {
   function addDetalle() {
     setDetalles((prev) => [
       ...prev,
-      { ...EMPTY_DETALLE, condicionMaterialId: condicionADefinir ? String(condicionADefinir.id) : "" },
+      {
+        ...EMPTY_DETALLE,
+        condicionMaterialId: condicionADefinir
+          ? String(condicionADefinir.id)
+          : "",
+      },
     ])
   }
 
@@ -284,8 +324,14 @@ export default function DonacionPage() {
     setDetalles((prev) => prev.filter((_, i) => i !== idx))
   }
 
-  function updateDetalleField(idx: number, field: keyof DetalleRow, value: string) {
-    setDetalles((prev) => prev.map((d, i) => (i === idx ? { ...d, [field]: value } : d)))
+  function updateDetalleField(
+    idx: number,
+    field: keyof DetalleRow,
+    value: string
+  ) {
+    setDetalles((prev) =>
+      prev.map((d, i) => (i === idx ? { ...d, [field]: value } : d))
+    )
   }
 
   async function handleSave() {
@@ -317,22 +363,30 @@ export default function DonacionPage() {
     const detallesPayload = detalles.map((d) => ({
       tipoMaterialId: Number(d.tipoMaterialId),
       condicionMaterialId: Number(d.condicionMaterialId),
-      cantidadEstimada: d.cantidadEstimada ? Number(d.cantidadEstimada) : undefined,
+      cantidadEstimada: d.cantidadEstimada
+        ? Number(d.cantidadEstimada)
+        : undefined,
     }))
 
     const direccionRetiroPayload =
       necesitaRetiro && usarOtraDireccion ? direccionRetiro.trim() : undefined
     const pesoEstimadoPayload =
-      necesitaRetiro && pesoEstimadoKg !== "" ? Number(pesoEstimadoKg) : undefined
+      necesitaRetiro && pesoEstimadoKg !== ""
+        ? Number(pesoEstimadoKg)
+        : undefined
 
     try {
       if (editing) {
         await updateDonacion({
           id: editing.id,
           donanteId: Number(form.donanteId),
-          estadoDonacionId: form.estadoDonacionId ? Number(form.estadoDonacionId) : undefined,
+          estadoDonacionId: form.estadoDonacionId
+            ? Number(form.estadoDonacionId)
+            : undefined,
           necesitaRetiro,
-          direccionRetiro: necesitaRetiro ? (direccionRetiroPayload ?? null) : null,
+          direccionRetiro: necesitaRetiro
+            ? (direccionRetiroPayload ?? null)
+            : null,
           pesoEstimadoKg: necesitaRetiro ? (pesoEstimadoPayload ?? null) : null,
           descripcion: form.descripcion.trim() || undefined,
           detalles: detallesPayload,
@@ -342,7 +396,9 @@ export default function DonacionPage() {
         await createDonacion({
           donanteId: Number(form.donanteId),
           fechaHora: form.fechaHora,
-          estadoDonacionId: form.estadoDonacionId ? Number(form.estadoDonacionId) : undefined,
+          estadoDonacionId: form.estadoDonacionId
+            ? Number(form.estadoDonacionId)
+            : undefined,
           necesitaRetiro,
           direccionRetiro: direccionRetiroPayload,
           pesoEstimadoKg: pesoEstimadoPayload,
@@ -383,7 +439,9 @@ export default function DonacionPage() {
             header: "Donante",
             cell: (d: Donacion) =>
               d.donante?.nombre ?? (
-                <span className="italic text-muted-foreground">#{d.donanteId}</span>
+                <span className="text-muted-foreground italic">
+                  #{d.donanteId}
+                </span>
               ),
           },
         ]
@@ -393,10 +451,13 @@ export default function DonacionPage() {
       header: "Estado",
       cell: (d) => {
         const desc = d.estadoDonacion?.descripcion
-        if (!desc) return <span className="italic text-muted-foreground"></span>
-        const color = ESTADO_COLORS[desc.toLowerCase()] ?? "bg-gray-100 text-gray-800"
+        if (!desc) return <span className="text-muted-foreground italic"></span>
+        const color =
+          ESTADO_DONACION_COLORS[desc.toLowerCase()] ?? "bg-gray-100 text-gray-800"
         return (
-          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}>
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}
+          >
             {desc}
           </span>
         )
@@ -408,7 +469,8 @@ export default function DonacionPage() {
       header: "Materiales",
       cell: (d) => (
         <span className="text-sm text-muted-foreground">
-          {d.detalles?.length ?? 0} ítem{(d.detalles?.length ?? 0) !== 1 ? "s" : ""}
+          {d.detalles?.length ?? 0} ítem
+          {(d.detalles?.length ?? 0) !== 1 ? "s" : ""}
         </span>
       ),
       className: "w-24",
@@ -432,39 +494,26 @@ export default function DonacionPage() {
       key: "descripcion",
       header: "Descripción",
       cell: (d) =>
-        d.descripcion ?? <span className="italic text-muted-foreground"></span>,
+        d.descripcion ?? <span className="text-muted-foreground italic"></span>,
       className: "max-w-[220px] truncate text-muted-foreground",
     },
   ]
 
   const calDays = getCalendarDays(calYear, calMonth)
   const hoy = new Date()
-  const donanteSeleccionado = donantes.find((d: Donante) => String(d.id) === form.donanteId) ?? null
+  const donanteSeleccionado =
+    donantes.find((d: Donante) => String(d.id) === form.donanteId) ?? null
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Donaciones</h1>
-        <p className="text-sm text-muted-foreground">
-          Administrá las donaciones y los materiales asociados.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          placeholder="Buscar por donante, estado o descripción..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} donación{filtered.length !== 1 ? "es" : ""}
-        </span>
-        <Button className="ml-auto" onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Nueva donación
-        </Button>
-      </div>
+      <Title
+        titlePage="Donaciones"
+        description="Administrá las donaciones y los materiales asociados."
+        search={search}
+        setSearch={setSearch}
+        filtered={filtered}
+        openCreate={openCreate}
+      />
 
       <DataTable
         data={filtered}
@@ -483,31 +532,42 @@ export default function DonacionPage() {
       <FormModal
         open={sheetOpen}
         onOpenChange={setSheetOpen}
-        title={isViewing ? "Ver donación" : editing ? "Editar donación" : "Nueva donación"}
+        title={
+          isViewing
+            ? "Ver donación"
+            : editing
+              ? "Editar donación"
+              : "Nueva donación"
+        }
         readOnly={isViewing}
         onSave={handleSave}
         isLoading={isCreating || isUpdating}
         saveLabel={editing ? "Guardar cambios" : "Crear donación"}
       >
         <div className="flex flex-col gap-5">
-
           {/* Donante */}
           {!isDonante && (
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">Donante *</label>
-              <select
+              <Label className="text-sm font-medium">Donante *</Label>
+              <Select
                 value={form.donanteId}
-                onChange={(e) => setForm((f) => ({ ...f, donanteId: e.target.value }))}
+                onValueChange={(e: any) =>
+                  setForm((f) => ({ ...f, donanteId: e }))
+                }
                 disabled={!!editing}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <option value="">Seleccionar donante...</option>
-                {donantes.map((d: Donante) => (
-                  <option key={d.id} value={d.id}>
-                    {d.nombre}{d.razonSocial ? `  ${d.razonSocial}` : ""}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50">
+                  <SelectValue placeholder="Seleccionar donante..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {donantes.map((d: Donante) => (
+                    <SelectItem key={d.id} value={String(d.id)}>
+                      {d.nombre}
+                      {d.razonSocial ? `  ${d.razonSocial}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
@@ -518,11 +578,11 @@ export default function DonacionPage() {
 
               {/* Calendario */}
               <div className="rounded-lg border bg-muted/20 p-3">
-                <div className="flex items-center justify-between mb-3">
+                <div className="mb-3 flex items-center justify-between">
                   <button
                     type="button"
                     onClick={prevMonth}
-                    className="rounded p-1 hover:bg-muted transition-colors"
+                    className="rounded p-1 transition-colors hover:bg-muted"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </button>
@@ -532,15 +592,18 @@ export default function DonacionPage() {
                   <button
                     type="button"
                     onClick={nextMonth}
-                    className="rounded p-1 hover:bg-muted transition-colors"
+                    className="rounded p-1 transition-colors hover:bg-muted"
                   >
                     <ChevronRight className="h-4 w-4" />
                   </button>
                 </div>
 
-                <div className="grid grid-cols-5 mb-1">
-                  {DIAS_CAL.map((d) => (
-                    <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">
+                <div className="mb-1 grid grid-cols-5">
+                  {DIAS_CAL_CORTOS.map((d) => (
+                    <div
+                      key={d}
+                      className="py-1 text-center text-xs font-medium text-muted-foreground"
+                    >
                       {d}
                     </div>
                   ))}
@@ -550,7 +613,9 @@ export default function DonacionPage() {
                   {calDays.map((dia, idx) => {
                     if (!dia) return <div key={idx} />
                     const habilitado = isFechaValida(dia)
-                    const isSelected = selectedDate ? mismoDia(dia, selectedDate) : false
+                    const isSelected = selectedDate
+                      ? mismoDia(dia, selectedDate)
+                      : false
                     const isHoy = mismoDia(dia, hoy)
                     const cantTurnos = turnosEnDia(dia)
                     return (
@@ -562,17 +627,17 @@ export default function DonacionPage() {
                         className={[
                           "relative mx-auto flex h-8 w-8 items-center justify-center rounded-full text-xs transition-colors",
                           isSelected
-                            ? "bg-primary text-primary-foreground font-semibold"
+                            ? "bg-primary font-semibold text-primary-foreground"
                             : habilitado
-                            ? "hover:bg-muted cursor-pointer"
-                            : isHoy
-                            ? "opacity-40 cursor-not-allowed border border-primary/50 text-primary/70"
-                            : "opacity-25 cursor-not-allowed",
+                              ? "cursor-pointer hover:bg-muted"
+                              : isHoy
+                                ? "cursor-not-allowed border border-primary/50 text-primary/70 opacity-40"
+                                : "cursor-not-allowed opacity-25",
                         ].join(" ")}
                       >
                         {dia.getDate()}
                         {cantTurnos > 0 && !isSelected && (
-                          <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-primary/50" />
+                          <span className="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-primary/50" />
                         )}
                       </button>
                     )
@@ -588,9 +653,11 @@ export default function DonacionPage() {
               {selectedDate && (
                 <div className="flex flex-col gap-2">
                   <span className="text-xs font-medium text-muted-foreground">
-                    Horarios {" "}
+                    Horarios{" "}
                     {selectedDate.toLocaleDateString("es-AR", {
-                      weekday: "long", day: "numeric", month: "long",
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
                     })}
                   </span>
                   <div className="flex flex-wrap gap-1.5">
@@ -608,8 +675,8 @@ export default function DonacionPage() {
                             activo
                               ? "bg-primary text-primary-foreground"
                               : ocupado
-                              ? "bg-muted/40 text-muted-foreground line-through cursor-not-allowed"
-                              : "bg-muted hover:bg-muted/70 cursor-pointer",
+                                ? "cursor-not-allowed bg-muted/40 text-muted-foreground line-through"
+                                : "cursor-pointer bg-muted hover:bg-muted/70",
                           ].join(" ")}
                         >
                           {slot}
@@ -640,37 +707,46 @@ export default function DonacionPage() {
           {/* Estado  solo visible al editar */}
           {!!editing && (
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">Estado</label>
-              <select
-                value={form.estadoDonacionId}
-                onChange={(e) => setForm((f) => ({ ...f, estadoDonacionId: e.target.value }))}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="">Sin estado</option>
-                {estadosDonacion.map((e: EstadoDonacion) => (
-                  <option key={e.id} value={e.id}>{e.descripcion}</option>
-                ))}
-              </select>
+              <Label className="text-sm font-medium">Estado</Label>
+              <Select value={form.estadoDonacionId} onValueChange={(e: any) => setForm((f) => ({ ...f, estadoDonacionId: e }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar estado..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {estadosDonacion.map((e: EstadoDonacion) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.descripcion}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
           {/* Descripción */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">
-              Descripción <span className="font-normal text-muted-foreground">(opcional)</span>
-            </label>
+            <Label className="text-sm font-medium">
+              Descripción{" "}
+              <span className="font-normal text-muted-foreground">
+                (opcional)
+              </span>
+            </Label>
             <textarea
               rows={2}
               placeholder="Descripción general de la donación..."
               value={form.descripcion}
-              onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
-              className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+              onChange={(e) =>
+                setForm((f) => ({ ...f, descripcion: e.target.value }))
+              }
+              className="flex w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
             />
           </div>
 
           {/* Modalidad de entrega */}
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">¿Cómo entregás los materiales? *</label>
+            <Label className="text-sm font-medium">
+              ¿Cómo entregás los materiales? *
+            </Label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -703,7 +779,9 @@ export default function DonacionPage() {
               <div className="flex items-start gap-2 rounded-md border border-orange-200 bg-orange-50 px-3 py-2.5 text-xs text-orange-700">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 <span>
-                  El servicio de retiro a domicilio tiene un <strong>costo adicional</strong> que será coordinado con el equipo de Reboot IT.
+                  El servicio de retiro a domicilio tiene un{" "}
+                  <strong>costo adicional</strong> que será coordinado con el
+                  equipo de Reboot IT.
                 </span>
               </div>
             )}
@@ -713,10 +791,11 @@ export default function DonacionPage() {
                 <p className="text-xs text-muted-foreground">
                   Dirección registrada:{" "}
                   <span className="font-medium text-foreground">
-                    {donanteSeleccionado?.direccion ?? "Sin dirección registrada"}
+                    {donanteSeleccionado?.direccion ??
+                      "Sin dirección registrada"}
                   </span>
                 </p>
-                <label className="flex items-center gap-2 text-sm">
+                <Label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
                     checked={usarOtraDireccion}
@@ -724,7 +803,7 @@ export default function DonacionPage() {
                     className="h-4 w-4 rounded border-input"
                   />
                   Retirar en una dirección distinta a la registrada
-                </label>
+                </Label>
                 {usarOtraDireccion && (
                   <Input
                     placeholder="Dirección donde se realizará el retiro"
@@ -733,17 +812,26 @@ export default function DonacionPage() {
                   />
                 )}
                 <div className="flex flex-col gap-1.5 pt-1">
-                  <label className="text-xs font-medium">
+                  <Label className="text-xs font-medium">
                     Peso estimado de la donación (kg) *
-                  </label>
+                  </Label>
                   <Input
                     inputMode="decimal"
                     placeholder="Ej: 25.50"
                     value={pesoEstimadoKg}
-                    onChange={(e) => setPesoEstimadoKg(enforceDecimalInput(e.target.value, PESO_ESTIMADO_MAX_DIGITS, "El peso estimado"))}
+                    onChange={(e) =>
+                      setPesoEstimadoKg(
+                        enforceDecimalInput(
+                          e.target.value,
+                          PESO_ESTIMADO_MAX_DIGITS,
+                          "El peso estimado"
+                        )
+                      )
+                    }
                   />
                   <p className="text-[11px] text-muted-foreground">
-                    Se usa para asignar un transportista cuyo vehículo soporte esta carga.
+                    Se usa para asignar un transportista cuyo vehículo soporte
+                    esta carga.
                   </p>
                 </div>
               </div>
@@ -753,14 +841,21 @@ export default function DonacionPage() {
           {/* Materiales  tabla */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Materiales a donar *</span>
-              <Button variant="outline" size="sm" type="button" onClick={addDetalle}>
+              <Label className="text-sm font-medium">Materiales a donar *</Label>
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                onClick={addDetalle}
+              >
                 + Agregar
               </Button>
             </div>
 
             {detalles.length === 0 ? (
-              <p className="text-sm italic text-muted-foreground py-1">Sin materiales cargados. Agregá al menos uno.</p>
+              <p className="py-1 text-sm text-muted-foreground italic">
+                Sin materiales cargados. Agregá al menos uno.
+              </p>
             ) : (
               <div className="overflow-x-auto rounded-md border">
                 <table className="w-full text-xs">
@@ -784,12 +879,20 @@ export default function DonacionPage() {
                         <td className="px-2 py-1.5">
                           <select
                             value={det.tipoMaterialId}
-                            onChange={(e) => updateDetalleField(idx, "tipoMaterialId", e.target.value)}
-                            className="h-8 w-full rounded-md border border-input bg-transparent px-2 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            onChange={(e) =>
+                              updateDetalleField(
+                                idx,
+                                "tipoMaterialId",
+                                e.target.value
+                              )
+                            }
+                            className="h-8 w-full rounded-md border border-input bg-transparent px-2 py-1 text-xs shadow-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                           >
                             <option value="">Seleccionar...</option>
                             {tipoMateriales.map((t: TipoMaterial) => (
-                              <option key={t.id} value={t.id}>{t.nombre}</option>
+                              <option key={t.id} value={t.id}>
+                                {t.nombre}
+                              </option>
                             ))}
                           </select>
                         </td>
@@ -799,26 +902,37 @@ export default function DonacionPage() {
                             min={1}
                             placeholder=""
                             value={det.cantidadEstimada}
-                            onChange={(e) => updateDetalleField(idx, "cantidadEstimada", e.target.value)}
+                            onChange={(e) =>
+                              updateDetalleField(
+                                idx,
+                                "cantidadEstimada",
+                                e.target.value
+                              )
+                            }
                             className="h-8 text-xs"
                           />
                         </td>
                         <td className="px-2 py-1.5">
-                          <select
+                          <Select
                             value={det.condicionMaterialId}
                             disabled
-                            className="h-8 w-full rounded-md border border-input bg-muted px-2 py-1 text-xs shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
-                          >
+                            >
+                            <SelectTrigger  className="h-8 w-full rounded-md border border-input bg-muted px-2 py-1 text-xs shadow-sm disabled:cursor-not-allowed disabled:opacity-70">
+                              <SelectValue placeholder="Seleccionar..." />
+                            </SelectTrigger>
+                            <SelectContent>
                             {condiciones.map((c: CondicionMaterial) => (
-                              <option key={c.id} value={c.id}>{c.condicion}</option>
-                            ))}
-                          </select>
+                              <SelectItem key={c.id} value={c.id}>
+                                {c.condicion}
+                              </SelectItem>
+                            ))}</SelectContent>
+                          </Select>
                         </td>
                         <td className="px-2 py-1.5 text-center">
                           <button
                             type="button"
                             onClick={() => removeDetalle(idx)}
-                            className="text-muted-foreground hover:text-destructive transition-colors text-base leading-none"
+                            className="text-base leading-none text-muted-foreground transition-colors hover:text-destructive"
                           >
                             ×
                           </button>
@@ -830,7 +944,6 @@ export default function DonacionPage() {
               </div>
             )}
           </div>
-
         </div>
       </FormModal>
     </div>

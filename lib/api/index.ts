@@ -32,5 +32,5 @@ export * from "./estado-donacion"
 export * from "./metodo-destruccion"
 export * from "./estado-proceso-destruccion"
 export * from "./auditoria"
-export * from "./dashboard"
+
 export * from "./hoja-ruta"
