@@ -35,13 +35,13 @@ const EMPTY_FORM = { donacionId: "", pesoBrutoKg: "", observaciones: "" }
 const columns: TableColumn<Lote>[] = [
   {
     key: "id",
-    header: "ID",
+    header: "N° Lote",
     cell: (l) => <span className="font-mono text-xs">#{l.id}</span>,
   },
   {
     key: "donacionId",
     header: "Donación",
-    cell: (l) => <span className="font-mono text-xs">#{l.donacionId}</span>,
+    cell: (l) => <span className="font-mono text-xs">#{l.donacionId} - {l.donacion?.donante?.nombre}</span>,
   },
   {
     key: "pesoBrutoKg",
@@ -102,7 +102,7 @@ export default function LotePage() {
     setEditing(l)
     setForm({
       donacionId: String(l.donacionId),
-      pesoBrutoKg: l.pesoBrutoKg !== null && l.pesoBrutoKg !== undefined ? String(l.pesoBrutoKg) : "",
+      pesoBrutoKg: l.pesoBrutoKg !== null && l.pesoBrutoKg !== undefined ? String(l.pesoBrutoKg) : String(l.donacion?.pesoEstimadoKg),
       observaciones: l.observaciones ?? "",
     })
     reset()

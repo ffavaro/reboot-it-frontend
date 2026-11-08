@@ -1,40 +1,39 @@
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = ['/', '/login', '/register', '/forgot-password']
+const PUBLIC_PATHS = ['/login', '/register', '/forgot-password']
 
-function isExpired(token: string): boolean {
+const esRutaLibre = (ruta: string): boolean => {
+  if (ruta === '/') return true
+  return PUBLIC_PATHS.some((libre) => ruta === libre || ruta.startsWith(`${libre}/`))
+}
+
+const isExpired = (token: string): boolean => {
   try {
-    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
-    const payload = JSON.parse(atob(base64))
-    return Date.now() >= payload.exp * 1000
-  } catch {
+    const cuerpo = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+    const { exp } = JSON.parse(atob(cuerpo)) as { exp?: number };
+    return typeof exp !== 'number' || Date.now() >= exp * 1000
+  } catch (error) {
     return true
   }
 }
 
+const alLogin = (request: NextRequest, borrarSession: boolean) => {
+  const destino = new URL('/login', request.url);
+  const respuesta = NextResponse.redirect(destino)
+  if (borrarSession) respuesta.cookies.delete('session')
+  return respuesta
+}
+
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
+  if (esRutaLibre(request.nextUrl.pathname)) return NextResponse.next()
 
-  if (pathname === '/' || PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
-    return NextResponse.next()
-  }
-
-  const token = request.cookies.get('session')?.value
-
-  if (!token) {
-    return NextResponse.redirect(new URL('/login', request.url))
-  }
-
-  if (isExpired(decodeURIComponent(token))) {
-    const response = NextResponse.redirect(new URL('/login', request.url))
-    response.cookies.delete('session')
-    return response
-  }
-
+  const cookie = request.cookies.get('session')?.value
+  if (!cookie) return alLogin(request, false)
+  if (isExpired(decodeURIComponent(cookie))) return alLogin(request, true)
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon\\.ico|api).*)'],
+ matcher: ['/((?!_next/static|_next/image|favicon\\.ico|api|img).*)'],
 }
