@@ -21,6 +21,8 @@ import { required, maxLength as maxLengthValidator } from "@/lib/form-validators
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { CondicionMaterial } from "@/lib/type/condicion-material"
 import type { TableColumn } from "@/components/ui/data-table"
+import Title from "@/components/ui/title"
+import { Label } from "@/components/ui/label"
 
 const EMPTY_FORM = { condicion: "", descripcion: "" }
 
@@ -77,12 +79,12 @@ export default function CondicionMaterialPage() {
       (c.descripcion ?? "").toLowerCase().includes(search.toLowerCase()),
   )
 
-  function set(field: keyof typeof EMPTY_FORM, value: string) {
+  const set = (field: keyof typeof EMPTY_FORM, value: string) => {
     setForm((f) => ({ ...f, [field]: value }))
     clearError(field)
   }
 
-  function openCreate() {
+  const openCreate = () => {
     setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
@@ -90,7 +92,7 @@ export default function CondicionMaterialPage() {
     setModalOpen(true)
   }
 
-  function openEdit(c: CondicionMaterial) {
+  const openEdit = (c: CondicionMaterial) => {
     setIsViewing(false)
     setEditing(c)
     setForm({ condicion: c.condicion, descripcion: c.descripcion ?? "" })
@@ -98,7 +100,7 @@ export default function CondicionMaterialPage() {
     setModalOpen(true)
   }
 
-  function openView(c: CondicionMaterial) {
+  const openView = (c: CondicionMaterial) => {
     setIsViewing(true)
     setEditing(c)
     setForm({ condicion: c.condicion, descripcion: c.descripcion ?? "" })
@@ -106,7 +108,7 @@ export default function CondicionMaterialPage() {
     setModalOpen(true)
   }
 
-  async function handleSave() {
+  const handleSave = async () => {
     if (!validate(form, {
       condicion: [required("la condición"), maxLengthValidator(DEFAULT_TEXT_MAX)],
       descripcion: [maxLengthValidator(DEFAULT_TEXT_MAX)],
@@ -130,7 +132,7 @@ export default function CondicionMaterialPage() {
     }
   }
 
-  async function handleDelete(id: number | string) {
+  const handleDelete = async (id: number | string) => {
     try {
       await deleteCondicion(id as number)
       await mutate()
@@ -144,28 +146,14 @@ export default function CondicionMaterialPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Condiciones de Material</h1>
-        <p className="text-sm text-muted-foreground">
-          Administrá las condiciones posibles que puede tener un material al ingresar al sistema.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          placeholder="Buscar por condición o descripción..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} condición{filtered.length !== 1 ? "es" : ""}
-        </span>
-        <Button className="ml-auto" onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Nueva condición
-        </Button>
-      </div>
+      <Title
+        titlePage="Condiciones de Material"
+        description="Administrá las condiciones posibles que puede tener un material al ingresar al sistema."
+        search={search}
+        setSearch={setSearch}
+        filtered={filtered}
+        openCreate={openCreate}
+      />
 
       <DataTable
         data={filtered}
@@ -197,7 +185,7 @@ export default function CondicionMaterialPage() {
         saveLabel={editing ? "Guardar cambios" : "Crear condición"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Condición *</label>
+          <Label className="text-sm font-medium">Condición *</Label>
           <Input
             value={form.condicion}
             onChange={(e) => set("condicion", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La condición"))}
@@ -208,9 +196,9 @@ export default function CondicionMaterialPage() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
+          <Label className="text-sm font-medium">
             Descripción <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
+          </Label>
           <Input
             value={form.descripcion}
             onChange={(e) => set("descripcion", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción"))}

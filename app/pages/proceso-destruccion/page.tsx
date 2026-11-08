@@ -40,6 +40,7 @@ import type { Tipo } from "@/lib/type/tipo"
 import type { Marca } from "@/lib/type/marca"
 import type { Modelo } from "@/lib/type/modelo"
 import { formatDate } from "@/lib/utils/helpers"
+import { ESTADO_COLORS_PROCESO_DESTRUCCION } from "@/lib/utils/estados"
 
 const EMPTY_FORM = {
   medioAlmacenamientoId: "",
@@ -58,11 +59,7 @@ function todayISO(): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 }
 
-const ESTADO_COLORS: Record<string, string> = {
-  Iniciado: "bg-blue-100 text-blue-800",
-  Pendiente: "bg-yellow-100 text-yellow-800",
-  Finalizado: "bg-green-100 text-green-800",
-}
+
 
 
 function medioLabel(m: MedioAlmacenamiento) {
@@ -116,11 +113,9 @@ const columns: TableColumn<ProcesoDestruccion>[] = [
     key: "estado",
     header: "Estado",
     cell: (p) => {
-      const nombre = p.estado?.nombre ?? ""
-      const color = ESTADO_COLORS[nombre] ?? "bg-gray-100 text-gray-800"
       return (
-        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}>
-          {nombre || ""}
+        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${ESTADO_COLORS_PROCESO_DESTRUCCION[p.estado?.nombre ? p.estado.nombre : "Defecto"]}`}>
+          {p.estado?.nombre || ""}
         </span>
       )
     },

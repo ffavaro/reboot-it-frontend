@@ -1,6 +1,5 @@
 "use client"
 import { Plus } from "lucide-react"
-
 import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
@@ -36,7 +35,7 @@ const EMPTY_FORM = {
 const COLUMNS: TableColumn<MedioAlmacenamiento>[] = [
   {
     key: "materialId",
-    header: "Material ID",
+    header: "Material",
     cell: (m) => <span className="font-mono text-xs">{m.materialId}</span>,
   },
   {

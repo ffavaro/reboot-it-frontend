@@ -21,6 +21,8 @@ import { required, cuitFormat, maxLength as maxLengthValidator } from "@/lib/for
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { GestorAmbiental } from "@/lib/type/gestor-ambiental"
 import type { TableColumn } from "@/components/ui/data-table"
+import Title from "@/components/ui/title"
+import { Label } from "@/components/ui/label"
 
 const EMPTY_FORM = { razonSocial: "", cuit: "", habilitacion: "", contacto: "" }
 
@@ -83,12 +85,12 @@ export default function GestorAmbientalPage() {
       (g.contacto ?? "").toLowerCase().includes(search.toLowerCase()),
   )
 
-  function set(field: keyof typeof EMPTY_FORM, value: string) {
+  const set = (field: keyof typeof EMPTY_FORM, value: string) => {
     setForm((f) => ({ ...f, [field]: value }))
     clearError(field)
   }
 
-  function openCreate() {
+  const openCreate = () => {
     setIsViewing(false)
     setEditing(null)
     setForm(EMPTY_FORM)
@@ -96,7 +98,7 @@ export default function GestorAmbientalPage() {
     setModalOpen(true)
   }
 
-  function openEdit(g: GestorAmbiental) {
+  const openEdit = (g: GestorAmbiental) => {
     setIsViewing(false)
     setEditing(g)
     setForm({
@@ -109,7 +111,7 @@ export default function GestorAmbientalPage() {
     setModalOpen(true)
   }
 
-  function openView(g: GestorAmbiental) {
+  const openView = (g: GestorAmbiental) => {
     setIsViewing(true)
     setEditing(g)
     setForm({
@@ -122,7 +124,7 @@ export default function GestorAmbientalPage() {
     setModalOpen(true)
   }
 
-  async function handleSave() {
+  const handleSave = async () => {
     if (!validate(form, {
       razonSocial: [required("la razón social"), maxLengthValidator(DEFAULT_TEXT_MAX)],
       cuit: [cuitFormat()],
@@ -150,7 +152,7 @@ export default function GestorAmbientalPage() {
     }
   }
 
-  async function handleDelete(id: number | string) {
+  const handleDelete = async (id: number | string) => {
     try {
       await deleteGestor(id as number)
       await mutate()
@@ -164,28 +166,14 @@ export default function GestorAmbientalPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Gestores Ambientales</h1>
-        <p className="text-sm text-muted-foreground">
-          Administrá las empresas habilitadas para la disposición final de materiales.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          placeholder="Buscar por razón social, CUIT, habilitación o contacto..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} gestor{filtered.length !== 1 ? "es" : ""}
-        </span>
-        <Button className="ml-auto" onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Nuevo gestor
-        </Button>
-      </div>
+      <Title
+      titlePage="Gestores Ambientales"
+      description="Administrá las empresas habilitadas para la disposición final de materiales."
+      search={search}
+      setSearch={setSearch}
+      filtered={filtered}
+      openCreate={openCreate}
+      ></Title>
 
       <DataTable
         data={filtered}
@@ -217,7 +205,7 @@ export default function GestorAmbientalPage() {
         saveLabel={editing ? "Guardar cambios" : "Crear gestor"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Razón social *</label>
+          <Label className="text-sm font-medium">Razón social *</Label>
           <Input
             value={form.razonSocial}
             onChange={(e) => set("razonSocial", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La razón social"))}
@@ -228,9 +216,9 @@ export default function GestorAmbientalPage() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
+          <Label className="text-sm font-medium">
             CUIT <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
+          </Label>
           <Input
             value={form.cuit}
             onChange={(e) => set("cuit", e.target.value.replace(/[^0-9-]/g, ""))}
@@ -242,7 +230,7 @@ export default function GestorAmbientalPage() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">N° de habilitación *</label>
+          <Label className="text-sm font-medium">N° de habilitación *</Label>
           <Input
             value={form.habilitacion}
             onChange={(e) => set("habilitacion", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La habilitación"))}
@@ -252,9 +240,9 @@ export default function GestorAmbientalPage() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
+          <Label className="text-sm font-medium">
             Contacto <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
+          </Label>
           <Input
             value={form.contacto}
             onChange={(e) => set("contacto", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El contacto"))}

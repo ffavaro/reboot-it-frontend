@@ -1,12 +1,8 @@
 "use client"
-import { Plus } from "lucide-react"
-
 import { useState } from "react"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { FieldError } from "@/components/ui/field"
@@ -21,6 +17,9 @@ import { required, maxLength as maxLengthValidator } from "@/lib/form-validators
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { TipoMaterial } from "@/lib/type/tipo-material"
 import type { TableColumn } from "@/components/ui/data-table"
+import { filterBySearch, openCreate, openEdit, openView, set } from "@/lib/utils/utils-modal"
+import Title from "@/components/ui/title"
+import { Label } from "@/components/ui/label"
 
 const EMPTY_FORM = { nombre: "", descripcion: "" }
 
@@ -55,42 +54,9 @@ export default function TipoMaterialPage() {
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
-  const filtered = tipoMateriales.filter(
-    (t) =>
-      t.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      (t.descripcion ?? "").toLowerCase().includes(search.toLowerCase()),
-  )
+  const filtered = filterBySearch(tipoMateriales, search, ["nombre", "descripcion"])
 
-  function set(field: keyof typeof EMPTY_FORM, value: string) {
-    setForm((f) => ({ ...f, [field]: value }))
-    clearError(field)
-  }
-
-  function openCreate() {
-    setIsViewing(false)
-    setEditing(null)
-    setForm(EMPTY_FORM)
-    reset()
-    setModalOpen(true)
-  }
-
-  function openEdit(t: TipoMaterial) {
-    setIsViewing(false)
-    setEditing(t)
-    setForm({ nombre: t.nombre, descripcion: t.descripcion ?? "" })
-    reset()
-    setModalOpen(true)
-  }
-
-  function openView(t: TipoMaterial) {
-    setIsViewing(true)
-    setEditing(t)
-    setForm({ nombre: t.nombre, descripcion: t.descripcion ?? "" })
-    reset()
-    setModalOpen(true)
-  }
-
-  async function handleSave() {
+  const handleSave = async () => {
     if (!validate(form, {
       nombre: [required("el nombre"), maxLengthValidator(DEFAULT_TEXT_MAX)],
       descripcion: [maxLengthValidator(DEFAULT_TEXT_MAX)],
@@ -114,7 +80,7 @@ export default function TipoMaterialPage() {
     }
   }
 
-  async function handleDelete(id: number | string) {
+  const handleDelete =  async (id: number | string) => {
     try {
       await deleteTipoMaterial(id as number)
       await mutate()
@@ -128,28 +94,21 @@ export default function TipoMaterialPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Tipos de Material</h1>
-        <p className="text-sm text-muted-foreground">
-          Administrá las categorías de materiales que ingresan al sistema.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          placeholder="Buscar por nombre o descripción..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} tipo{filtered.length !== 1 ? "s" : ""}
-        </span>
-        <Button className="ml-auto" onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Nuevo tipo
-        </Button>
-      </div>
+      <Title
+        titlePage="Tipos de Material"
+        description="Administrá las categorías de materiales que ingresan al sistema."
+        search={search}
+        setSearch={setSearch}
+        filtered={filtered}
+        openCreate={() => openCreate({
+          setIsViewing,
+          setEditing,
+          setForm,
+          reset,
+          setModalOpen,
+          EMPTY_FORM,
+        })}
+      />
 
       <DataTable
         data={filtered}
@@ -159,8 +118,24 @@ export default function TipoMaterialPage() {
         emptyText="No hay tipos de material registrados."
         emptySearchText="No se encontraron tipos con ese criterio."
         search={search}
-        onView={openView}
-        onEdit={openEdit}
+        onView={(t) => openView({
+          t,
+          setIsViewing,
+          setEditing,
+          setForm,
+          reset,
+          setModalOpen,
+          jsonEntidad: { nombre: t.nombre, descripcion: t.descripcion ?? "" },
+        })}
+        onEdit={(t) => openEdit({
+          t,
+          setIsViewing,
+          setEditing,
+          setForm,
+          reset,
+          setModalOpen,
+          jsonEntidad: { nombre: t.nombre, descripcion: t.descripcion ?? "" },
+        })}
         onDelete={handleDelete}
         isDeleting={isDeleting}
       />
@@ -181,10 +156,17 @@ export default function TipoMaterialPage() {
         saveLabel={editing ? "Guardar cambios" : "Crear tipo"}
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Nombre *</label>
+          <Label className="text-sm font-medium">Nombre *</Label>
           <Input
             value={form.nombre}
-            onChange={(e) => set("nombre", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"))}
+            onChange={(e) =>
+              set({
+                setFrom: setForm,
+                fileds: "nombre",
+                value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"),
+                clearError,
+              })
+            }
             placeholder="Ej: Electrónico, Eléctrico, Batería..."
             className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
           />
@@ -192,12 +174,19 @@ export default function TipoMaterialPage() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">
+          <Label className="text-sm font-medium">
             Descripción <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
+          </Label>
           <Input
             value={form.descripcion}
-            onChange={(e) => set("descripcion", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción"))}
+            onChange={(e) =>
+              set({
+                setFrom: setForm,
+                fileds: "descripcion",
+                value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción"),
+                clearError,
+              })
+            }
             placeholder="Breve descripción del tipo de material"
           />
           <FieldError>{errors.descripcion}</FieldError>
