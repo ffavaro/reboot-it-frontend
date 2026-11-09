@@ -11,9 +11,12 @@ import {
 import { Input } from "@/components/ui/input"
 import { useLogin } from "@/hooks/use-auth"
 import { toast } from "react-toastify"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { saveSession, getUser } from "@/lib/auth-utils"
+import { permisosApi } from "@/lib/api/permisos"
+import { primeraRutaPermitida } from "@/lib/type/menu"
+
 export function LoginForm({
   className,
   ...props
@@ -34,9 +37,8 @@ export function LoginForm({
     const result = await login({ email, password })
     if (result?.access_token) {
       saveSession(result.access_token)
-      const user = getUser()
-      const isDonante = user?.rol?.nombre?.toLowerCase() === "donante"
-      router.push(isDonante ? "/pages/donacion" : "/pages/dashboard")
+      const permisos = await permisosApi.mios().catch(() => null)
+      router.push(permisos ? primeraRutaPermitida(permisos) : "/pages/perfil")
     }
   } catch (err: any) {
     // err ya tiene la forma { statusCode, message, error }

@@ -4,7 +4,7 @@ import React from "react"
 interface SetFormParams<K extends string> {
   setFrom: React.Dispatch<React.SetStateAction<any>>
   fileds: K
-  value: string
+  value: string | number
   clearError: (field: K) => void
 }
 

@@ -33,15 +33,6 @@ export interface HojaRutaInfo {
   kmEstimado: number | null
 }
 
-export interface ClimaDia {
-  codigo: number
-  descripcion: string
-  tempMin: number
-  tempMax: number
-  probLluvia: number | null
-  vientoMaxKmh: number | null
-}
-
 export interface HojaRutaDia {
   empleadoTransportistaId: number
   transportista: { nombre: string; apellido: string } | null
@@ -59,7 +50,6 @@ export interface HojaRutaDia {
   origen: string | null
   rutaOptimizada: boolean
   advertencia?: string
-  clima?: ClimaDia | null
   hojaRuta: HojaRutaInfo | null
 }
 

@@ -1,12 +1,9 @@
 "use client"
-import { Plus } from "lucide-react"
 
 import { useState } from "react"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { FieldError } from "@/components/ui/field"
@@ -16,6 +13,8 @@ import { required, maxLength as maxLengthValidator } from "@/lib/form-validators
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { Rol } from "@/lib/type/user"
 import type { TableColumn } from "@/components/ui/data-table"
+import { filterBySearch, openCreate, openEdit, openView, set } from "@/lib/utils/utils-modal"
+import Title from "@/components/ui/title"
 
 const EMPTY_FORM = { nombre: "", descripcion: "" }
 
@@ -50,40 +49,7 @@ export default function RolesPage() {
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
-  const filtered = roles.filter(
-    (r: Rol) =>
-      r.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      (r.descripcion ?? "").toLowerCase().includes(search.toLowerCase()),
-  )
-
-  function set(field: keyof typeof EMPTY_FORM, value: string) {
-    setForm((f) => ({ ...f, [field]: value }))
-    clearError(field)
-  }
-
-  function openCreate() {
-    setIsViewing(false)
-    setEditing(null)
-    setForm(EMPTY_FORM)
-    reset()
-    setModalOpen(true)
-  }
-
-  function openEdit(r: Rol) {
-    setIsViewing(false)
-    setEditing(r)
-    setForm({ nombre: r.nombre, descripcion: r.descripcion ?? "" })
-    reset()
-    setModalOpen(true)
-  }
-
-  function openView(r: Rol) {
-    setIsViewing(true)
-    setEditing(r)
-    setForm({ nombre: r.nombre, descripcion: r.descripcion ?? "" })
-    reset()
-    setModalOpen(true)
-  }
+  const filtered = filterBySearch(roles, search, ["nombre", "descripcion"]);
 
   async function handleSave() {
     if (!validate(form, {
@@ -123,28 +89,20 @@ export default function RolesPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Roles</h1>
-        <p className="text-sm text-muted-foreground">
-          Administrá los roles del sistema y sus descripciones.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          placeholder="Buscar por nombre o descripción..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} rol{filtered.length !== 1 ? "es" : ""}
-        </span>
-        <Button className="ml-auto" onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Nuevo rol
-        </Button>
-      </div>
+      <Title
+        titlePage="Roles"
+        description="Administrá los roles del sistema y sus descripciones."
+        search={search}
+        setSearch={setSearch}
+        filtered={filtered}
+        openCreate={() => openCreate({
+          setIsViewing,
+          setEditing,
+          setForm,
+          reset,
+          setModalOpen,
+          EMPTY_FORM
+        })}></Title>
 
       <DataTable
         data={filtered}
@@ -154,8 +112,14 @@ export default function RolesPage() {
         emptyText="No hay roles registrados."
         emptySearchText="No se encontraron roles con ese criterio."
         search={search}
-        onView={openView}
-        onEdit={openEdit}
+        onView={(t) => openView({
+          t: t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: { nombre: t.nombre, descripcion: t.descripcion ?? "" }
+        })}
+        onEdit={(t) => openEdit({
+          t: t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: { nombre: t.nombre, descripcion: t.descripcion ?? "" }
+        })}
         onDelete={handleDelete}
         isDeleting={isDeleting}
       />
@@ -179,7 +143,7 @@ export default function RolesPage() {
           <label className="text-sm font-medium">Nombre *</label>
           <Input
             value={form.nombre}
-            onChange={(e) => set("nombre", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "nombre", value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"), clearError })}
             placeholder="Ej: Administrador, Inspector, Transportista..."
             className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
           />
@@ -192,7 +156,7 @@ export default function RolesPage() {
           </label>
           <Input
             value={form.descripcion}
-            onChange={(e) => set("descripcion", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción"))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "descripcion", value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción"), clearError })}
             placeholder="Breve descripción del rol"
           />
           <FieldError>{errors.descripcion}</FieldError>

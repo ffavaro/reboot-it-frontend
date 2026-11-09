@@ -1,17 +1,16 @@
 "use client"
-import { Plus } from "lucide-react"
-
 import { useState } from "react"
 import { toast } from "react-toastify"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { useMarcas, useCreateMarca, useUpdateMarca, useDeleteMarca } from "@/hooks/use-marca"
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { Marca } from "@/lib/type/marca"
 import type { TableColumn } from "@/components/ui/data-table"
+import { filterBySearch, openCreate, openEdit, openView, set } from "@/lib/utils/utils-modal"
+import { useFormErrors } from "@/hooks/use-form-errors"
+import Title from "@/components/ui/title"
 
 const EMPTY_FORM = { nombre: "" }
 
@@ -34,31 +33,9 @@ export default function MarcasPage() {
   const [editing, setEditing] = useState<Marca | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const { clearError, reset } = useFormErrors<typeof EMPTY_FORM>()
 
-  const filtered = marcas.filter((m: Marca) =>
-    m.nombre.toLowerCase().includes(search.toLowerCase()),
-  )
-
-  function openCreate() {
-    setIsViewing(false)
-    setEditing(null)
-    setForm(EMPTY_FORM)
-    setModalOpen(true)
-  }
-
-  function openEdit(m: Marca) {
-    setIsViewing(false)
-    setEditing(m)
-    setForm({ nombre: m.nombre })
-    setModalOpen(true)
-  }
-
-  function openView(m: Marca) {
-    setIsViewing(true)
-    setEditing(m)
-    setForm({ nombre: m.nombre })
-    setModalOpen(true)
-  }
+  const filtered = filterBySearch(marcas, search, ["nombre"]) as Marca[]
 
   async function handleSave() {
     if (!form.nombre.trim()) {
@@ -94,28 +71,14 @@ export default function MarcasPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Marcas</h1>
-        <p className="text-sm text-muted-foreground">
-          Administrá las marcas de medios de almacenamiento (Seagate, WD, Kingston, etc.).
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          placeholder="Buscar por nombre..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} marca{filtered.length !== 1 ? "s" : ""}
-        </span>
-        <Button className="ml-auto" onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Nueva marca
-        </Button>
-      </div>
+      <Title
+        titlePage="Marcas"
+        description="Administrá las marcas de medios de almacenamiento (Seagate, WD, Kingston, etc.)."
+        search={search}
+        setSearch={setSearch}
+        filtered={filtered}
+        openCreate={() => openCreate({ setIsViewing, setEditing, setForm, reset, setModalOpen, EMPTY_FORM })}
+      />
 
       <DataTable
         data={filtered}
@@ -125,8 +88,14 @@ export default function MarcasPage() {
         emptyText="No hay marcas registradas."
         emptySearchText="No se encontraron marcas con ese criterio."
         search={search}
-        onView={openView}
-        onEdit={openEdit}
+        onView={(t) => openView({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: { nombre: t.nombre },
+        })}
+        onEdit={(t) => openEdit({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: { nombre: t.nombre },
+        })}
         onDelete={handleDelete}
         isDeleting={isDeleting}
       />
@@ -150,7 +119,7 @@ export default function MarcasPage() {
           <label className="text-sm font-medium">Nombre *</label>
           <Input
             value={form.nombre}
-            onChange={(e) => setForm({ nombre: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre") })}
+            onChange={(e) => set({ setFrom: setForm, fileds: "nombre", value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"), clearError })}
             placeholder="Ej: Seagate, WD, Kingston, Samsung..."
           />
         </div>

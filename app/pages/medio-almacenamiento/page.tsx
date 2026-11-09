@@ -1,10 +1,7 @@
 "use client"
-import { Plus } from "lucide-react"
 import { useState } from "react"
 import { toast } from "react-toastify"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import {
@@ -23,6 +20,9 @@ import type { Marca } from "@/lib/type/marca"
 import type { Modelo } from "@/lib/type/modelo"
 import type { Material } from "@/lib/type/material"
 import type { TableColumn } from "@/components/ui/data-table"
+import { openCreate, openEdit, openView, set } from "@/lib/utils/utils-modal"
+import { useFormErrors } from "@/hooks/use-form-errors"
+import Title from "@/components/ui/title"
 
 const EMPTY_FORM = {
   materialId: "",
@@ -84,6 +84,7 @@ export default function MedioAlmacenamientoPage() {
   const [editing, setEditing] = useState<MedioAlmacenamiento | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const { clearError, reset } = useFormErrors<typeof EMPTY_FORM>()
 
   const filtered = medios.filter((m: MedioAlmacenamiento) => {
     const q = search.toLowerCase()
@@ -94,39 +95,6 @@ export default function MedioAlmacenamientoPage() {
       (m.modelo?.nombre ?? "").toLowerCase().includes(q)
     )
   })
-
-  function openCreate() {
-    setIsViewing(false)
-    setEditing(null)
-    setForm(EMPTY_FORM)
-    setModalOpen(true)
-  }
-
-  function openEdit(m: MedioAlmacenamiento) {
-    setIsViewing(false)
-    setEditing(m)
-    setForm({
-      materialId: String(m.materialId),
-      tipoId: m.tipoId ? String(m.tipoId) : "",
-      marcaId: m.marcaId ? String(m.marcaId) : "",
-      modeloId: m.modeloId ? String(m.modeloId) : "",
-      terminosUso: m.terminosUso ?? "",
-    })
-    setModalOpen(true)
-  }
-
-  function openView(m: MedioAlmacenamiento) {
-    setIsViewing(true)
-    setEditing(m)
-    setForm({
-      materialId: String(m.materialId),
-      tipoId: m.tipoId ? String(m.tipoId) : "",
-      marcaId: m.marcaId ? String(m.marcaId) : "",
-      modeloId: m.modeloId ? String(m.modeloId) : "",
-      terminosUso: m.terminosUso ?? "",
-    })
-    setModalOpen(true)
-  }
 
   async function handleSave() {
     if (!form.materialId) {
@@ -167,28 +135,14 @@ export default function MedioAlmacenamientoPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Medios de Almacenamiento</h1>
-        <p className="text-sm text-muted-foreground">
-          Administrá los medios de almacenamiento asociados a materiales del sistema.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          placeholder="Buscar por material, tipo, marca o modelo..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} medio{filtered.length !== 1 ? "s" : ""}
-        </span>
-        <Button className="ml-auto" onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Nuevo medio
-        </Button>
-      </div>
+      <Title
+        titlePage="Medios de Almacenamiento"
+        description="Administrá los medios de almacenamiento asociados a materiales del sistema."
+        search={search}
+        setSearch={setSearch}
+        filtered={filtered}
+        openCreate={() => openCreate({ setIsViewing, setEditing, setForm, reset, setModalOpen, EMPTY_FORM })}
+      />
 
       <DataTable
         data={filtered}
@@ -198,8 +152,26 @@ export default function MedioAlmacenamientoPage() {
         emptyText="No hay medios de almacenamiento registrados."
         emptySearchText="No se encontraron medios con ese criterio."
         search={search}
-        onView={openView}
-        onEdit={openEdit}
+        onView={(t) => openView({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: {
+            materialId: String(t.materialId),
+            tipoId: t.tipoId ? String(t.tipoId) : "",
+            marcaId: t.marcaId ? String(t.marcaId) : "",
+            modeloId: t.modeloId ? String(t.modeloId) : "",
+            terminosUso: t.terminosUso ?? "",
+          },
+        })}
+        onEdit={(t) => openEdit({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: {
+            materialId: String(t.materialId),
+            tipoId: t.tipoId ? String(t.tipoId) : "",
+            marcaId: t.marcaId ? String(t.marcaId) : "",
+            modeloId: t.modeloId ? String(t.modeloId) : "",
+            terminosUso: t.terminosUso ?? "",
+          },
+        })}
         onDelete={handleDelete}
         isDeleting={isDeleting}
       />
@@ -222,7 +194,7 @@ export default function MedioAlmacenamientoPage() {
           <label className="text-sm font-medium">Material</label>
           <select
             value={form.materialId}
-            onChange={(e) => setForm((f) => ({ ...f, materialId: e.target.value }))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "materialId", value: e.target.value, clearError })}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="">Seleccionar material...</option>
@@ -240,7 +212,7 @@ export default function MedioAlmacenamientoPage() {
           </label>
           <select
             value={form.tipoId}
-            onChange={(e) => setForm((f) => ({ ...f, tipoId: e.target.value }))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "tipoId", value: e.target.value, clearError })}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="">Sin tipo</option>
@@ -256,7 +228,7 @@ export default function MedioAlmacenamientoPage() {
           </label>
           <select
             value={form.marcaId}
-            onChange={(e) => setForm((f) => ({ ...f, marcaId: e.target.value }))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "marcaId", value: e.target.value, clearError })}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="">Sin marca</option>
@@ -272,7 +244,7 @@ export default function MedioAlmacenamientoPage() {
           </label>
           <select
             value={form.modeloId}
-            onChange={(e) => setForm((f) => ({ ...f, modeloId: e.target.value }))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "modeloId", value: e.target.value, clearError })}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="">Sin modelo</option>
@@ -290,7 +262,7 @@ export default function MedioAlmacenamientoPage() {
           </label>
           <Input
             value={form.terminosUso}
-            onChange={(e) => setForm((f) => ({ ...f, terminosUso: e.target.value }))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "terminosUso", value: e.target.value, clearError })}
             placeholder="Ej: Uso en ambiente seco, temperatura controlada..."
             maxLength={500}
           />

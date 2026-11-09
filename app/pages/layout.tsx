@@ -16,6 +16,7 @@ import { UserIcon, ChevronRight, LogOut } from "lucide-react"
 import { useEffect, useState } from "react";
 import { getUser, clearSession } from "@/lib/auth-utils"
 import { useRouter } from "next/navigation"
+import { GuardaDeRuta } from "@/components/permisos/guarda-de-ruta";
 
 export default function RootLayout({
   children,
@@ -36,7 +37,7 @@ export default function RootLayout({
       <ThemeProvider defaultTheme="light">
         <AppSidebar />
         <SidebarInset className="bg-slate-200/70">
-           <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 bg-slate-900 border-b border-white/10 shadow-sm transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+          <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 bg-slate-900 border-b border-white/10 shadow-sm transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
             <div className="flex items-center gap-3 px-4">
               <SidebarTrigger className="-ml-1 text-white hover:bg-white/10 hover:text-white" />
               <Breadcrumb>
@@ -71,7 +72,7 @@ export default function RootLayout({
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleLogout} variant="destructive">
-                     <LogOut className="mr-2 h-4 w-4" />
+                      <LogOut className="mr-2 h-4 w-4" />
                       Cerrar sesión
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -81,7 +82,7 @@ export default function RootLayout({
           </header>
           <main className="p-4 md:p-6">
             <PestanasSeccion />
-            {children}
+            <GuardaDeRuta> {children}</GuardaDeRuta>
           </main>
         </SidebarInset>
       </ThemeProvider>

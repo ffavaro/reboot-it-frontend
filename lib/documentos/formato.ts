@@ -1,4 +1,4 @@
-const VACIO = "—"
+const VACIO = ""
 
 export const texto = (valor: string | number | null | undefined) =>
   valor === null || valor === undefined || valor === "" ? VACIO : String(valor)

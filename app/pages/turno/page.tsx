@@ -577,7 +577,6 @@ export default function TurnoPage() {
         isDeleting={isDeleting}
       />
 
-      {/* Modal crear/editar */}
       <FormModal
         open={modalOpen}
         onOpenChange={setModalOpen}

@@ -1,12 +1,8 @@
 "use client"
-import { Plus } from "lucide-react"
-
 import { useState } from "react"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { FieldError } from "@/components/ui/field"
@@ -22,6 +18,8 @@ import { required, requiredSelect, maxLength as maxLengthValidator } from "@/lib
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { Empleado } from "@/lib/type/user"
 import type { TableColumn } from "@/components/ui/data-table"
+import { filterBySearch, openCreate, openEdit, openView, set } from "@/lib/utils/utils-modal"
+import Title from "@/components/ui/title"
 
 const EMPTY_FORM = {
   rolId: 0,
@@ -94,53 +92,7 @@ export default function EmployeePage() {
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
-  const filtered = empleados.filter(
-    (e) =>
-      e.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      e.apellido.toLowerCase().includes(search.toLowerCase()) ||
-      (e.cargo ?? "").toLowerCase().includes(search.toLowerCase()),
-  )
-
-  function set(field: keyof typeof EMPTY_FORM, value: string | number) {
-    setForm((f) => ({ ...f, [field]: value }))
-    clearError(field)
-  }
-
-  function openCreate() {
-    setIsViewing(false)
-    setEditing(null)
-    setForm(EMPTY_FORM)
-    reset()
-    setModalOpen(true)
-  }
-
-  function openEdit(e: Empleado) {
-    setIsViewing(false)
-    setEditing(e)
-    setForm({
-      rolId: e.rolId,
-      nombre: e.nombre,
-      apellido: e.apellido,
-      telefono: e.telefono ?? "",
-      cargo: e.cargo ?? "",
-    })
-    reset()
-    setModalOpen(true)
-  }
-
-  function openView(e: Empleado) {
-    setIsViewing(true)
-    setEditing(e)
-    setForm({
-      rolId: e.rolId,
-      nombre: e.nombre,
-      apellido: e.apellido,
-      telefono: e.telefono ?? "",
-      cargo: e.cargo ?? "",
-    })
-    reset()
-    setModalOpen(true)
-  }
+  const filtered = filterBySearch(empleados, search, ["nombre", "apellido", "cargo"]) as Empleado[]
 
   async function handleSave() {
     if (!validate(form, {
@@ -185,28 +137,14 @@ export default function EmployeePage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Gestión de Empleados</h1>
-        <p className="text-sm text-muted-foreground">
-          Administrá los empleados registrados en el sistema.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          placeholder="Buscar por nombre, apellido o cargo..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} empleado{filtered.length !== 1 ? "s" : ""}
-        </span>
-        <Button className="ml-auto" onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Nuevo empleado
-        </Button>
-      </div>
+      <Title
+        titlePage="Gestión de Empleados"
+        description="Administrá los empleados registrados en el sistema."
+        search={search}
+        setSearch={setSearch}
+        filtered={filtered}
+        openCreate={() => openCreate({ setIsViewing, setEditing, setForm, reset, setModalOpen, EMPTY_FORM })}
+      />
 
       <DataTable
         data={filtered}
@@ -216,8 +154,26 @@ export default function EmployeePage() {
         emptyText="No hay empleados registrados."
         emptySearchText="No se encontraron empleados."
         search={search}
-        onView={openView}
-        onEdit={openEdit}
+        onView={(t) => openView({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: {
+            rolId: t.rolId,
+            nombre: t.nombre,
+            apellido: t.apellido,
+            telefono: t.telefono ?? "",
+            cargo: t.cargo ?? "",
+          },
+        })}
+        onEdit={(t) => openEdit({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: {
+            rolId: t.rolId,
+            nombre: t.nombre,
+            apellido: t.apellido,
+            telefono: t.telefono ?? "",
+            cargo: t.cargo ?? "",
+          },
+        })}
         onDelete={handleDelete}
         isDeleting={isDeleting}
       />
@@ -242,7 +198,7 @@ export default function EmployeePage() {
             <label className="text-sm font-medium">Nombre *</label>
             <Input
               value={form.nombre}
-              onChange={(e) => set("nombre", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"))}
+              onChange={(e) => set({ setFrom: setForm, fileds: "nombre", value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"), clearError })}
               placeholder="Juan"
               className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
             />
@@ -252,7 +208,7 @@ export default function EmployeePage() {
             <label className="text-sm font-medium">Apellido *</label>
             <Input
               value={form.apellido}
-              onChange={(e) => set("apellido", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El apellido"))}
+              onChange={(e) => set({ setFrom: setForm, fileds: "apellido", value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El apellido"), clearError })}
               placeholder="Pérez"
               className={cn(errors.apellido && "border-destructive focus-visible:ring-destructive")}
             />
@@ -264,7 +220,7 @@ export default function EmployeePage() {
           <label className="text-sm font-medium">Rol *</label>
           <select
             value={form.rolId}
-            onChange={(e) => set("rolId", Number(e.target.value))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "rolId", value: Number(e.target.value), clearError })}
             className={cn(
               "w-full rounded-4xl border bg-background px-3 py-2 text-sm",
               "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0",
@@ -287,7 +243,7 @@ export default function EmployeePage() {
           </label>
           <Input
             value={form.cargo}
-            onChange={(e) => set("cargo", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El cargo"))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "cargo", value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El cargo"), clearError })}
             placeholder="Técnico IT"
           />
           <FieldError>{errors.cargo}</FieldError>
@@ -299,7 +255,7 @@ export default function EmployeePage() {
           </label>
           <Input
             value={form.telefono}
-            onChange={(e) => set("telefono", e.target.value.replace(/\D/g, ""))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "telefono", value: e.target.value.replace(/\D/g, ""), clearError })}
             placeholder="5491112345678"
             inputMode="numeric"
             maxLength={20}

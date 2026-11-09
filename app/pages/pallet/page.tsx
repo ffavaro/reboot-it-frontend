@@ -6,7 +6,6 @@ import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { SearchInput } from "@/components/ui/search-input"
 import { DataTable, type TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { FieldError } from "@/components/ui/field"
@@ -32,6 +31,8 @@ import { enforceDecimalInput, DEFAULT_WEIGHT_MAX_DIGITS } from "@/lib/utils/numb
 import type { Pallet } from "@/lib/type/pallet"
 import type { Rack } from "@/lib/type/rack"
 import type { Lote } from "@/lib/type/lote"
+import { openCreate, openEdit, openView, set } from "@/lib/utils/utils-modal"
+import Title from "@/components/ui/title"
 
 const EMPTY_FORM = { rackId: "", loteId: "", codigo: "", peso_kg: "" }
 const EMPTY_QUICK_LOTE = { donacionId: "", pesoBrutoKg: "", observaciones: "" }
@@ -135,40 +136,6 @@ export default function PalletPage() {
     )
   })
 
-  function openCreate() {
-    setIsViewing(false)
-    setEditing(null)
-    setForm({ ...EMPTY_FORM, codigo: generatePalletCodigo(pallets) })
-    reset()
-    setModalOpen(true)
-  }
-
-  function openEdit(p: Pallet) {
-    setIsViewing(false)
-    setEditing(p)
-    setForm({
-      rackId: String(p.rackId),
-      loteId: p.loteId ? String(p.loteId) : "",
-      codigo: p.codigo ?? "",
-      peso_kg: p.peso_kg !== null && p.peso_kg !== undefined ? String(p.peso_kg) : "",
-    })
-    reset()
-    setModalOpen(true)
-  }
-
-  function openView(p: Pallet) {
-    setIsViewing(true)
-    setEditing(p)
-    setForm({
-      rackId: String(p.rackId),
-      loteId: p.loteId ? String(p.loteId) : "",
-      codigo: p.codigo ?? "",
-      peso_kg: p.peso_kg !== null && p.peso_kg !== undefined ? String(p.peso_kg) : "",
-    })
-    reset()
-    setModalOpen(true)
-  }
-
   async function handleSave() {
     if (!validate(form, {
       rackId: [requiredSelect("un rack")],
@@ -244,28 +211,17 @@ export default function PalletPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Pallets</h1>
-        <p className="text-sm text-muted-foreground">
-          Administrá los pallets almacenados en racks.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          placeholder="Buscar por código, rack o lote..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} pallet{filtered.length !== 1 ? "s" : ""}
-        </span>
-        <Button className="ml-auto" onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Nuevo pallet
-        </Button>
-      </div>
+      <Title
+        titlePage="Pallets"
+        description="Administrá los pallets almacenados en racks."
+        search={search}
+        setSearch={setSearch}
+        filtered={filtered}
+        openCreate={() => openCreate({
+          setIsViewing, setEditing, setForm, reset, setModalOpen,
+          EMPTY_FORM: { ...EMPTY_FORM, codigo: generatePalletCodigo(pallets) },
+        })}
+      />
 
       <DataTable
         data={filtered}
@@ -275,8 +231,24 @@ export default function PalletPage() {
         emptyText="No hay pallets registrados."
         emptySearchText="No se encontraron pallets con ese criterio."
         search={search}
-        onView={openView}
-        onEdit={openEdit}
+        onView={(t) => openView({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: {
+            rackId: String(t.rackId),
+            loteId: t.loteId ? String(t.loteId) : "",
+            codigo: t.codigo ?? "",
+            peso_kg: t.peso_kg !== null && t.peso_kg !== undefined ? String(t.peso_kg) : "",
+          },
+        })}
+        onEdit={(t) => openEdit({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: {
+            rackId: String(t.rackId),
+            loteId: t.loteId ? String(t.loteId) : "",
+            codigo: t.codigo ?? "",
+            peso_kg: t.peso_kg !== null && t.peso_kg !== undefined ? String(t.peso_kg) : "",
+          },
+        })}
         onDelete={handleDelete}
         isDeleting={isDeleting}
       />
@@ -296,7 +268,7 @@ export default function PalletPage() {
           <label className="text-sm font-medium">Rack *</label>
           <select
             value={form.rackId}
-            onChange={(e) => { setForm((f) => ({ ...f, rackId: e.target.value })); clearError("rackId") }}
+            onChange={(e) => set({ setFrom: setForm, fileds: "rackId", value: e.target.value, clearError })}
             className={cn(
               "flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
               errors.rackId ? "border-destructive" : "border-input",
@@ -370,10 +342,7 @@ export default function PalletPage() {
             placeholder="Ej: 50.00"
             value={form.peso_kg}
             readOnly={!!form.loteId}
-            onChange={(e) => {
-              setForm((f) => ({ ...f, peso_kg: enforceDecimalInput(e.target.value, DEFAULT_WEIGHT_MAX_DIGITS, "El peso") }))
-              clearError("peso_kg")
-            }}
+            onChange={(e) => set({ setFrom: setForm, fileds: "peso_kg", value: enforceDecimalInput(e.target.value, DEFAULT_WEIGHT_MAX_DIGITS, "El peso"), clearError })}
             className={cn(
               form.loteId ? "bg-muted cursor-not-allowed" : "",
               errors.peso_kg && "border-destructive focus-visible:ring-destructive",
@@ -398,10 +367,7 @@ export default function PalletPage() {
           <label className="text-sm font-medium">Donación *</label>
           <Select
             value={quickLoteForm.donacionId}
-            onValueChange={(v) => {
-              setQuickLoteForm((f) => ({ ...f, donacionId: v ?? "" }))
-              clearLoteError("donacionId")
-            }}
+            onValueChange={(v) => set({ setFrom: setQuickLoteForm, fileds: "donacionId", value: v ?? "", clearError: clearLoteError })}
           >
             <SelectTrigger className={cn("w-full", loteErrors.donacionId && "border-destructive ring-1 ring-destructive")}>
               <SelectValue placeholder="Seleccioná una donación" />
@@ -429,13 +395,7 @@ export default function PalletPage() {
             inputMode="decimal"
             placeholder="Ej: 120.50"
             value={quickLoteForm.pesoBrutoKg}
-            onChange={(e) => {
-              setQuickLoteForm((f) => ({
-                ...f,
-                pesoBrutoKg: enforceDecimalInput(e.target.value, DEFAULT_WEIGHT_MAX_DIGITS, "El peso bruto"),
-              }))
-              clearLoteError("pesoBrutoKg")
-            }}
+            onChange={(e) => set({ setFrom: setQuickLoteForm, fileds: "pesoBrutoKg", value: enforceDecimalInput(e.target.value, DEFAULT_WEIGHT_MAX_DIGITS, "El peso bruto"), clearError: clearLoteError })}
             className={cn(loteErrors.pesoBrutoKg && "border-destructive focus-visible:ring-destructive")}
           />
           <FieldError>{loteErrors.pesoBrutoKg}</FieldError>
@@ -449,7 +409,7 @@ export default function PalletPage() {
             rows={3}
             placeholder="Observaciones sobre el lote..."
             value={quickLoteForm.observaciones}
-            onChange={(e) => setQuickLoteForm((f) => ({ ...f, observaciones: e.target.value }))}
+            onChange={(e) => set({ setFrom: setQuickLoteForm, fileds: "observaciones", value: e.target.value, clearError: clearLoteError })}
             className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
           />
         </div>

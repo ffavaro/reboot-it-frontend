@@ -1,11 +1,7 @@
 "use client"
-import { Plus } from "lucide-react"
-
 import { useState, useEffect } from "react"
 import { toast } from "react-toastify"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
@@ -20,6 +16,9 @@ import { uploadFoto } from "@/lib/api/client"
 import type { RegistroFotografico } from "@/lib/type/registro-fotografico"
 import type { Lote } from "@/lib/type/lote"
 import { dia, hoyIso } from "@/lib/utils/fechas"
+import { openCreate, openEdit, openView, set } from "@/lib/utils/utils-modal"
+import { useFormErrors } from "@/hooks/use-form-errors"
+import Title from "@/components/ui/title"
 
 const EMPTY_FORM = { loteId: "", fecha: "" }
 
@@ -74,6 +73,7 @@ export default function RegistroFotograficoPage() {
   const [fotoPreviewUrl, setFotoPreviewUrl] = useState<string | null>(null)
   const [fileInputKey, setFileInputKey] = useState(0)
   const [isUploading, setIsUploading] = useState(false)
+  const { clearError } = useFormErrors<typeof EMPTY_FORM>()
 
   useEffect(() => {
     return () => { if (fotoPreviewUrl) URL.revokeObjectURL(fotoPreviewUrl) }
@@ -95,36 +95,6 @@ export default function RegistroFotograficoPage() {
     if (fotoPreviewUrl) URL.revokeObjectURL(fotoPreviewUrl)
     setSelectedFile(file)
     setFotoPreviewUrl(file ? URL.createObjectURL(file) : null)
-  }
-
-  function openCreate() {
-    setIsViewing(false)
-    setEditing(null)
-    setForm({ ...EMPTY_FORM, fecha: hoyIso() })
-    resetFileState()
-    setModalOpen(true)
-  }
-
-  function openEdit(r: RegistroFotografico) {
-    setIsViewing(false)
-    setEditing(r)
-    setForm({
-      loteId: r.loteId ? String(r.loteId) : "",
-      fecha: r.fecha ? r.fecha.slice(0, 10) : "",
-    })
-    resetFileState()
-    setModalOpen(true)
-  }
-
-  function openView(r: RegistroFotografico) {
-    setIsViewing(true)
-    setEditing(r)
-    setForm({
-      loteId: r.loteId ? String(r.loteId) : "",
-      fecha: r.fecha ? r.fecha.slice(0, 10) : "",
-    })
-    resetFileState()
-    setModalOpen(true)
   }
 
   async function handleSave() {
@@ -179,28 +149,17 @@ export default function RegistroFotograficoPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Registro Fotográfico</h1>
-        <p className="text-sm text-muted-foreground">
-          Administrá las fotos asociadas a los lotes del sistema.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          placeholder="Buscar por lote o ID..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} registro{filtered.length !== 1 ? "s" : ""}
-        </span>
-        <Button className="ml-auto" onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Nuevo registro
-        </Button>
-      </div>
+      <Title
+        titlePage="Registro Fotográfico"
+        description="Administrá las fotos asociadas a los lotes del sistema."
+        search={search}
+        setSearch={setSearch}
+        filtered={filtered}
+        openCreate={() => openCreate({
+          setIsViewing, setEditing, setForm, reset: resetFileState, setModalOpen,
+          EMPTY_FORM: { ...EMPTY_FORM, fecha: hoyIso() },
+        })}
+      />
 
       <DataTable
         data={filtered}
@@ -210,8 +169,20 @@ export default function RegistroFotograficoPage() {
         emptyText="No hay registros fotográficos."
         emptySearchText="No se encontraron registros con ese criterio."
         search={search}
-        onView={openView}
-        onEdit={openEdit}
+        onView={(t) => openView({
+          t, setIsViewing, setEditing, setForm, reset: resetFileState, setModalOpen,
+          jsonEntidad: {
+            loteId: t.loteId ? String(t.loteId) : "",
+            fecha: t.fecha ? t.fecha.slice(0, 10) : "",
+          },
+        })}
+        onEdit={(t) => openEdit({
+          t, setIsViewing, setEditing, setForm, reset: resetFileState, setModalOpen,
+          jsonEntidad: {
+            loteId: t.loteId ? String(t.loteId) : "",
+            fecha: t.fecha ? t.fecha.slice(0, 10) : "",
+          },
+        })}
         onDelete={handleDelete}
         isDeleting={isDeleting}
       />
@@ -287,7 +258,7 @@ export default function RegistroFotograficoPage() {
           <label className="text-sm font-medium">Lote *</label>
           <select
             value={form.loteId}
-            onChange={(e) => setForm((f) => ({ ...f, loteId: e.target.value }))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "loteId", value: e.target.value, clearError })}
             disabled={isViewing}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
           >
@@ -305,7 +276,7 @@ export default function RegistroFotograficoPage() {
           <Input
             type="date"
             value={form.fecha}
-            onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "fecha", value: e.target.value, clearError })}
             disabled={isViewing || !editing}
           />
         </div>

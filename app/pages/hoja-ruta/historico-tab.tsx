@@ -14,6 +14,9 @@ import { ESTILO_SELECT } from "@/lib/utils/hoja-ruta"
 import type { HojaRutaHistorico } from "@/lib/type/hoja-ruta"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import type { Vehiculo } from "@/lib/type/vehicle"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+const TODOS = "todos"
 
 const Vacio = () => <span className="italic text-muted-foreground"></span>
 
@@ -90,6 +93,19 @@ export function HistoricoTab() {
     vehiculoId: vehiculoId ? Number(vehiculoId) : undefined,
   })
 
+  const opcionesTransportistas = [
+    { value: TODOS, label: "Todos los transportistas" },
+    ...transportistas.map((t: EmpleadoTransportista) => ({
+      value: String(t.id),
+      label: t.empleado ? `${t.empleado.nombre} ${t.empleado.apellido}` : `Transportista #${t.id}`,
+    })),
+  ]
+
+  const opcionesVehiculos = [
+    { value: TODOS, label: "Todos los vehículos" },
+    ...vehiculos.map((v: Vehiculo) => ({ value: String(v.id), label: `${v.patente} · ${v.marca} ${v.modelo}` })),
+  ]
+
   const hayFiltros = !!(desde || hasta || transportistaId || vehiculoId)
 
   function limpiar() {
@@ -107,30 +123,34 @@ export function HistoricoTab() {
           <span className="text-xs text-muted-foreground">→</span>
           <DatePicker value={hasta} onChange={setHasta} min={desde || undefined} placeholder="Hasta" clearable aria-label="Fecha hasta" />
         </div>
-        <select
-          value={transportistaId}
-          onChange={(e) => setTransportistaId(e.target.value)}
-          className={ESTILO_SELECT}
-          aria-label="Filtrar por transportista"
+        <Select
+          value={transportistaId || TODOS}
+          onValueChange={(v) => setTransportistaId(v === TODOS ? "" : (v ?? ""))}
+          items={opcionesTransportistas}
         >
-          <option value="">Todos los transportistas</option>
-          {transportistas.map((t: EmpleadoTransportista) => (
-            <option key={t.id} value={t.id}>
-              {t.empleado ? `${t.empleado.nombre} ${t.empleado.apellido}` : `Transportista #${t.id}`}
-            </option>
-          ))}
-        </select>
-        <select
-          value={vehiculoId}
-          onChange={(e) => setVehiculoId(e.target.value)}
-          className={ESTILO_SELECT}
-          aria-label="Filtrar por vehículo"
+          <SelectTrigger className={ESTILO_SELECT} aria-label="Filtrar por transportista">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {opcionesTransportistas.map((o) => (
+              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={vehiculoId || TODOS}
+          onValueChange={(v) => setVehiculoId(v === TODOS ? "" : (v ?? ""))}
+          items={opcionesVehiculos}
         >
-          <option value="">Todos los vehículos</option>
-          {vehiculos.map((v: Vehiculo) => (
-            <option key={v.id} value={v.id}>{v.patente}  {v.marca} {v.modelo}</option>
-          ))}
-        </select>
+          <SelectTrigger className={ESTILO_SELECT} aria-label="Filtrar por vehículo">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {opcionesVehiculos.map((o) => (
+              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {hayFiltros && (
           <button onClick={limpiar} className="px-1 text-xs text-muted-foreground hover:text-foreground">
             ✕ Limpiar filtros

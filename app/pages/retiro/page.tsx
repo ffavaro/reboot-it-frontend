@@ -25,6 +25,9 @@ import type { Vehiculo } from "@/lib/type/vehicle"
 import type { Donacion } from "@/lib/type/donacion"
 import type { Turno } from "@/lib/type/turno"
 import { dia } from "@/lib/utils/fechas"
+import Title from "@/components/ui/title"
+import { openCreate, openEdit, openView, set } from "@/lib/utils/utils-modal"
+import { useFormErrors } from "@/hooks/use-form-errors"
 
 const EMPTY_FORM = {
   donacionId: "",
@@ -33,7 +36,6 @@ const EMPTY_FORM = {
   fechaInicio: "",
   direccion: "",
 }
-
 
 const columns: TableColumn<Retiro>[] = [
   {
@@ -103,6 +105,7 @@ export default function RetiroPage() {
   const [editing, setEditing] = useState<Retiro | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const { clearError, reset } = useFormErrors<typeof EMPTY_FORM>()
 
   const filtered = retiros.filter((r: Retiro) => {
     const q = search.toLowerCase()
@@ -117,39 +120,6 @@ export default function RetiroPage() {
       (r.direccion ?? "").toLowerCase().includes(q)
     )
   })
-
-  function openCreate() {
-    setIsViewing(false)
-    setEditing(null)
-    setForm(EMPTY_FORM)
-    setModalOpen(true)
-  }
-
-  function openEdit(r: Retiro) {
-    setIsViewing(false)
-    setEditing(r)
-    setForm({
-      donacionId: String(r.donacionId),
-      empleadoTransportistaId: String(r.empleadoTransportistaId),
-      vehiculoId: r.vehiculoId ? String(r.vehiculoId) : "",
-      fechaInicio: r.fechaInicio ? r.fechaInicio.slice(0, 16) : "",
-      direccion: r.direccion ?? "",
-    })
-    setModalOpen(true)
-  }
-
-  function openView(r: Retiro) {
-    setIsViewing(true)
-    setEditing(r)
-    setForm({
-      donacionId: String(r.donacionId),
-      empleadoTransportistaId: String(r.empleadoTransportistaId),
-      vehiculoId: r.vehiculoId ? String(r.vehiculoId) : "",
-      fechaInicio: r.fechaInicio ? r.fechaInicio.slice(0, 16) : "",
-      direccion: r.direccion ?? "",
-    })
-    setModalOpen(true)
-  }
 
   async function handleSave() {
     if (!form.donacionId || !form.empleadoTransportistaId) {
@@ -190,28 +160,16 @@ export default function RetiroPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Retiros</h1>
-        <p className="text-sm text-muted-foreground">
-          Administrá los retiros de donaciones.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          placeholder="Buscar por donación, transportista, patente o dirección..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} retiro{filtered.length !== 1 ? "s" : ""}
-        </span>
-        <Button className="ml-auto" onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Nuevo retiro
-        </Button>
-      </div>
+      <Title
+      titlePage="Retiros"
+      description="Administrá los retiros de donaciones."
+      search={search}
+      setSearch={setSearch}
+      filtered={filtered}
+      openCreate={() => openCreate({
+        setIsViewing, setEditing, setForm, reset, setModalOpen, EMPTY_FORM
+      })}
+      />
 
       <DataTable
         data={filtered}
@@ -221,8 +179,26 @@ export default function RetiroPage() {
         emptyText="No hay retiros registrados."
         emptySearchText="No se encontraron retiros con ese criterio."
         search={search}
-        onView={openView}
-        onEdit={openEdit}
+        onView={(t) => openView({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: {
+            donacionId: String(t.donacionId),
+            empleadoTransportistaId: String(t.empleadoTransportistaId),
+            vehiculoId: t.vehiculoId ? String(t.vehiculoId) : "",
+            fechaInicio: t.fechaInicio ? t.fechaInicio.slice(0, 16) : "",
+            direccion: t.direccion ?? "",
+          },
+        })}
+        onEdit={(t) => openEdit({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: {
+            donacionId: String(t.donacionId),
+            empleadoTransportistaId: String(t.empleadoTransportistaId),
+            vehiculoId: t.vehiculoId ? String(t.vehiculoId) : "",
+            fechaInicio: t.fechaInicio ? t.fechaInicio.slice(0, 16) : "",
+            direccion: t.direccion ?? "",
+          },
+        })}
         onDelete={handleDelete}
         isDeleting={isDeleting}
       />
@@ -275,7 +251,7 @@ export default function RetiroPage() {
           <label className="text-sm font-medium">Empleado Transportista</label>
           <select
             value={form.empleadoTransportistaId}
-            onChange={(e) => setForm((f) => ({ ...f, empleadoTransportistaId: e.target.value }))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "empleadoTransportistaId", value: e.target.value, clearError })}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="">Seleccionar transportista...</option>
@@ -304,7 +280,7 @@ export default function RetiroPage() {
           </label>
           <select
             value={form.vehiculoId}
-            onChange={(e) => setForm((f) => ({ ...f, vehiculoId: e.target.value }))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "vehiculoId", value: e.target.value, clearError })}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="">Sin vehículo asignado</option>
@@ -323,7 +299,7 @@ export default function RetiroPage() {
           <Input
             type="datetime-local"
             value={form.fechaInicio}
-            onChange={(e) => setForm((f) => ({ ...f, fechaInicio: e.target.value }))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "fechaInicio", value: e.target.value, clearError })}
           />
         </div>
 
@@ -334,7 +310,7 @@ export default function RetiroPage() {
           <Input
             placeholder="Ej: Av. Corrientes 1234, CABA"
             value={form.direccion}
-            onChange={(e) => setForm((f) => ({ ...f, direccion: e.target.value }))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "direccion", value: e.target.value, clearError })}
           />
         </div>
       </FormModal>
