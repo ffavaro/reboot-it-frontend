@@ -1,483 +1,255 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import {
-  ChevronLeft,
-  ChevronRight,
-  Truck,
-  Building2,
-  AlertTriangle,
-} from "lucide-react"
-import type { TokenPayload } from "@/lib/auth-utils"
+import { useMemo, useState } from "react"
+import { AlertTriangle, Building2, FileCheck2, Truck } from "lucide-react"
 import { toast } from "react-toastify"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FormModal } from "@/components/ui/form-modal"
-import { DataTable, TableColumn } from "@/components/ui/data-table"
-import {
-  useDonaciones,
-  useCreateDonacion,
-  useUpdateDonacion,
-  useDeleteDonacion,
-} from "@/hooks/use-donacion"
+import { DataTable, type TableColumn } from "@/components/ui/data-table"
+import { SelectorTurno } from "@/components/donacion/selector-turno"
+import { FotosMateriales, liberarFotos, type FotoElegida } from "@/components/donacion/fotos-materiales"
+import { TrazabilidadDonacion } from "@/components/donacion/trazabilidad-donacion"
+import { EmitirCertificado } from "@/components/donacion/emitir-certificado"
+import { TurnoConfirmado, type ResumenTurno } from "@/components/donacion/turno-confirmado"
+import { useDonaciones, useCreateDonacion, useUpdateDonacion, useDeleteDonacion } from "@/hooks/use-donacion"
 import { useDonantes } from "@/hooks/use-donantes"
-import { useTipoMateriales } from "@/hooks/use-tipo-material"
-import { useCondicionesMaterial } from "@/hooks/use-condicion-material"
 import { useEstadosDonacion } from "@/hooks/use-estado-donacion"
 import { useTurnos } from "@/hooks/use-turno"
-import type { Donacion, EstadoDonacion } from "@/lib/type/donacion"
-import type { Donante } from "@/lib/type/donante"
-import type { TipoMaterial } from "@/lib/type/tipo-material"
-import type { CondicionMaterial } from "@/lib/type/condicion-material"
-import type { Turno } from "@/lib/type/turno"
-import { getUser } from "@/lib/auth-utils"
+import { useUsuarioSesion } from "@/hooks/use-usuario-sesion"
+import { uploadFoto } from "@/lib/api/client"
 import { enforceDecimalInput } from "@/lib/utils/number-limit"
-import Title from "@/components/ui/title"
-import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { ESTADO_DONACION_COLORS } from "@/lib/utils/estados"
-import { DIAS_CAL_CORTOS, MESES_ES } from "@/lib/utils/fechas"
+import { cantidadValida, tieneNumeroDeCalle } from "@/lib/utils/text-limit"
+import { textoDeError } from "@/lib/utils/helpers"
+import { formDonacion, type Apertura, type CreateDetallePayload, type Donacion, type Formulario } from "@/lib/type/donacion"
+import Title from "@/components/ui/title"
+import { Materiales } from "@/components/donacion/material"
+import { useTipoMateriales } from "@/hooks/use-tipo-material"
 
-const EMPTY_FORM = {
-  donanteId: "",
-  fechaHora: "",
-  estadoDonacionId: "",
-  descripcion: "",
-}
-const EMPTY_DETALLE = {
-  tipoMaterialId: "",
-  condicionMaterialId: "",
-  cantidadEstimada: "",
-}
-type DetalleRow = typeof EMPTY_DETALLE
-const PESO_ESTIMADO_MAX_DIGITS = 3
+const DIGITOS_PESO = 3
+const ROLES_CERTIFICADO = ["admin", "administrativo"]
+const CAMPO = "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
 
-
-const TIME_SLOTS = Array.from(
-  { length: 10 },
-  (_, i) => `${String(8 + i).padStart(2, "0")}:00`
-)
-
-function mismoDia(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  )
-}
-
-function getCalendarDays(year: number, month: number): (Date | null)[] {
-  const firstDay = new Date(year, month, 1)
-  const lastDay = new Date(year, month + 1, 0)
-  const dow = firstDay.getDay()
-  const daysFromMonday = dow === 0 ? 6 : dow - 1
-  const current = new Date(year, month, 1 - daysFromMonday)
-  const days: (Date | null)[] = []
-  while (current <= lastDay) {
-    for (let i = 0; i < 5; i++) {
-      days.push(current.getMonth() === month ? new Date(current) : null)
-      current.setDate(current.getDate() + 1)
-    }
-    current.setDate(current.getDate() + 2)
+function donacionAFormulario(d: Donacion): Formulario {
+  return {
+    donanteId: String(d.donanteId),
+    estadoDonacionId: d.estadoDonacionId != null ? String(d.estadoDonacionId) : "",
+    fechaHora: "",
+    descripcion: d.descripcion ?? "",
+    necesitaRetiro: d.necesitaRetiro ?? false,
+    otraDireccion: !!d.direccionRetiro,
+    direccionRetiro: d.direccionRetiro ?? "",
+    pesoEstimadoKg: d.pesoEstimadoKg != null ? String(d.pesoEstimadoKg) : "",
+    materiales: (d.detalles ?? []).map((m) => ({
+      tipoMaterialId: String(m.tipoMaterialId),
+      condicionMaterialId: m.condicionMaterialId != null ? String(m.condicionMaterialId) : "",
+      cantidadEstimada: m.cantidadEstimada != null ? String(m.cantidadEstimada) : "",
+    })),
   }
-  return days
 }
 
-function getMinSelectableDate(): Date {
-  const now = new Date()
-  const minDate = new Date(now)
-  minDate.setHours(0, 0, 0, 0)
-  minDate.setDate(minDate.getDate() + (now.getHours() >= 17 ? 2 : 1))
-  return minDate
-}
-
-function getEarliestValidDate(): Date {
-  const d = getMinSelectableDate()
-  while (d.getDay() === 0 || d.getDay() === 6) {
-    d.setDate(d.getDate() + 1)
+function problemaDelFormulario(f: Formulario, esAlta: boolean): string | null {
+  if (!f.donanteId) return "Elegí el donante"
+  if (esAlta && !f.fechaHora) return "Elegí la fecha y el horario del turno"
+  if (f.materiales.length === 0) return "Agregá al menos un material"
+  if (f.materiales.some((m) => !m.tipoMaterialId)) return "Elegí el tipo de cada material"
+  if (f.materiales.some((m) => !/^[1-9]\d*$/.test(m.cantidadEstimada.trim()))) return "La cantidad de cada material debe ser un número entero mayor a 0"
+  if (f.necesitaRetiro && f.otraDireccion) {
+    if (!f.direccionRetiro.trim()) return "Ingresá la dirección del retiro"
+    if (!tieneNumeroDeCalle(f.direccionRetiro)) return "Incluí la altura (número de la casa) en la dirección del retiro"
   }
-  return d
-}
-
-function isFechaValida(d: Date): boolean {
-  const minDate = getMinSelectableDate()
-  const diaSemana = d.getDay()
-  return d >= minDate && diaSemana !== 0 && diaSemana !== 6
+  if (!f.pesoEstimadoKg.trim()) return "Ingresá el peso estimado de la donación"
+  if (!(Number(f.pesoEstimadoKg) > 0)) return "El peso estimado debe ser mayor a 0"
+  return null
 }
 
 export default function DonacionPage() {
   const { donaciones, isLoading, mutate } = useDonaciones()
   const { donantes } = useDonantes()
   const { tipoMateriales } = useTipoMateriales()
-  const { condiciones } = useCondicionesMaterial()
   const { estadosDonacion } = useEstadosDonacion()
-  const { turnos } = useTurnos()
-  const { createDonacion, isLoading: isCreating } = useCreateDonacion()
-  const { updateDonacion, isLoading: isUpdating } = useUpdateDonacion()
-  const { deleteDonacion, isLoading: isDeleting } = useDeleteDonacion()
+  const { turnos, mutate: refrescarTurnos } = useTurnos()
+  const { createDonacion, isLoading: creando } = useCreateDonacion()
+  const { updateDonacion, isLoading: actualizando } = useUpdateDonacion()
+  const { deleteDonacion, isLoading: borrando } = useDeleteDonacion()
+  const { usuario, esDonante } = useUsuarioSesion()
+  
+  const [busqueda, setBusqueda] = useState("")
+  const [apertura, setApertura] = useState<Apertura | null>(null)
+  const [form, setForm] = useState<Formulario>(formDonacion)
+  const [fotos, setFotos] = useState<FotoElegida[]>([])
+  const [subiendo, setSubiendo] = useState(false)
+  const [detalleId, setDetalleId] = useState<number | null>(null)
+  const [aCertificar, setACertificar] = useState<Donacion | null>(null)
+  const [resumen, setResumen] = useState<ResumenTurno | null>(null)
 
-  const [search, setSearch] = useState("")
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const [editing, setEditing] = useState<Donacion | null>(null)
-  const [isViewing, setIsViewing] = useState(false)
-  const [form, setForm] = useState(EMPTY_FORM)
-  const [detalles, setDetalles] = useState<DetalleRow[]>([])
-  const [user, setUser] = useState<TokenPayload | null>(null)
+  const miDonante = usuario ? (donantes.find((d) => d.usuarioId === usuario.id) ?? null) : null
+  const soloLoSuyo = esDonante || miDonante !== null
+  const puedeCertificar = ROLES_CERTIFICADO.includes(usuario?.rol?.nombre?.trim().toLowerCase() ?? "")
+  const editando = apertura?.modo === "edicion" ? apertura.donacion : null
+  const donanteElegido = donantes.find((d) => String(d.id) === form.donanteId) ?? null
 
-  const [necesitaRetiro, setNecesitaRetiro] = useState(false)
-  const [usarOtraDireccion, setUsarOtraDireccion] = useState(false)
-  const [direccionRetiro, setDireccionRetiro] = useState("")
-  const [pesoEstimadoKg, setPesoEstimadoKg] = useState("")
-
-  const [calYear, setCalYear] = useState(0)
-  const [calMonth, setCalMonth] = useState(0)
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-  const [selectedTime, setSelectedTime] = useState<string | null>(null)
-
-  useEffect(() => {
-    setUser(getUser())
-    const now = new Date()
-    setCalYear(now.getFullYear())
-    setCalMonth(now.getMonth())
-  }, [])
-
-  const myDonante = user
-    ? (donantes.find((d: Donante) => d.usuarioId === user.id) ?? null)
-    : null
-  const isDonante =
-    user?.rol?.nombre?.toLowerCase() === "donante" || myDonante !== null
-
-  const condicionADefinir = condiciones.find(
-    (c: CondicionMaterial) => c.condicion.toLowerCase() === "a definir"
+  const propias = useMemo(
+    () => (soloLoSuyo ? donaciones.filter((d) => miDonante && d.donanteId === miDonante.id) : donaciones),
+    [donaciones, soloLoSuyo, miDonante],
   )
 
-  const visibleDonaciones =
-    isDonante && myDonante
-      ? donaciones.filter((d: Donacion) => d.donanteId === myDonante.id)
-      : isDonante
-        ? []
-        : donaciones
-
-  const filtered = visibleDonaciones.filter((d: Donacion) => {
-    const q = search.toLowerCase()
-    return (
-      (d.donante?.nombre ?? "").toLowerCase().includes(q) ||
-      (d.estadoDonacion?.descripcion ?? "").toLowerCase().includes(q) ||
-      (d.descripcion ?? "").toLowerCase().includes(q)
+  const visibles = useMemo(() => {
+    const texto = busqueda
+    if (!texto) return propias
+    return propias.filter((d) =>
+      [`#${d.id}`, d.donante?.nombre, d.donante?.razonSocial, d.estadoDonacion?.descripcion, d.descripcion]
+        .some((dato) => dato?.includes(texto)),
     )
-  })
+  }, [propias, busqueda])
 
-  function slotsOcupados(dia: Date): Set<string> {
-    const ocupados = new Set<string>()
-    turnos
-      .filter((t: Turno) => t.isActive && mismoDia(new Date(t.fechaHora), dia))
-      .forEach((t: Turno) => {
-        const d = new Date(t.fechaHora)
-        ocupados.add(`${String(d.getHours()).padStart(2, "0")}:00`)
-      })
-    return ocupados
+  function cambiar<K extends keyof Formulario>(campo: K, valor: Formulario[K]) {
+    setForm((f) => ({ ...f, [campo]: valor }))
   }
 
-  function turnosEnDia(dia: Date): number {
-    return turnos.filter(
-      (t: Turno) => t.isActive && mismoDia(new Date(t.fechaHora), dia)
-    ).length
+  function abrirAlta() {
+    const pendiente = estadosDonacion.find((e) => e.id == 1)
+    liberarFotos(fotos)
+    setFotos([])
+    setForm({ ...formDonacion, donanteId: miDonante ? String(miDonante.id) : "", estadoDonacionId: pendiente ? String(pendiente.id) : "" })
+    setApertura({ modo: "alta" })
   }
 
-  function prevMonth() {
-    if (calMonth === 0) {
-      setCalYear((y) => y - 1)
-      setCalMonth(11)
-    } else setCalMonth((m) => m - 1)
+  function abrirEdicion(d: Donacion) {
+    setForm(donacionAFormulario(d))
+    setApertura({ modo: "edicion", donacion: d })
   }
 
-  function nextMonth() {
-    if (calMonth === 11) {
-      setCalYear((y) => y + 1)
-      setCalMonth(0)
-    } else setCalMonth((m) => m + 1)
+  function cerrar() {
+    liberarFotos(fotos)
+    setFotos([])
+    setApertura(null)
   }
 
-  function handleSelectDate(dia: Date) {
-    setSelectedDate(dia)
-    setSelectedTime(null)
-    setForm((f) => ({ ...f, fechaHora: "" }))
-  }
-
-  function handleSelectTime(slot: string) {
-    setSelectedTime(slot)
-    if (selectedDate) {
-      const [h, m] = slot.split(":").map(Number)
-      const d = new Date(selectedDate)
-      d.setHours(h, m, 0, 0)
-      const pad = (n: number) => String(n).padStart(2, "0")
-      setForm((f) => ({
-        ...f,
-        fechaHora: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(h)}:${pad(m)}`,
-      }))
-    }
-  }
-
-  function openCreate() {
-    setIsViewing(false)
-    setEditing(null)
-    const estadoPendiente = estadosDonacion.find((e: EstadoDonacion) =>
-      e.descripcion.toLowerCase().includes("pendiente")
-    )
-    const earliest = getEarliestValidDate()
-    setCalYear(earliest.getFullYear())
-    setCalMonth(earliest.getMonth())
-    setSelectedDate(earliest)
-    setSelectedTime(null)
-    setNecesitaRetiro(false)
-    setUsarOtraDireccion(false)
-    setDireccionRetiro("")
-    setPesoEstimadoKg("")
-    setForm({
-      ...EMPTY_FORM,
-      donanteId: myDonante ? String(myDonante.id) : "",
-      estadoDonacionId: estadoPendiente ? String(estadoPendiente.id) : "",
-    })
-    setDetalles([])
-    setSheetOpen(true)
-  }
-
-  function openEdit(d: Donacion) {
-    setIsViewing(false)
-    setEditing(d)
-    setSelectedDate(null)
-    setSelectedTime(null)
-    setNecesitaRetiro(d.necesitaRetiro ?? false)
-    setUsarOtraDireccion(!!d.direccionRetiro)
-    setDireccionRetiro(d.direccionRetiro ?? "")
-    setPesoEstimadoKg(d.pesoEstimadoKg != null ? String(d.pesoEstimadoKg) : "")
-    setForm({
-      donanteId: String(d.donanteId),
-      fechaHora: "",
-      estadoDonacionId:
-        d.estadoDonacionId != null ? String(d.estadoDonacionId) : "",
-      descripcion: d.descripcion ?? "",
-    })
-    setDetalles(
-      (d.detalles ?? []).map((det) => ({
-        tipoMaterialId: String(det.tipoMaterialId),
-        condicionMaterialId:
-          det.condicionMaterialId != null
-            ? String(det.condicionMaterialId)
-            : "",
-        cantidadEstimada:
-          det.cantidadEstimada != null ? String(det.cantidadEstimada) : "",
-      }))
-    )
-    setSheetOpen(true)
-  }
-
-  function openView(d: Donacion) {
-    setIsViewing(true)
-    setEditing(d)
-    setSelectedDate(null)
-    setSelectedTime(null)
-    setNecesitaRetiro(d.necesitaRetiro ?? false)
-    setUsarOtraDireccion(!!d.direccionRetiro)
-    setDireccionRetiro(d.direccionRetiro ?? "")
-    setPesoEstimadoKg(d.pesoEstimadoKg != null ? String(d.pesoEstimadoKg) : "")
-    setForm({
-      donanteId: String(d.donanteId),
-      fechaHora: "",
-      estadoDonacionId:
-        d.estadoDonacionId != null ? String(d.estadoDonacionId) : "",
-      descripcion: d.descripcion ?? "",
-    })
-    setDetalles(
-      (d.detalles ?? []).map((det) => ({
-        tipoMaterialId: String(det.tipoMaterialId),
-        condicionMaterialId:
-          det.condicionMaterialId != null
-            ? String(det.condicionMaterialId)
-            : "",
-        cantidadEstimada:
-          det.cantidadEstimada != null ? String(det.cantidadEstimada) : "",
-      }))
-    )
-    setSheetOpen(true)
-  }
-
-  function addDetalle() {
-    setDetalles((prev) => [
-      ...prev,
-      {
-        ...EMPTY_DETALLE,
-        condicionMaterialId: condicionADefinir
-          ? String(condicionADefinir.id)
-          : "",
-      },
-    ])
-  }
-
-  function removeDetalle(idx: number) {
-    setDetalles((prev) => prev.filter((_, i) => i !== idx))
-  }
-
-  function updateDetalleField(
-    idx: number,
-    field: keyof DetalleRow,
-    value: string
-  ) {
-    setDetalles((prev) =>
-      prev.map((d, i) => (i === idx ? { ...d, [field]: value } : d))
-    )
-  }
-
-  async function handleSave() {
-    if (!form.donanteId) {
-      toast.error("El donante es obligatorio")
-      return
-    }
-    if (!editing && !form.fechaHora) {
-      toast.error("Seleccioná una fecha y horario para el turno")
-      return
-    }
-    if (detalles.length === 0) {
-      toast.error("Agregá al menos un material a la donación")
-      return
-    }
-    if (detalles.some((d) => !d.tipoMaterialId)) {
-      toast.error("Seleccioná el tipo de material para cada ítem")
-      return
-    }
-    if (necesitaRetiro && usarOtraDireccion && !direccionRetiro.trim()) {
-      toast.error("Ingresá la dirección donde se realizará el retiro")
-      return
-    }
-    if (necesitaRetiro && !pesoEstimadoKg.trim()) {
-      toast.error("Ingresá el peso estimado de la donación para el retiro")
-      return
-    }
-
-    const detallesPayload = detalles.map((d) => ({
-      tipoMaterialId: Number(d.tipoMaterialId),
-      condicionMaterialId: Number(d.condicionMaterialId),
-      cantidadEstimada: d.cantidadEstimada
-        ? Number(d.cantidadEstimada)
-        : undefined,
+  function materialesParaEnviar(): CreateDetallePayload[] {
+    return form.materiales.map((m) => ({
+      tipoMaterialId: Number(m.tipoMaterialId),
+      condicionMaterialId: Number(m.condicionMaterialId || 4),
+      cantidadEstimada: m.cantidadEstimada ? Number(m.cantidadEstimada) : undefined,
     }))
+  }
 
-    const direccionRetiroPayload =
-      necesitaRetiro && usarOtraDireccion ? direccionRetiro.trim() : undefined
-    const pesoEstimadoPayload =
-      necesitaRetiro && pesoEstimadoKg !== ""
-        ? Number(pesoEstimadoKg)
-        : undefined
+  const subirFotos = async(): Promise<string[] | null> => {
+    if (fotos.length === 0) return []
+    setSubiendo(true)
+    try {
+      return await Promise.all(fotos.map((f) => uploadFoto(f.archivo)))
+    } catch (error) {
+      toast.error(textoDeError(error, "No se pudieron subir las fotos. Probá de nuevo o quitalas para continuar."))
+      return null
+    } finally {
+      setSubiendo(false)
+    }
+  }
+
+  const guardar = async () => {
+    const problema = problemaDelFormulario(form, !editando)
+    if (problema) {
+      toast.error(problema)
+      return
+    }
+    const direccion = form.necesitaRetiro && form.otraDireccion ? form.direccionRetiro.trim() : undefined
+    const peso = Number(form.pesoEstimadoKg)
 
     try {
-      if (editing) {
+      if (editando) {
         await updateDonacion({
-          id: editing.id,
+          id: editando.id,
           donanteId: Number(form.donanteId),
-          estadoDonacionId: form.estadoDonacionId
-            ? Number(form.estadoDonacionId)
-            : undefined,
-          necesitaRetiro,
-          direccionRetiro: necesitaRetiro
-            ? (direccionRetiroPayload ?? null)
-            : null,
-          pesoEstimadoKg: necesitaRetiro ? (pesoEstimadoPayload ?? null) : null,
+          estadoDonacionId: form.estadoDonacionId ? Number(form.estadoDonacionId) : undefined,
+          necesitaRetiro: form.necesitaRetiro,
+          direccionRetiro: direccion ?? null,
+          pesoEstimadoKg: peso ?? null,
           descripcion: form.descripcion.trim() || undefined,
-          detalles: detallesPayload,
+          detalles: materialesParaEnviar(),
         })
         toast.success("Donación actualizada")
       } else {
-        await createDonacion({
+        const fotosUrls = await subirFotos()
+        if (fotosUrls === null) return
+        const creada = await createDonacion({
           donanteId: Number(form.donanteId),
           fechaHora: form.fechaHora,
-          estadoDonacionId: form.estadoDonacionId
-            ? Number(form.estadoDonacionId)
-            : undefined,
-          necesitaRetiro,
-          direccionRetiro: direccionRetiroPayload,
-          pesoEstimadoKg: pesoEstimadoPayload,
+          estadoDonacionId: form.estadoDonacionId ? Number(form.estadoDonacionId) : undefined,
+          necesitaRetiro: form.necesitaRetiro,
+          direccionRetiro: direccion,
+          pesoEstimadoKg: peso,
           descripcion: form.descripcion.trim() || undefined,
-          detalles: detallesPayload,
+          fotosUrls: fotosUrls.length ? fotosUrls : undefined,
+          detalles: materialesParaEnviar(),
         })
-        toast.success("Donación creada y turno generado")
+        setResumen({
+          donacionId: creada.id,
+          turnoId: creada.turno?.id ?? null,
+          donante: donanteElegido?.nombre ?? "",
+          fechaHora: creada.turno?.fechaHora ?? form.fechaHora,
+          modalidad: form.necesitaRetiro ? "Retiro a domicilio" : "Lo lleva a la sucursal",
+          direccion: form.necesitaRetiro ? (direccion ?? donanteElegido?.direccion ?? null) : null,
+          pesoKg: peso ?? null,
+          materiales: form.materiales.map((m) => ({
+            nombre: tipoMateriales.find((t) => String(t.id) === m.tipoMaterialId)?.nombre ?? "Material",
+            cantidad: m.cantidadEstimada ? `${m.cantidadEstimada} u.` : "sin cantidad",
+          })),
+          fotos: fotosUrls.length,
+        })
+        await refrescarTurnos()
       }
       await mutate()
-      setSheetOpen(false)
-    } catch (err: unknown) {
-      const msg = (err as { message?: string })?.message
-      toast.error(msg ?? "Error al guardar la donación")
+      cerrar()
+    } catch (error) {
+      toast.error(textoDeError(error, "No se pudo guardar la donación"))
     }
   }
 
-  async function handleDelete(id: number | string) {
+  async function desactivar(id: number | string) {
     try {
       await deleteDonacion(Number(id))
       await mutate()
       toast.success("Donación desactivada")
-    } catch {
-      toast.error("Error al eliminar la donación")
+    } catch (error) {
+      toast.error(textoDeError(error, "No se pudo desactivar la donación"))
     }
   }
 
-  const columns: TableColumn<Donacion>[] = [
-    {
-      key: "id",
-      header: "ID",
-      cell: (d) => `#${d.id}`,
-      className: "font-mono text-xs w-14",
-    },
-    ...(!isDonante
-      ? [
-          {
-            key: "donante",
-            header: "Donante",
-            cell: (d: Donacion) =>
-              d.donante?.nombre ?? (
-                <span className="text-muted-foreground italic">
-                  #{d.donanteId}
-                </span>
-              ),
-          },
-        ]
-      : []),
+  const columnas: TableColumn<Donacion>[] = [
+    { key: "id", header: "ID", cell: (d) => `#${d.id}`, className: "font-mono text-xs w-14" },
+    ...(soloLoSuyo
+      ? []
+      : [{ key: "donante", header: "Donante", cell: (d: Donacion) => d.donante?.nombre ?? <span className="italic text-muted-foreground">#{d.donanteId}</span> }]),
     {
       key: "estado",
       header: "Estado",
+      className: "w-40",
       cell: (d) => {
-        const desc = d.estadoDonacion?.descripcion
-        if (!desc) return <span className="text-muted-foreground italic"></span>
-        const color =
-          ESTADO_DONACION_COLORS[desc.toLowerCase()] ?? "bg-gray-100 text-gray-800"
+        const estado = d.estadoDonacion?.descripcion
+        if (!estado) return <span className="italic text-muted-foreground">—</span>
         return (
-          <span
-            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}
-          >
-            {desc}
+          <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium", ESTADO_DONACION_COLORS[estado.toLowerCase()] ?? "bg-gray-100 text-gray-800")}>
+            {estado}
           </span>
         )
       },
-      className: "w-32",
     },
     {
-      key: "items",
+      key: "materiales",
       header: "Materiales",
-      cell: (d) => (
-        <span className="text-sm text-muted-foreground">
-          {d.detalles?.length ?? 0} ítem
-          {(d.detalles?.length ?? 0) !== 1 ? "s" : ""}
-        </span>
-      ),
       className: "w-24",
+      cell: (d) => {
+        const n = d.detalles?.length ?? 0
+        return <span className="text-sm text-muted-foreground">{n} ítem{n !== 1 ? "s" : ""}</span>
+      },
     },
     {
-      key: "retiro",
+      key: "entrega",
       header: "Entrega",
+      className: "w-28",
       cell: (d) =>
         d.necesitaRetiro ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
@@ -488,464 +260,184 @@ export default function DonacionPage() {
             <Building2 className="h-3 w-3" /> Sucursal
           </span>
         ),
-      className: "w-28",
     },
     {
       key: "descripcion",
       header: "Descripción",
-      cell: (d) =>
-        d.descripcion ?? <span className="text-muted-foreground italic"></span>,
       className: "max-w-[220px] truncate text-muted-foreground",
+      cell: (d) => d.descripcion ?? <span className="italic">—</span>,
     },
+    ...(puedeCertificar
+      ? [{
+        key: "certificar",
+        header: "",
+        cell: (d: Donacion) =>
+          d.estadoDonacion?.id === 5 ? (
+            <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50" onClick={() => setACertificar(d)}>
+              <FileCheck2 className="h-3.5 w-3.5" />
+              Emitir certificado
+            </Button>
+          ) : null,
+      }]
+      : []),
   ]
-
-  const calDays = getCalendarDays(calYear, calMonth)
-  const hoy = new Date()
-  const donanteSeleccionado =
-    donantes.find((d: Donante) => String(d.id) === form.donanteId) ?? null
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <Title
         titlePage="Donaciones"
-        description="Administrá las donaciones y los materiales asociados."
-        search={search}
-        setSearch={setSearch}
-        filtered={filtered}
-        openCreate={openCreate}
+        description={soloLoSuyo ? "Tus donaciones y sus turnos." : "Administrá las donaciones y los materiales asociados."}
+        search={busqueda}
+        filtered={[]}
+        setSearch={setBusqueda}
+        openCreate={abrirAlta}
       />
 
       <DataTable
-        data={filtered}
-        columns={columns}
+        data={visibles}
+        columns={columnas}
         isLoading={isLoading}
         loadingText="Cargando donaciones..."
-        emptyText="No hay donaciones registradas."
+        emptyText={soloLoSuyo ? "Todavía no registraste donaciones." : "No hay donaciones registradas."}
         emptySearchText="No se encontraron donaciones con ese criterio."
-        search={search}
-        onView={openView}
-        onEdit={isDonante ? undefined : openEdit}
-        onDelete={isDonante ? undefined : handleDelete}
-        isDeleting={isDeleting}
+        search={busqueda}
+        onView={(d) => setDetalleId(d.id)}
+        onEdit={soloLoSuyo ? undefined : abrirEdicion}
+        onDelete={soloLoSuyo ? undefined : desactivar}
+        isDeleting={borrando}
       />
 
       <FormModal
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        title={
-          isViewing
-            ? "Ver donación"
-            : editing
-              ? "Editar donación"
-              : "Nueva donación"
-        }
-        readOnly={isViewing}
-        onSave={handleSave}
-        isLoading={isCreating || isUpdating}
-        saveLabel={editing ? "Guardar cambios" : "Crear donación"}
+        open={apertura !== null}
+        onOpenChange={(abierta) => !abierta && cerrar()}
+        title={editando ? `Editar donación #${editando.id}` : "Nueva donación"}
+        description={editando ? "El turno no se modifica desde acá." : "Elegí el turno, cómo entregás los materiales y qué vas a donar."}
+        onSave={guardar}
+        isLoading={creando || actualizando || subiendo}
+        saveLabel={editando ? "Guardar cambios" : subiendo ? "Subiendo fotos..." : "Crear donación"}
       >
-        <div className="flex flex-col gap-5">
-          {/* Donante */}
-          {!isDonante && (
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-sm font-medium">Donante *</Label>
-              <Select
-                value={form.donanteId}
-                onValueChange={(e: any) =>
-                  setForm((f) => ({ ...f, donanteId: e }))
-                }
-                disabled={!!editing}
-              >
-                <SelectTrigger className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50">
-                  <SelectValue placeholder="Seleccionar donante..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {donantes.map((d: Donante) => (
-                    <SelectItem key={d.id} value={String(d.id)}>
-                      {d.nombre}
-                      {d.razonSocial ? `  ${d.razonSocial}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Fecha del turno  solo en creación */}
-          {!editing && (
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Fecha del turno *</label>
-
-              {/* Calendario */}
-              <div className="rounded-lg border bg-muted/20 p-3">
-                <div className="mb-3 flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={prevMonth}
-                    className="rounded p-1 transition-colors hover:bg-muted"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  <span className="text-sm font-semibold">
-                    {MESES_ES[calMonth]} {calYear}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={nextMonth}
-                    className="rounded p-1 transition-colors hover:bg-muted"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <div className="mb-1 grid grid-cols-5">
-                  {DIAS_CAL_CORTOS.map((d) => (
-                    <div
-                      key={d}
-                      className="py-1 text-center text-xs font-medium text-muted-foreground"
-                    >
-                      {d}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-5 gap-y-0.5">
-                  {calDays.map((dia, idx) => {
-                    if (!dia) return <div key={idx} />
-                    const habilitado = isFechaValida(dia)
-                    const isSelected = selectedDate
-                      ? mismoDia(dia, selectedDate)
-                      : false
-                    const isHoy = mismoDia(dia, hoy)
-                    const cantTurnos = turnosEnDia(dia)
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        disabled={!habilitado}
-                        onClick={() => handleSelectDate(dia)}
-                        className={[
-                          "relative mx-auto flex h-8 w-8 items-center justify-center rounded-full text-xs transition-colors",
-                          isSelected
-                            ? "bg-primary font-semibold text-primary-foreground"
-                            : habilitado
-                              ? "cursor-pointer hover:bg-muted"
-                              : isHoy
-                                ? "cursor-not-allowed border border-primary/50 text-primary/70 opacity-40"
-                                : "cursor-not-allowed opacity-25",
-                        ].join(" ")}
-                      >
-                        {dia.getDate()}
-                        {cantTurnos > 0 && !isSelected && (
-                          <span className="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-primary/50" />
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-
-                <p className="mt-2 text-xs text-muted-foreground">
-                  El punto indica días con turnos ya registrados.
-                </p>
-              </div>
-
-              {/* Horarios disponibles */}
-              {selectedDate && (
-                <div className="flex flex-col gap-2">
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Horarios{" "}
-                    {selectedDate.toLocaleDateString("es-AR", {
-                      weekday: "long",
-                      day: "numeric",
-                      month: "long",
-                    })}
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {TIME_SLOTS.map((slot) => {
-                      const ocupado = slotsOcupados(selectedDate).has(slot)
-                      const activo = selectedTime === slot
-                      return (
-                        <button
-                          key={slot}
-                          type="button"
-                          disabled={ocupado}
-                          onClick={() => handleSelectTime(slot)}
-                          className={[
-                            "rounded-md px-3 py-1 text-xs font-medium transition-colors",
-                            activo
-                              ? "bg-primary text-primary-foreground"
-                              : ocupado
-                                ? "cursor-not-allowed bg-muted/40 text-muted-foreground line-through"
-                                : "cursor-pointer bg-muted hover:bg-muted/70",
-                          ].join(" ")}
-                        >
-                          {slot}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {form.fechaHora && (
-                <p className="text-xs text-muted-foreground">
-                  Turno:{" "}
-                  <span className="font-medium text-foreground">
-                    {new Date(form.fechaHora).toLocaleString("es-AR", {
-                      weekday: "long",
-                      day: "numeric",
-                      month: "long",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Estado  solo visible al editar */}
-          {!!editing && (
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-sm font-medium">Estado</Label>
-              <Select value={form.estadoDonacionId} onValueChange={(e: any) => setForm((f) => ({ ...f, estadoDonacionId: e }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar estado..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {estadosDonacion.map((e: EstadoDonacion) => (
-                    <SelectItem key={e.id} value={e.id}>
-                      {e.descripcion}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Descripción */}
+        {!soloLoSuyo && (
           <div className="flex flex-col gap-1.5">
-            <Label className="text-sm font-medium">
-              Descripción{" "}
-              <span className="font-normal text-muted-foreground">
-                (opcional)
-              </span>
-            </Label>
-            <textarea
-              rows={2}
-              placeholder="Descripción general de la donación..."
-              value={form.descripcion}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, descripcion: e.target.value }))
-              }
-              className="flex w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
-            />
+            <label className="text-sm font-medium">Donante *</label>
+            <select value={form.donanteId} onChange={(e) => cambiar("donanteId", e.target.value)} disabled={!!editando} className={CAMPO}>
+              <option value="">— Seleccionar donante —</option>
+              {donantes.map((d) => (
+                <option key={d.id} value={d.id}>{d.nombre}{d.razonSocial ? ` · ${d.razonSocial}` : ""}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {apertura?.modo === "alta" && (
+          <SelectorTurno turnos={turnos} valor={form.fechaHora} alElegir={(fechaHora) => cambiar("fechaHora", fechaHora)} />
+        )}
+
+        {editando && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium">Estado</label>
+            <select value={form.estadoDonacionId} onChange={(e) => cambiar("estadoDonacionId", e.target.value)} className={CAMPO}>
+              <option value="">— Seleccionar estado —</option>
+              {estadosDonacion.map((e) => (
+                <option key={e.id} value={e.id}>{e.descripcion}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium">
+            Descripción <span className="font-normal text-muted-foreground">(opcional)</span>
+          </label>
+          <textarea
+            rows={2}
+            placeholder="Descripción general de la donación..."
+            value={form.descripcion}
+            onChange={(e) => cambiar("descripcion", e.target.value)}
+            className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">¿Cómo entregás los materiales? *</span>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { retiro: false, texto: "Lo llevo a la sucursal", Icono: Building2, activo: "border-primary bg-primary/5 text-primary" },
+              { retiro: true, texto: "Necesito retiro a domicilio", Icono: Truck, activo: "border-orange-400 bg-orange-50 text-orange-700" },
+            ].map(({ retiro, texto, Icono, activo }) => (
+              <button
+                key={texto}
+                type="button"
+                aria-pressed={form.necesitaRetiro === retiro}
+                onClick={() => cambiar("necesitaRetiro", retiro)}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-lg border-2 px-4 py-3 text-sm font-medium transition-colors",
+                  form.necesitaRetiro === retiro ? activo : "border-border text-muted-foreground hover:border-muted-foreground/50",
+                )}
+              >
+                <Icono className="h-4 w-4 shrink-0" />
+                {texto}
+              </button>
+            ))}
           </div>
 
-          {/* Modalidad de entrega */}
-          <div className="flex flex-col gap-2">
-            <Label className="text-sm font-medium">
-              ¿Cómo entregás los materiales? *
-            </Label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setNecesitaRetiro(false)}
-                className={[
-                  "flex items-center gap-2.5 rounded-lg border-2 px-4 py-3 text-sm font-medium transition-colors",
-                  !necesitaRetiro
-                    ? "border-primary bg-primary/5 text-primary"
-                    : "border-border bg-background text-muted-foreground hover:border-muted-foreground/50",
-                ].join(" ")}
-              >
-                <Building2 className="h-4 w-4 shrink-0" />
-                <span>Lo llevo a la sucursal</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setNecesitaRetiro(true)}
-                className={[
-                  "flex items-center gap-2.5 rounded-lg border-2 px-4 py-3 text-sm font-medium transition-colors",
-                  necesitaRetiro
-                    ? "border-orange-400 bg-orange-50 text-orange-700"
-                    : "border-border bg-background text-muted-foreground hover:border-muted-foreground/50",
-                ].join(" ")}
-              >
-                <Truck className="h-4 w-4 shrink-0" />
-                <span>Necesito retiro a domicilio</span>
-              </button>
-            </div>
-            {necesitaRetiro && (
-              <div className="flex items-start gap-2 rounded-md border border-orange-200 bg-orange-50 px-3 py-2.5 text-xs text-orange-700">
+          {form.necesitaRetiro && (
+            <>
+              <p className="flex items-start gap-2 rounded-md border border-orange-200 bg-orange-50 px-3 py-2.5 text-xs text-orange-700">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                <span>
-                  El servicio de retiro a domicilio tiene un{" "}
-                  <strong>costo adicional</strong> que será coordinado con el
-                  equipo de Reboot IT.
-                </span>
-              </div>
-            )}
-
-            {necesitaRetiro && (
+                <span>El retiro a domicilio tiene un <strong>costo adicional</strong> que se coordina con el equipo de Reboot IT.</span>
+              </p>
               <div className="flex flex-col gap-2 rounded-md border px-3 py-2.5">
                 <p className="text-xs text-muted-foreground">
-                  Dirección registrada:{" "}
-                  <span className="font-medium text-foreground">
-                    {donanteSeleccionado?.direccion ??
-                      "Sin dirección registrada"}
-                  </span>
+                  Dirección registrada: <span className="font-medium text-foreground">{donanteElegido?.direccion ?? "Sin dirección registrada"}</span>
                 </p>
-                <Label className="flex items-center gap-2 text-sm">
+                <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
-                    checked={usarOtraDireccion}
-                    onChange={(e) => setUsarOtraDireccion(e.target.checked)}
+                    checked={form.otraDireccion}
+                    onChange={(e) => cambiar("otraDireccion", e.target.checked)}
                     className="h-4 w-4 rounded border-input"
                   />
-                  Retirar en una dirección distinta a la registrada
-                </Label>
-                {usarOtraDireccion && (
-                  <Input
-                    placeholder="Dirección donde se realizará el retiro"
-                    value={direccionRetiro}
-                    onChange={(e) => setDireccionRetiro(e.target.value)}
-                  />
+                  Retirar en otra dirección
+                </label>
+                {form.otraDireccion && (
+                  <>
+                    <Input
+                      placeholder="Calle y número, localidad. Ej: Av. Colón 1234, Córdoba"
+                      value={form.direccionRetiro}
+                      maxLength={255}
+                      onChange={(e) => cambiar("direccionRetiro", e.target.value)}
+                    />
+                    {form.direccionRetiro.trim() && !tieneNumeroDeCalle(form.direccionRetiro) && (
+                      <span className="text-xs text-amber-600">Falta la altura (número de la casa).</span>
+                    )}
+                  </>
                 )}
-                <div className="flex flex-col gap-1.5 pt-1">
-                  <Label className="text-xs font-medium">
-                    Peso estimado de la donación (kg) *
-                  </Label>
-                  <Input
-                    inputMode="decimal"
-                    placeholder="Ej: 25.50"
-                    value={pesoEstimadoKg}
-                    onChange={(e) =>
-                      setPesoEstimadoKg(
-                        enforceDecimalInput(
-                          e.target.value,
-                          PESO_ESTIMADO_MAX_DIGITS,
-                          "El peso estimado"
-                        )
-                      )
-                    }
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Se usa para asignar un transportista cuyo vehículo soporte
-                    esta carga.
-                  </p>
-                </div>
               </div>
-            )}
-          </div>
-
-          {/* Materiales  tabla */}
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Materiales a donar *</Label>
-              <Button
-                variant="outline"
-                size="sm"
-                type="button"
-                onClick={addDetalle}
-              >
-                + Agregar
-              </Button>
-            </div>
-
-            {detalles.length === 0 ? (
-              <p className="py-1 text-sm text-muted-foreground italic">
-                Sin materiales cargados. Agregá al menos uno.
-              </p>
-            ) : (
-              <div className="overflow-x-auto rounded-md border">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">
-                        Tipo de material *
-                      </th>
-                      <th className="w-20 px-3 py-2 text-left font-medium text-muted-foreground">
-                        Cant.
-                      </th>
-                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">
-                        Condición del material
-                      </th>
-                      <th className="w-8" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {detalles.map((det, idx) => (
-                      <tr key={idx} className="border-b last:border-b-0">
-                        <td className="px-2 py-1.5">
-                          <select
-                            value={det.tipoMaterialId}
-                            onChange={(e) =>
-                              updateDetalleField(
-                                idx,
-                                "tipoMaterialId",
-                                e.target.value
-                              )
-                            }
-                            className="h-8 w-full rounded-md border border-input bg-transparent px-2 py-1 text-xs shadow-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
-                          >
-                            <option value="">Seleccionar...</option>
-                            {tipoMateriales.map((t: TipoMaterial) => (
-                              <option key={t.id} value={t.id}>
-                                {t.nombre}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <Input
-                            type="number"
-                            min={1}
-                            placeholder=""
-                            value={det.cantidadEstimada}
-                            onChange={(e) =>
-                              updateDetalleField(
-                                idx,
-                                "cantidadEstimada",
-                                e.target.value
-                              )
-                            }
-                            className="h-8 text-xs"
-                          />
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <Select
-                            value={det.condicionMaterialId}
-                            disabled
-                            >
-                            <SelectTrigger  className="h-8 w-full rounded-md border border-input bg-muted px-2 py-1 text-xs shadow-sm disabled:cursor-not-allowed disabled:opacity-70">
-                              <SelectValue placeholder="Seleccionar..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                            {condiciones.map((c: CondicionMaterial) => (
-                              <SelectItem key={c.id} value={c.id}>
-                                {c.condicion}
-                              </SelectItem>
-                            ))}</SelectContent>
-                          </Select>
-                        </td>
-                        <td className="px-2 py-1.5 text-center">
-                          <button
-                            type="button"
-                            onClick={() => removeDetalle(idx)}
-                            className="text-base leading-none text-muted-foreground transition-colors hover:text-destructive"
-                          >
-                            ×
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
+
+        <Materiales materiales={form.materiales} onChange={(materiales) => cambiar("materiales", materiales)} />
+
+        <div>
+          <label className="flex flex-col gap-1.5 pt-1 text-xs font-medium">
+            Peso estimado de la donación (kg) *
+            <Input
+              inputMode="decimal"
+              placeholder="Ej: 25.50"
+              value={form.pesoEstimadoKg}
+              onChange={(e) => cambiar("pesoEstimadoKg", enforceDecimalInput(e.target.value, DIGITOS_PESO, "El peso estimado"))}
+            />
+            <span className="text-[11px] font-normal text-muted-foreground">Se usa para asignar un vehículo que soporte la carga.</span>
+          </label>
+        </div>
+
+        {apertura?.modo === "alta" && <FotosMateriales fotos={fotos} alCambiar={setFotos} />}
       </FormModal>
+
+      <TrazabilidadDonacion donacionId={detalleId} alCerrar={() => setDetalleId(null)} />
+      <EmitirCertificado donacion={aCertificar} alCerrar={() => setACertificar(null)} alEmitir={async () => { await mutate() }} />
+      <TurnoConfirmado resumen={resumen} alCerrar={() => setResumen(null)} />
     </div>
   )
 }

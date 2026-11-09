@@ -6,16 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { hojaRutaApi } from "@/lib/api/hoja-ruta"
 import { descargarConstanciaPdf } from "@/lib/utils/constancia-pdf"
-import { getErrorMessage } from "@/lib/utils/helpers"
+import { textoDeError } from "@/lib/utils/helpers"
+import { diaYHora } from "@/lib/utils/fechas"
 import type { DatosConstancia } from "@/lib/type/hoja-ruta"
-
-function fechaYHora(iso: string | null) {
-  if (!iso) return ""
-  const texto = new Date(iso).toLocaleString("es-AR", {
-    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
-  })
-  return `${texto} hs`
-}
 
 function Fila({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
@@ -43,7 +36,7 @@ export function ConstanciaDialog({ turnoId, onClose }: { turnoId: number | null;
       .catch((e) => {
         if (!vigente) return
         setDatos(null)
-        setError(getErrorMessage(e, "No se pudo cargar la constancia"))
+        setError(textoDeError(e, "No se pudo cargar la constancia"))
       })
     return () => { vigente = false }
   }, [turnoId])
@@ -79,7 +72,7 @@ export function ConstanciaDialog({ turnoId, onClose }: { turnoId: number | null;
                 {datos.donante.nombre}{datos.donante.telefono ? ` · ${datos.donante.telefono}` : ""}
               </Fila>
               <Fila titulo="Dirección">{datos.direccion ?? ""}</Fila>
-              <Fila titulo="Fecha del retiro">{fechaYHora(datos.fechaRetiro)}</Fila>
+              <Fila titulo="Fecha del retiro">{diaYHora(datos.fechaRetiro)}</Fila>
               <Fila titulo="Donación / Turno">N° {datos.donacionId ?? ""} / N° {datos.turnoId ?? ""}</Fila>
               <Fila titulo="Transportista">
                 {datos.transportista ? `${datos.transportista.nombre} ${datos.transportista.apellido}` : ""}

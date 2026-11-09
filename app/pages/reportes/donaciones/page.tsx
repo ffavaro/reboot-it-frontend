@@ -14,7 +14,7 @@ import {
 import { useDonantes } from "@/hooks/use-donantes"
 import { useEstadosDonacion } from "@/hooks/use-estado-donacion"
 import { donacionApi } from "@/lib/api"
-import { dia, diaYHora } from "@/lib/documentos/formato"
+import { dia, diaYHora } from "@/lib/utils/fechas"
 import type { EstadoDonacion, ReporteDonacion, ReporteDonacionQuery } from "@/lib/type/donacion"
 import type { Donante } from "@/lib/type/donante"
 

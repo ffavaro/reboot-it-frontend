@@ -7,7 +7,7 @@ import { FieldError } from "@/components/ui/field"
 import { useConfirmarRetiro } from "@/hooks/use-hoja-ruta"
 import { useCreateRegistroFotografico } from "@/hooks/use-registro-fotografico"
 import { uploadFoto } from "@/lib/api/client"
-import { getErrorMessage } from "@/lib/utils/helpers"
+import { textoDeError } from "@/lib/utils/helpers"
 import type { ParadaHojaRuta, ResultadoRetiro } from "@/lib/type/hoja-ruta"
 
 const TIPOS_FOTO = /^image\/(jpeg|png|webp)$/
@@ -64,7 +64,7 @@ export function ConfirmarRetiroDialog({
       setFoto(null)
       onConfirmado(resultado)
     } catch (e) {
-      setError(getErrorMessage(e, "No se pudo confirmar el retiro"))
+      setError(textoDeError(e, "No se pudo confirmar el retiro"))
     } finally {
       setSubiendo(false)
     }

@@ -120,23 +120,23 @@ export default function MetodoDestruccionPage() {
         emptyText="No hay métodos de destrucción registrados."
         emptySearchText="No se encontraron métodos con ese criterio."
         search={search}
-        onView={() => openView({
-          t: null,
+        onView={(t) => openView({
+          t: t,
           setIsViewing,
           setEditing,
           setForm,
           reset,
           setModalOpen,
-          jsonEntidad: { nombre: "", descripcion: "" },
+          jsonEntidad: { nombre: t.nombre, descripcion: t.descripcion },
         })}
-        onEdit={() => openEdit({
-          t: null,
+        onEdit={(t) => openEdit({
+          t: t,
           setIsViewing,
           setEditing,
           setForm,
           reset,
           setModalOpen,
-          jsonEntidad: { nombre: "", descripcion: "" },
+          jsonEntidad: { nombre: t.nombre, descripcion: t.descripcion },
         })}
         onDelete={handleDelete}
         isDeleting={isDeleting}

@@ -19,15 +19,9 @@ import { useLotes } from "@/hooks/use-lote"
 import { uploadFoto } from "@/lib/api/client"
 import type { RegistroFotografico } from "@/lib/type/registro-fotografico"
 import type { Lote } from "@/lib/type/lote"
-import { formatDate } from "@/lib/utils/helpers"
+import { dia, hoyIso } from "@/lib/utils/fechas"
 
 const EMPTY_FORM = { loteId: "", fecha: "" }
-
-function todayISO(): string {
-  const now = new Date()
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
-}
 
 const columns: TableColumn<RegistroFotografico>[] = [
   {
@@ -58,7 +52,7 @@ const columns: TableColumn<RegistroFotografico>[] = [
     header: "Fecha",
     cell: (r) => (
       <span className="text-muted-foreground">
-        {formatDate(r.fecha) ?? <span className="italic"></span>}
+        {dia(r.fecha)}
       </span>
     ),
   },
@@ -106,7 +100,7 @@ export default function RegistroFotograficoPage() {
   function openCreate() {
     setIsViewing(false)
     setEditing(null)
-    setForm({ ...EMPTY_FORM, fecha: todayISO() })
+    setForm({ ...EMPTY_FORM, fecha: hoyIso() })
     resetFileState()
     setModalOpen(true)
   }

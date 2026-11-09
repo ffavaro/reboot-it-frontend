@@ -36,15 +36,15 @@ import type { Empleado } from "@/lib/type/user"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import { getUser } from "@/lib/auth-utils"
 import type { TokenPayload } from "@/lib/auth-utils"
-import { formatDateTime, getTransportistaActual } from "@/lib/utils/helpers"
-import {  DIAS_CAL_CORTOS, MESES_ES } from "@/lib/utils/fechas"
+import { getTransportistaActual } from "@/lib/utils/helpers"
+import { aFechaHoraLocal, DIAS_CAL_CORTOS, diaYHora, diaYHoraLargo, horaEnPunto, MESES_ES } from "@/lib/utils/fechas"
+import { HORARIOS } from "@/lib/utils/formato"
 import Title from "@/components/ui/title"
 
 const EMPTY_FORM = { donanteId: "", estadoTurnoId: "", fechaHora: "", descripcion: "" }
 const EMPTY_ASIGNAR = { empleadoId: "", empleadoTransportistaId: "" }
 const ESTADO_RETIRO_CONFIRMADO = "retiro confirmado"
 
-const TIME_SLOTS = Array.from({ length: 11 }, (_, i) => `${String(8 + i).padStart(2, "0")}:00`)
 
 function mismoDia(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
@@ -204,7 +204,7 @@ export default function TurnoPage() {
       header: "Fecha y hora",
       cell: (t) => (
         <span className="text-muted-foreground">
-          {formatDateTime(t.fechaHora) ?? <span className="italic"></span>}
+          {diaYHora(t.fechaHora)}
         </span>
       ),
     },
@@ -292,7 +292,7 @@ export default function TurnoPage() {
       .filter((t: Turno) => t.isActive && mismoDia(new Date(t.fechaHora), dia))
       .forEach((t: Turno) => {
         const d = new Date(t.fechaHora)
-        ocupados.add(`${String(d.getHours()).padStart(2, "0")}:00`)
+        ocupados.add(horaEnPunto(d))
       })
     return ocupados
   }
@@ -323,10 +323,10 @@ export default function TurnoPage() {
       const [h, m] = slot.split(":").map(Number)
       const d = new Date(selectedDate)
       d.setHours(h, m, 0, 0)
-      const pad = (n: number) => String(n).padStart(2, "0")
+
       setForm((f) => ({
         ...f,
-        fechaHora: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(h)}:${pad(m)}`,
+        fechaHora: aFechaHoraLocal(d),
       }))
     }
   }
@@ -338,7 +338,7 @@ export default function TurnoPage() {
       setCalYear(d.getFullYear())
       setCalMonth(d.getMonth())
       setSelectedDate(d)
-      setSelectedTime(`${String(d.getHours()).padStart(2, "0")}:00`)
+      setSelectedTime(horaEnPunto(d))
     } else {
       setCalYear(now.getFullYear())
       setCalMonth(now.getMonth())
@@ -685,10 +685,10 @@ export default function TurnoPage() {
                 {selectedDate.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}
               </span>
               <div className="flex flex-wrap gap-1.5">
-                {TIME_SLOTS.map((slot) => {
+                {HORARIOS.map((slot) => {
                   const ocupado = slotsOcupados(selectedDate).has(slot) &&
                     !(editing && mismoDia(new Date(editing.fechaHora), selectedDate) &&
-                      `${String(new Date(editing.fechaHora).getHours()).padStart(2, "0")}:00` === slot)
+                      horaEnPunto(editing.fechaHora) === slot)
                   const activo = selectedTime === slot
                   return (
                     <button
@@ -717,10 +717,7 @@ export default function TurnoPage() {
             <p className="text-xs text-muted-foreground">
               Turno:{" "}
               <span className="font-medium text-foreground">
-                {new Date(form.fechaHora).toLocaleString("es-AR", {
-                  weekday: "long", day: "numeric", month: "long",
-                  hour: "2-digit", minute: "2-digit",
-                })}
+                {diaYHoraLargo(form.fechaHora)}
               </span>
             </p>
           )}

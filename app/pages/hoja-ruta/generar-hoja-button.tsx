@@ -6,7 +6,8 @@ import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { useGenerarHojaRuta } from "@/hooks/use-hoja-ruta"
-import { formatFechaISO, getErrorMessage } from "@/lib/utils/helpers"
+import { textoDeError } from "@/lib/utils/helpers"
+import { dia } from "@/lib/utils/fechas"
 import { urlWhatsApp } from "@/lib/utils/hoja-ruta"
 import type { HojaIniciadaPendiente, HojaRutaDia } from "@/lib/type/hoja-ruta"
 
@@ -45,7 +46,7 @@ export function GenerarHojaButton({
       ventana?.close()
       const e = error as { code?: string; hojas?: HojaIniciadaPendiente[] }
       if (e?.code === "HOJA_INICIADA_PENDIENTE") setIniciadas(e.hojas ?? [])
-      else toast.error(getErrorMessage(error, "No se pudo generar la hoja de ruta"))
+      else toast.error(textoDeError(error, "No se pudo generar la hoja de ruta"))
     } finally {
       setGenerando(false)
     }
@@ -73,7 +74,7 @@ export function GenerarHojaButton({
             <ul className="flex flex-col gap-1">
               {iniciadas?.map((o) => (
                 <li key={o.id} className="flex justify-between rounded-md bg-muted/50 px-3 py-2">
-                  <span className="font-medium">Hoja del {formatFechaISO(o.fecha)}</span>
+                  <span className="font-medium">Hoja del {dia(o.fecha)}</span>
                   <span className="text-muted-foreground">
                     {plural(o.pendientes, "turno")} {o.pendientes !== 1 ? "pendientes" : "pendiente"}
                   </span>
@@ -81,7 +82,7 @@ export function GenerarHojaButton({
               ))}
             </ul>
             <p className="text-muted-foreground">
-              ¿Querés generar igual la hoja de ruta del {formatFechaISO(hoja.fecha)}?
+              ¿Querés generar igual la hoja de ruta del {dia(hoja.fecha)}?
             </p>
           </div>
           <div className="flex items-center justify-end gap-2 rounded-b-2xl px-6 py-4">

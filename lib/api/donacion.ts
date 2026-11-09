@@ -1,4 +1,4 @@
-import type { Donacion, CreateDonacionPayload, UpdateDonacionPayload, ReporteDonacion, ReporteDonacionQuery } from "@/lib/type/donacion"
+import type { Donacion, CreateDonacionPayload, UpdateDonacionPayload, ReporteDonacion, ReporteDonacionQuery, TrazabilidadDonacion } from "@/lib/type/donacion"
 import { request } from "./client"
 
 export const donacionApi = {
@@ -21,4 +21,6 @@ export const donacionApi = {
 
   remove: (id: number) =>
     request<void>(`/donacion/${id}`, { method: "DELETE" }),
+
+  getTrazabilidad: (id: number) => request<TrazabilidadDonacion>(`/donacion/${id}/detalle`),
 }

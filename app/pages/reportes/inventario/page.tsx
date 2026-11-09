@@ -15,7 +15,7 @@ import {
 import { useTipoMateriales } from "@/hooks/use-tipo-material"
 import { useCondicionesMaterial } from "@/hooks/use-condicion-material"
 import { materialApi } from "@/lib/api"
-import { dia } from "@/lib/documentos/formato"
+import { dia } from "@/lib/utils/fechas"
 import type { ReporteInventario, ReporteInventarioQuery } from "@/lib/type/material"
 import type { TipoMaterial } from "@/lib/type/tipo-material"
 import type { CondicionMaterial } from "@/lib/type/condicion-material"

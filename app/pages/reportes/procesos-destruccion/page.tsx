@@ -7,7 +7,7 @@ import { useEstadosProcesoDestruccion } from "@/hooks/use-estado-proceso-destruc
 import { useMetodosDestruccion } from "@/hooks/use-metodo-destruccion"
 import { useEmpleadosFull } from "@/hooks/use-employees"
 import { procesoDestruccionApi } from "@/lib/api"
-import { dia } from "@/lib/documentos/formato"
+import { dia } from "@/lib/utils/fechas"
 import type { ProcesoDestruccion, ReporteProcesoDestruccionQuery } from "@/lib/type/proceso-destruccion"
 import type { EstadoProcesoDestruccion } from "@/lib/type/estado-proceso-destruccion"
 import type { MetodoDestruccion } from "@/lib/type/metodo-destruccion"

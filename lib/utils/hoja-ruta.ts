@@ -1,4 +1,5 @@
-import { formatFechaISO, formatHora, formatKm } from "@/lib/utils/helpers"
+import { dia, hora } from "@/lib/utils/fechas"
+import { kilometros } from "@/lib/utils/formato"
 import type { HojaRutaDia } from "@/lib/type/hoja-ruta"
 
 export const ESTILO_SELECT =
@@ -19,16 +20,16 @@ export function formatDuracion(minutos: number): string {
 
 export function urlWhatsApp(h: HojaRutaDia): string {
   const lineas = [
-    `*Hoja de ruta* - ${formatFechaISO(h.fecha)}`,
+    `*Hoja de ruta* - ${dia(h.fecha)}`,
     `Transportista: ${nombreTransportista(h)}`,
     h.vehiculo ? `Vehículo: ${h.vehiculo.patente} (${h.vehiculo.marca} ${h.vehiculo.modelo})` : "Vehículo: sin asignar",
     `Estado: ${h.estado}`,
-    ...(h.kmEstimados !== null ? [`Km estimados: ${formatKm(h.kmEstimados)}`] : []),
+    ...(h.kmEstimados !== null ? [`Km estimados: ${kilometros(h.kmEstimados)}`] : []),
     "",
     `Paradas (${h.paradas.length}):`,
     ...h.paradas.map(
       (p) =>
-        `${p.orden}. ${p.donante} - ${p.direccion || "Sin dirección cargada"} (${formatHora(p.fechaHora)} hs)${p.retirado ? " ✔ retirado" : ""}`,
+        `${p.orden}. ${p.donante} - ${p.direccion || "Sin dirección cargada"} (${hora(p.fechaHora)} hs)${p.retirado ? " ✔ retirado" : ""}`,
     ),
   ]
   if (h.mapsUrl) lineas.push("", `Ver ruta en Google Maps: ${h.mapsUrl}`)

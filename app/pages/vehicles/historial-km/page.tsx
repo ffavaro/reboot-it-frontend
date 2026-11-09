@@ -11,23 +11,17 @@ import { DateInput } from "@/components/ui/date-input"
 import { useVehiculos } from "@/hooks/use-vehicles"
 import { useRecorridosDeVehiculo } from "@/hooks/use-historial-km"
 import { kmLegible } from "@/lib/utils/helpers"
+import { diaYHora } from "@/lib/utils/fechas"
 import type { RangoFechas, RecorridoKm } from "@/lib/type/historial-km"
 
 const SIN_FILTRO: RangoFechas = { desde: "", hasta: "" }
-
-const dosCifras = (n: number) => String(n).padStart(2, "0")
-
-function fechaHora(iso: string) {
-  const d = new Date(iso)
-  return `${dosCifras(d.getDate())}/${dosCifras(d.getMonth() + 1)}/${d.getFullYear()} ${dosCifras(d.getHours())}:${dosCifras(d.getMinutes())}`
-}
 
 const recorrido = (r: RecorridoKm) => (r.kmFinal == null ? null : r.kmFinal - r.kmInicial)
 
 const vacio = <span className="italic text-muted-foreground">—</span>
 
 const COLUMNAS: TableColumn<RecorridoKm>[] = [
-  { key: "fecha", header: "Inicio", cell: (r) => <span className="tabular-nums">{fechaHora(r.createdAt)}</span> },
+  { key: "fecha", header: "Inicio", cell: (r) => <span className="tabular-nums">{diaYHora(r.createdAt)}</span> },
   { key: "hoja", header: "Hoja de ruta", cell: (r) => (r.hojaRutaId ? `N.º ${r.hojaRutaId}` : vacio) },
   { key: "inicial", header: "Km al salir", cell: (r) => <span className="tabular-nums">{kmLegible(r.kmInicial)}</span> },
   { key: "final", header: "Km al volver", cell: (r) => (r.kmFinal == null ? vacio : <span className="tabular-nums">{kmLegible(r.kmFinal)}</span>) },

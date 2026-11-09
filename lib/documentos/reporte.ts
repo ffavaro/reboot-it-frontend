@@ -1,6 +1,6 @@
 import * as XLSX from "xlsx"
 import { DocumentoPdf } from "./pdf"
-import { diaYHora, hoyIso } from "./formato"
+import { diaYHora, hoyIso } from "@/lib/utils/fechas"
 
 export interface ColumnaArchivo<T> {
   titulo: string

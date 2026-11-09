@@ -1,5 +1,6 @@
 
 import type { ReporteInventario } from "@/lib/type/material"
+import { dos, isoDe, MESES_CORTOS } from "@/lib/utils/fechas"
 
 export const entero = (n: number) => n.toLocaleString("es-AR")
 
@@ -23,10 +24,6 @@ export function mesCorto(isoMes: string) {
   return new Date(anio, mes - 1, 1).toLocaleDateString("es-AR", { month: "short", year: "2-digit" }).replace(".", "")
 }
 
-export function isoDe(fecha: Date) {
-  return [fecha.getFullYear(), fecha.getMonth() + 1, fecha.getDate()].map((n, i) => String(n).padStart(i ? 2 : 4, "0")).join("-")
-}
-
 export function mesesAtras(cantidad: number, referencia = new Date()) {
   const d = new Date(referencia)
   d.setMonth(d.getMonth() - cantidad)
@@ -37,11 +34,6 @@ export function mesEnCurso(referencia = new Date()) {
   const y = referencia.getFullYear()
   const m = referencia.getMonth()
   return { desde: isoDe(new Date(y, m, 1)), hasta: isoDe(new Date(y, m + 1, 0)) }
-}
-
-export function diaCorto(iso: string) {
-  const [y, m, d] = iso.slice(0, 10).split("-")
-  return y && m && d ? `${d}/${m}/${y}` : "—"
 }
 
 export const sinClasificar = (condicion: string | null | undefined) => {
@@ -58,21 +50,11 @@ export const PERIODO_LABELS: Record<Periodo, string> = {
   año: "Anual",
 }
 
-export const MESES_CORTOS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
-
 export type RangoFechas = {
   fechaDesde: string
   fechaHasta: string
   label: string
   meses: number[]
-}
-
-function pad(n: number) {
-  return String(n).padStart(2, "0")
-}
-
-function toISODate(d: Date) {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
 export function getRangoFechas(periodo: Periodo, ref: Date = new Date()): RangoFechas {
@@ -82,7 +64,7 @@ export function getRangoFechas(periodo: Periodo, ref: Date = new Date()): RangoF
   if (periodo === "mes") {
     const start = new Date(year, month, 1)
     const end = new Date(year, month + 1, 0)
-    return { fechaDesde: toISODate(start), fechaHasta: toISODate(end), label: `${MESES_CORTOS[month]} ${year}`, meses: [month] }
+    return { fechaDesde: isoDe(start), fechaHasta: isoDe(end), label: `${MESES_CORTOS[month]} ${year}`, meses: [month] }
   }
 
   if (periodo === "trimestre") {
@@ -91,7 +73,7 @@ export function getRangoFechas(periodo: Periodo, ref: Date = new Date()): RangoF
     const start = new Date(year, startMonth, 1)
     const end = new Date(year, startMonth + 3, 0)
     const meses = [startMonth, startMonth + 1, startMonth + 2]
-    return { fechaDesde: toISODate(start), fechaHasta: toISODate(end), label: `T${q + 1} ${year} (${MESES_CORTOS[startMonth]}–${MESES_CORTOS[startMonth + 2]})`, meses }
+    return { fechaDesde: isoDe(start), fechaHasta: isoDe(end), label: `T${q + 1} ${year} (${MESES_CORTOS[startMonth]}–${MESES_CORTOS[startMonth + 2]})`, meses }
   }
 
   if (periodo === "semestre") {
@@ -100,13 +82,13 @@ export function getRangoFechas(periodo: Periodo, ref: Date = new Date()): RangoF
     const start = new Date(year, startMonth, 1)
     const end = new Date(year, startMonth + 6, 0)
     const meses = Array.from({ length: 6 }, (_, i) => startMonth + i)
-    return { fechaDesde: toISODate(start), fechaHasta: toISODate(end), label: `${s === 0 ? "1er" : "2do"} semestre ${year}`, meses }
+    return { fechaDesde: isoDe(start), fechaHasta: isoDe(end), label: `${s === 0 ? "1er" : "2do"} semestre ${year}`, meses }
   }
 
   const start = new Date(year, 0, 1)
   const end = new Date(year, 11, 31)
   const meses = Array.from({ length: 12 }, (_, i) => i)
-  return { fechaDesde: toISODate(start), fechaHasta: toISODate(end), label: `Año ${year}`, meses }
+  return { fechaDesde: isoDe(start), fechaHasta: isoDe(end), label: `Año ${year}`, meses }
 }
 
 export function getRangoCustom(fechaDesde: string, fechaHasta: string): RangoFechas {
@@ -121,7 +103,7 @@ export function getRangoAnteriorCustom(fechaDesde: string, fechaHasta: string): 
   prevEnd.setDate(prevEnd.getDate() - 1)
   const prevStart = new Date(prevEnd)
   prevStart.setDate(prevStart.getDate() - diffDays + 1)
-  return { fechaDesde: toISODate(prevStart), fechaHasta: toISODate(prevEnd), label: "período anterior", meses: [] }
+  return { fechaDesde: isoDe(prevStart), fechaHasta: isoDe(prevEnd), label: "período anterior", meses: [] }
 }
 
 export function getBucketOrderCustom(fechaDesde: string, fechaHasta: string): string[] {
@@ -196,4 +178,58 @@ export function clasificarMateriales(materiales: ReporteInventario[], condicionP
 export function pctChange(actual: number, anterior: number): number {
   if (anterior === 0) return actual === 0 ? 0 : 100
   return Math.round(((actual - anterior) / anterior) * 100)
+}
+
+export const APERTURA = 8
+export const CIERRE = 17
+
+export const HORARIOS = Array.from({ length: CIERRE - APERTURA + 1 }, (_, i) => `${dos(APERTURA + i)}:00`)
+
+export const RANGO_ATENCION = `${dos(APERTURA)}:00 a ${dos(CIERRE)}:00 hs`
+
+export function mismoDia(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+}
+
+const esFinDeSemana = (d: Date) => d.getDay() === 0 || d.getDay() === 6
+
+function inicioDelDia(d: Date): Date {
+  const copia = new Date(d)
+  copia.setHours(0, 0, 0, 0)
+  return copia
+}
+
+export function momentoDe(dia: Date, horario: string): Date {
+  const [h, m] = horario.split(":").map(Number)
+  const momento = new Date(dia)
+  momento.setHours(h, m, 0, 0)
+  return momento
+}
+
+export const horarioVencido = (dia: Date, horario: string, ahora = new Date()) =>
+  momentoDe(dia, horario).getTime() <= ahora.getTime()
+
+export const atiendeHoy = (ahora = new Date()) =>
+  !esFinDeSemana(ahora) && HORARIOS.some((h) => !horarioVencido(ahora, h, ahora))
+
+export function diaHabilitado(dia: Date, ahora = new Date()): boolean {
+  return !esFinDeSemana(dia) && inicioDelDia(dia) >= inicioDelDia(ahora)
+}
+
+export function primerDiaDisponible(ahora = new Date()): Date {
+  const dia = inicioDelDia(ahora)
+  if (!atiendeHoy(ahora)) dia.setDate(dia.getDate() + 1)
+  while (esFinDeSemana(dia)) dia.setDate(dia.getDate() + 1)
+  return dia
+}
+
+export function diasDelMes(anio: number, mes: number): (Date | null)[] {
+  const ultimo = new Date(anio, mes + 1, 0).getDate()
+  const habiles: Date[] = []
+  for (let d = 1; d <= ultimo; d++) {
+    const fecha = new Date(anio, mes, d)
+    if (!esFinDeSemana(fecha)) habiles.push(fecha)
+  }
+  const huecos = habiles.length ? habiles[0].getDay() - 1 : 0
+  return [...Array<null>(huecos).fill(null), ...habiles]
 }

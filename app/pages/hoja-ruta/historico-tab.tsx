@@ -8,7 +8,8 @@ import { EstadoHojaBadge } from "@/components/ui/estado-hoja-badge"
 import { useHojasRutaHistorico } from "@/hooks/use-hoja-ruta"
 import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
 import { useVehiculos } from "@/hooks/use-vehicles"
-import { formatDateTime, formatFechaISO, formatKm } from "@/lib/utils/helpers"
+import { dia, diaYHora } from "@/lib/utils/fechas"
+import { kilometros } from "@/lib/utils/formato"
 import { ESTILO_SELECT } from "@/lib/utils/hoja-ruta"
 import type { HojaRutaHistorico } from "@/lib/type/hoja-ruta"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
@@ -21,13 +22,13 @@ const COLUMNAS: TableColumn<HojaRutaHistorico>[] = [
     key: "cierre",
     header: "Fecha de cierre",
     cell: (h) => (
-      <span className="tabular-nums">{h.fechaFin ? formatDateTime(h.fechaFin) : formatFechaISO(h.fecha)}</span>
+      <span className="tabular-nums">{h.fechaFin ? diaYHora(h.fechaFin) : dia(h.fecha)}</span>
     ),
   },
   {
     key: "fecha",
     header: "Fecha pactada",
-    cell: (h) => <span className="tabular-nums text-muted-foreground">{formatFechaISO(h.fecha)}</span>,
+    cell: (h) => <span className="tabular-nums text-muted-foreground">{dia(h.fecha)}</span>,
   },
   {
     key: "transportista",
@@ -56,7 +57,7 @@ const COLUMNAS: TableColumn<HojaRutaHistorico>[] = [
     header: "Km estimados (Maps)",
     cell: (h) =>
       h.kmEstimados !== null ? (
-        <span className="tabular-nums text-muted-foreground">{formatKm(h.kmEstimados)}</span>
+        <span className="tabular-nums text-muted-foreground">{kilometros(h.kmEstimados)}</span>
       ) : (
         <Vacio />
       ),
@@ -65,7 +66,7 @@ const COLUMNAS: TableColumn<HojaRutaHistorico>[] = [
     key: "kmReales",
     header: "Km reales",
     cell: (h) =>
-      h.kmReales !== null ? <span className="tabular-nums font-medium">{formatKm(h.kmReales)}</span> : <Vacio />,
+      h.kmReales !== null ? <span className="tabular-nums font-medium">{kilometros(h.kmReales)}</span> : <Vacio />,
   },
   {
     key: "estado",
