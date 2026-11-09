@@ -5,13 +5,10 @@ import "leaflet/dist/leaflet.css"
 import type { PuntoRecorrido } from "@/lib/type/hoja-ruta"
 
 export interface MapaRutaDatos {
-  // Línea del recorrido en formato "encoded polyline" de Google
   polyline: string
-  // Coordenada de cada punto del recorrido (origen, paradas y destino), en el mismo orden que `recorrido`
-  puntos: { lat: number; lng: number }[]
+   puntos: { lat: number; lng: number }[]
 }
 
-// Decodifica el formato "encoded polyline" que devuelve la Routes API de Google
 function decodificarPolyline(codigo: string): [number, number][] {
   const salida: [number, number][] = []
   let i = 0
@@ -38,10 +35,6 @@ function decodificarPolyline(codigo: string): [number, number][] {
 
 const COLORES = { origen: "#16a34a", parada: "#2563eb", destino: "#dc2626" }
 
-/**
- * Mapa propio de la hoja de ruta (OpenStreetMap + Leaflet): dibuja el recorrido y marca el origen, cada parada
- * numerada y el destino. No depende de ninguna clave del navegador ni del mapa embebido de Google.
- */
 export function MapaRuta({ mapa, recorrido }: { mapa: MapaRutaDatos; recorrido: PuntoRecorrido[] }) {
   const contenedor = useRef<HTMLDivElement>(null)
 
@@ -69,7 +62,6 @@ export function MapaRuta({ mapa, recorrido }: { mapa: MapaRutaDatos; recorrido: 
         const rol = info?.rol ?? (i === 0 ? "origen" : i === mapa.puntos.length - 1 ? "destino" : "parada")
         if (rol === "parada") paradas += 1
         const texto = rol === "origen" ? "O" : rol === "destino" ? "D" : String(paradas)
-        // Origen y destino suelen ser la misma base: se dibujan lado a lado para que no se tapen
         const mismoLugarQueOrigen = rol === "destino" && Math.abs(p.lat - mapa.puntos[0].lat) < 1e-5 && Math.abs(p.lng - mapa.puntos[0].lng) < 1e-5
         const ancla: [number, number] = rol === "origen" ? [30, 14] : mismoLugarQueOrigen ? [-2, 14] : [14, 14]
         const icono = L.divIcon({
@@ -80,7 +72,6 @@ export function MapaRuta({ mapa, recorrido }: { mapa: MapaRutaDatos; recorrido: 
         })
         const marcador = L.marker([p.lat, p.lng], { icon: icono }).addTo(mapaLeaflet!)
         if (info) {
-          // el contenido se arma con nodos de texto: las direcciones las carga el usuario
           const cuerpo = document.createElement("div")
           const titulo = document.createElement("strong")
           titulo.textContent = info.etiqueta
@@ -97,7 +88,6 @@ export function MapaRuta({ mapa, recorrido }: { mapa: MapaRutaDatos; recorrido: 
       })
 
       mapaLeaflet.fitBounds(limites.isValid() ? limites : trazado.getBounds(), { padding: [30, 30] })
-      // el contenedor puede haber cambiado de tamaño mientras se cargaba
       setTimeout(() => mapaLeaflet?.invalidateSize(), 0)
     })()
 

@@ -4,6 +4,7 @@ import { useState } from "react"
 import { MapPin, MessageCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DatePicker } from "@/components/ui/date-picker"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { useHojasRutaDia } from "@/hooks/use-hoja-ruta"
 import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
@@ -23,6 +24,8 @@ const PESTANAS: [Pestana, string][] = [
   ["historico", "Histórico de hojas de ruta"],
 ]
 
+const TODOS = "todos"
+
 const DIAS_ATRAS = -7
 const DIAS_ADELANTE = 7
 
@@ -34,6 +37,21 @@ export function VistaAdministrativo() {
   const [estado, setEstado] = useState<EstadoHojaRuta | "">("")
 
   const { transportistas } = useEmpleadosTransportistas()
+
+  const opcionesTransportistas = [
+    { value: TODOS, label: "Todos los transportistas" },
+    ...transportistas
+      .filter((t: EmpleadoTransportista) => t.isActive)
+      .map((t: EmpleadoTransportista) => ({
+        value: String(t.id),
+        label: t.empleado ? `${t.empleado.nombre} ${t.empleado.apellido}` : `Transportista #${t.id}`,
+      })),
+  ]
+
+  const opcionesEstados = [
+    { value: TODOS, label: "Todos los estados" },
+    ...ESTADOS_HOJA_RUTA.map((e) => ({ value: e, label: e })),
+  ]
   const { hojas, isLoading, mutate } = useHojasRutaDia({
     fechaDesde: desde,
     fechaHasta: hasta,
@@ -84,30 +102,34 @@ export function VistaAdministrativo() {
               <span className="text-xs text-muted-foreground">→</span>
               <DatePicker value={hasta} onChange={(v) => v && setHasta(v)} min={desde} aria-label="Hojas de ruta hasta" />
             </div>
-            <select
-              value={transportistaId}
-              onChange={(e) => setTransportistaId(e.target.value)}
-              className={ESTILO_SELECT}
-              aria-label="Filtrar por transportista"
+            <Select
+              value={transportistaId || TODOS}
+              onValueChange={(v) => setTransportistaId(v === TODOS ? "" : (v ?? ""))}
+              items={opcionesTransportistas}
             >
-              <option value="">Todos los transportistas</option>
-              {transportistas
-                .filter((t: EmpleadoTransportista) => t.isActive)
-                .map((t: EmpleadoTransportista) => (
-                  <option key={t.id} value={t.id}>
-                    {t.empleado ? `${t.empleado.nombre} ${t.empleado.apellido}` : `Transportista #${t.id}`}
-                  </option>
+              <SelectTrigger className={ESTILO_SELECT} aria-label="Filtrar por transportista">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {opcionesTransportistas.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                 ))}
-            </select>
-            <select
-              value={estado}
-              onChange={(e) => setEstado(e.target.value as EstadoHojaRuta | "")}
-              className={ESTILO_SELECT}
-              aria-label="Filtrar por estado"
+              </SelectContent>
+            </Select>
+            <Select
+              value={estado || TODOS}
+              onValueChange={(v) => setEstado(v === TODOS ? "" : ((v ?? "") as EstadoHojaRuta | ""))}
+              items={opcionesEstados}
             >
-              <option value="">Todos los estados</option>
-              {ESTADOS_HOJA_RUTA.map((e) => <option key={e} value={e}>{e}</option>)}
-            </select>
+              <SelectTrigger className={ESTILO_SELECT} aria-label="Filtrar por estado">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {opcionesEstados.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {(transportistaId || estado || rangoModificado) && (
               <button onClick={limpiarFiltros} className="px-1 text-xs text-muted-foreground hover:text-foreground">
                 ✕ Limpiar filtros
