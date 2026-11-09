@@ -12,10 +12,20 @@ import { TokenPayload } from '@/lib/auth-utils';
 import { validateEmail, validateCuitDni } from '@/lib/utils/helpers';
 import { useRouter } from 'next/navigation';
 import { ErrorResponse } from '@/lib/type/';
+import { tieneNumeroDeCalle } from '@/lib/utils/text-limit';
+import {
+  JURISDICCIONES,
+  LARGO_CARGO,
+  LARGO_NOMBRE_PERSONA,
+  esOrganismoPublico,
+  problemaDeNombre,
+  unirResponsable,
+} from '@/lib/organismo';
 
 const EMPTY_FORM = {
   tipoDonanteId: '',
-  name: '',
+  nombre: '',
+  apellido: '',
   razonSocial: '',
   email: '',
   cuitDni: '',
@@ -23,6 +33,10 @@ const EMPTY_FORM = {
   telefono: '',
   password: '',
   confirmPassword: '',
+  jurisdiccion: '',
+  respApellido: '',
+  respNombre: '',
+  cargoResponsable: '',
 };
 
 type FormErrors = Partial<Record<keyof typeof EMPTY_FORM, string>>;
@@ -46,21 +60,34 @@ export default function RegisterPage() {
 
   const selectedTipo = tipoDonantes.find((t) => String(t.id) === formData.tipoDonanteId);
   const usesRazonSocial = isLegalEntity(selectedTipo);
+  const esOrganismo = esOrganismoPublico(selectedTipo);
   const tipoSeleccionado = !!formData.tipoDonanteId;
 
   function validate(data: typeof EMPTY_FORM): FormErrors {
     const e: FormErrors = {};
     const tipo = tipoDonantes.find((t) => String(t.id) === data.tipoDonanteId);
     const legalEntity = isLegalEntity(tipo);
+    const organismo = esOrganismoPublico(tipo);
 
     if (!data.tipoDonanteId) e.tipoDonanteId = 'Seleccioná el tipo de donante';
 
     if (legalEntity) {
-      if (!data.razonSocial.trim()) e.razonSocial = 'La razón social es obligatoria';
+      if (!data.razonSocial.trim()) e.razonSocial = organismo ? 'El nombre del organismo es obligatorio' : 'La razón social es obligatoria';
       else if (data.razonSocial.trim().length < 3) e.razonSocial = 'Mínimo 3 caracteres';
+      if (organismo) {
+        if (!data.jurisdiccion) e.jurisdiccion = 'Seleccioná la jurisdicción';
+        const apellido = problemaDeNombre(data.respApellido, 'el apellido del responsable');
+        if (apellido) e.respApellido = apellido;
+        const nombre = problemaDeNombre(data.respNombre, 'el nombre del responsable');
+        if (nombre) e.respNombre = nombre;
+        if (!data.cargoResponsable.trim()) e.cargoResponsable = 'El cargo del responsable es obligatorio';
+        if (!data.telefono.trim()) e.telefono = 'El teléfono es obligatorio para un organismo';
+      }
     } else if (data.tipoDonanteId) {
-      if (!data.name.trim()) e.name = 'El nombre es obligatorio';
-      else if (data.name.trim().length < 3) e.name = 'Mínimo 3 caracteres';
+      const nombre = problemaDeNombre(data.nombre, 'tu nombre');
+      if (nombre) e.nombre = nombre;
+      const apellido = problemaDeNombre(data.apellido, 'tu apellido');
+      if (apellido) e.apellido = apellido;
     }
 
     if (!data.email.trim()) e.email = 'El correo es obligatorio';
@@ -68,9 +95,11 @@ export default function RegisterPage() {
 
     if (!data.cuitDni.trim()) e.cuitDni = 'El CUIT/DNI es obligatorio';
     else if (!validateCuitDni(data.cuitDni)) e.cuitDni = 'Debe tener 8 (DNI) u 11 (CUIT) dígitos';
+    else if (organismo && data.cuitDni.replace(/\D/g, '').length !== 11) e.cuitDni = 'El CUIT del organismo debe tener 11 dígitos';
 
     if (!data.direccion.trim()) e.direccion = 'La dirección es obligatoria';
     else if (data.direccion.trim().length < 5) e.direccion = 'Ingresá una dirección válida';
+    else if (!tieneNumeroDeCalle(data.direccion)) e.direccion = 'Incluí la altura (número de la casa)';
 
     if (!data.password) e.password = 'La contraseña es obligatoria';
     else if (data.password.length < 6) e.password = 'Mínimo 6 caracteres';
@@ -85,8 +114,13 @@ export default function RegisterPage() {
     const { name, value } = e.target;
     const updated = { ...formData, [name]: value };
     if (name === 'tipoDonanteId') {
-      updated.name = '';
+      updated.nombre = '';
+      updated.apellido = '';
       updated.razonSocial = '';
+      updated.jurisdiccion = '';
+      updated.respApellido = '';
+      updated.respNombre = '';
+      updated.cargoResponsable = '';
     }
     setFormData(updated);
     if (touched[name as keyof typeof EMPTY_FORM]) {
@@ -111,11 +145,12 @@ export default function RegisterPage() {
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
-    const nombreEfectivo = usesRazonSocial ? formData.razonSocial.trim() : formData.name.trim();
+    const nombreEfectivo = usesRazonSocial ? formData.razonSocial.trim() : `${formData.nombre.trim()} ${formData.apellido.trim()}`;
 
     try {
       const authResult = await register({
         name: nombreEfectivo,
+        apellido: formData.apellido,
         email: formData.email,
         cuitDni: formData.cuitDni,
         password: formData.password,
@@ -130,6 +165,13 @@ export default function RegisterPage() {
         direccion: formData.direccion.trim() || undefined,
         telefono: formData.telefono.trim() || undefined,
         usuarioId,
+        ...(esOrganismo
+          ? {
+              jurisdiccion: formData.jurisdiccion,
+              responsable: unirResponsable(formData.respApellido, formData.respNombre),
+              cargoResponsable: formData.cargoResponsable.trim(),
+            }
+          : {}),
       });
       toast.success('Registro exitoso! Por favor, inicia sesión.');
       setFormData(EMPTY_FORM);
@@ -171,7 +213,6 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-rose-100 px-4 py-8">
       <div className="w-full max-w-sm">
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-          {/* Header */}
           <div className="bg-red-600 px-6 py-7 text-center">
             <h1 className="text-2xl font-bold text-white">Crear Cuenta</h1>
             <p className="text-red-200 text-xs mt-1">Únete a nuestra comunidad</p>
@@ -179,8 +220,6 @@ export default function RegisterPage() {
 
           <div className="px-6 py-6">
             <form className="space-y-4" onSubmit={handleSubmit} noValidate>
-
-              {/* 1. Tipo de donante  primer campo */}
               <div>
                 <label htmlFor="tipoDonanteId" className="block text-xs font-semibold text-gray-600 mb-1">
                   Tipo de donante
@@ -201,16 +240,15 @@ export default function RegisterPage() {
                 <FieldError name="tipoDonanteId" />
               </div>
 
-              {/* 2a. Razón Social  empresa u organismo */}
               {tipoSeleccionado && usesRazonSocial && (
                 <div>
                   <label htmlFor="razonSocial" className="block text-xs font-semibold text-gray-600 mb-1">
-                    Razón Social
+                    {esOrganismo ? 'Nombre del organismo' : 'Razón Social'}
                   </label>
                   <Input
                     id="razonSocial"
                     type="text"
-                    placeholder="Empresa S.A."
+                    placeholder={esOrganismo ? 'Ministerio de Ambiente' : 'Empresa S.A.'}
                     className={`h-9 text-sm ${err('razonSocial')}`}
                     {...field('razonSocial')}
                   />
@@ -218,27 +256,112 @@ export default function RegisterPage() {
                 </div>
               )}
 
+              {tipoSeleccionado && esOrganismo && (
+                <>
+                  <div>
+                    <label htmlFor="jurisdiccion" className="block text-xs font-semibold text-gray-600 mb-1">
+                      Jurisdicción
+                    </label>
+                    <select
+                      id="jurisdiccion"
+                      className={`flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm bg-white transition-colors focus-visible:outline-none focus-visible:ring-1 ${touched.jurisdiccion && errors.jurisdiccion
+                          ? 'border-red-400 focus-visible:ring-red-400'
+                          : 'border-input focus-visible:ring-ring'
+                        }`}
+                      {...field('jurisdiccion')}
+                    >
+                      <option value="">Seleccionar jurisdicción...</option>
+                      {JURISDICCIONES.map((j) => (
+                        <option key={j} value={j}>{j}</option>
+                      ))}
+                    </select>
+                    <FieldError name="jurisdiccion" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="respApellido" className="block text-xs font-semibold text-gray-600 mb-1">
+                        Apellido del responsable
+                      </label>
+                      <Input
+                        id="respApellido"
+                        type="text"
+                        placeholder="Gómez"
+                        maxLength={LARGO_NOMBRE_PERSONA}
+                        className={`h-9 text-sm ${err('respApellido')}`}
+                        {...field('respApellido')}
+                      />
+                      <FieldError name="respApellido" />
+                    </div>
+                    <div>
+                      <label htmlFor="respNombre" className="block text-xs font-semibold text-gray-600 mb-1">
+                        Nombre del responsable
+                      </label>
+                      <Input
+                        id="respNombre"
+                        type="text"
+                        placeholder="Laura"
+                        maxLength={LARGO_NOMBRE_PERSONA}
+                        className={`h-9 text-sm ${err('respNombre')}`}
+                        {...field('respNombre')}
+                      />
+                      <FieldError name="respNombre" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="cargoResponsable" className="block text-xs font-semibold text-gray-600 mb-1">
+                      Cargo del responsable
+                    </label>
+                    <Input
+                      id="cargoResponsable"
+                      type="text"
+                      placeholder="Directora de Compras"
+                      maxLength={LARGO_CARGO}
+                      className={`h-9 text-sm ${err('cargoResponsable')}`}
+                      {...field('cargoResponsable')}
+                    />
+                    <FieldError name="cargoResponsable" />
+                  </div>
+                </>
+              )}
+
               {/* 2b. Nombre Completo  particular */}
               {tipoSeleccionado && !usesRazonSocial && (
-                <div>
-                  <label htmlFor="name" className="block text-xs font-semibold text-gray-600 mb-1">
-                    Nombre Completo
-                  </label>
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="Juan Pérez"
-                    className={`h-9 text-sm ${err('name')}`}
-                    {...field('name')}
-                  />
-                  <FieldError name="name" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="nombre" className="block text-xs font-semibold text-gray-600 mb-1">
+                      Nombre
+                    </label>
+                    <Input
+                      id="nombre"
+                      type="text"
+                      placeholder="Juan"
+                      maxLength={LARGO_NOMBRE_PERSONA}
+                      className={`h-9 text-sm ${err('nombre')}`}
+                      {...field('nombre')}
+                    />
+                    <FieldError name="nombre" />
+                  </div>
+                  <div>
+                    <label htmlFor="apellido" className="block text-xs font-semibold text-gray-600 mb-1">
+                      Apellido
+                    </label>
+                    <Input
+                      id="apellido"
+                      type="text"
+                      placeholder="Pérez"
+                      maxLength={LARGO_NOMBRE_PERSONA}
+                      className={`h-9 text-sm ${err('apellido')}`}
+                      {...field('apellido')}
+                    />
+                    <FieldError name="apellido" />
+                  </div>
                 </div>
               )}
 
-              {/* Resto de campos  solo aparecen una vez seleccionado el tipo */}
               {tipoSeleccionado && (
                 <>
-                  {/* Email */}
                   <div>
                     <label htmlFor="email" className="block text-xs font-semibold text-gray-600 mb-1">
                       Correo Electrónico
@@ -253,10 +376,9 @@ export default function RegisterPage() {
                     <FieldError name="email" />
                   </div>
 
-                  {/* CUIT / DNI */}
                   <div>
                     <label htmlFor="cuitDni" className="block text-xs font-semibold text-gray-600 mb-1">
-                      CUIT / DNI
+                      {esOrganismo ? 'CUIT' : 'CUIT / DNI'}
                     </label>
                     <Input
                       id="cuitDni"
@@ -268,7 +390,6 @@ export default function RegisterPage() {
                     <FieldError name="cuitDni" />
                   </div>
 
-                  {/* Dirección */}
                   <div>
                     <label htmlFor="direccion" className="block text-xs font-semibold text-gray-600 mb-1">
                       Dirección
@@ -276,28 +397,27 @@ export default function RegisterPage() {
                     <Input
                       id="direccion"
                       type="text"
-                      placeholder="Av. Corrientes 1234, CABA"
+                      placeholder="Av. Colón 1234, Córdoba"
                       className={`h-9 text-sm ${err('direccion')}`}
                       {...field('direccion')}
                     />
                     <FieldError name="direccion" />
                   </div>
 
-                  {/* Teléfono */}
                   <div>
                     <label htmlFor="telefono" className="block text-xs font-semibold text-gray-600 mb-1">
-                      Teléfono <span className="font-normal text-gray-400">(opcional)</span>
+                      Teléfono {!esOrganismo && <span className="font-normal text-gray-400">(opcional)</span>}
                     </label>
                     <Input
                       id="telefono"
-                      type="tel"
+                      type="number"
                       placeholder="+54 11 1234-5678"
-                      className="h-9 text-sm"
+                      className={`h-9 text-sm ${err('telefono')}`}
                       {...field('telefono')}
                     />
+                    <FieldError name="telefono" />
                   </div>
 
-                  {/* Contraseñas */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label htmlFor="password" className="block text-xs font-semibold text-gray-600 mb-1">

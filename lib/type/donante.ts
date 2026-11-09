@@ -11,6 +11,9 @@ export interface Donante {
   razonSocial?: string | null
   telefono?: string | null
   direccion?: string | null
+  jurisdiccion?: string | null
+  responsable?: string | null
+  cargoResponsable?: string | null
   isActive: boolean
   tipoDonante: TipoDonante
 }
@@ -22,6 +25,9 @@ export interface CreateDonantePayload {
   razonSocial?: string
   telefono?: string
   direccion?: string
+  jurisdiccion?: string | null
+  responsable?: string | null
+  cargoResponsable?: string | null
 }
 
 export interface UpdateDonantePayload {
@@ -31,6 +37,9 @@ export interface UpdateDonantePayload {
   razonSocial?: string | null
   telefono?: string | null
   direccion?: string | null
+  jurisdiccion?: string | null
+  responsable?: string | null
+  cargoResponsable?: string | null
 }
 
 export interface CreateTipoDonantePayload {
