@@ -29,6 +29,7 @@ export interface UpdateEmpleadoPayload {
 export interface Usuario  {
   id: string
   nombre: string
+  apellido?: string
   email: string
   rol: Rol
   empleadoId?: string | null
@@ -37,6 +38,7 @@ export interface Usuario  {
 
 export interface CreateUsuarioPayload {
   nombre: string
+  apellido: string
   email: string
   rolId: number
   password?: string

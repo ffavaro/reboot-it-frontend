@@ -15,7 +15,16 @@ import { useRoles } from "@/hooks/use-roles"
 import { useDonantes, useUpdateDonante, useCreateDonante, useTipoDonantes } from "@/hooks/use-donantes"
 import { useFormErrors } from "@/hooks/use-form-errors"
 import { required, requiredSelect, minLength, onlyLetters, emailFormat, maxLength as maxLengthValidator } from "@/lib/form-validators"
-import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
+import { enforceMaxLength, DEFAULT_TEXT_MAX, tieneNumeroDeCalle } from "@/lib/utils/text-limit"
+import {
+  JURISDICCIONES,
+  LARGO_CARGO,
+  LARGO_NOMBRE_PERSONA,
+  esOrganismoPublico,
+  esPersonaJuridica,
+  problemaDeNombre,
+  unirResponsable,
+} from "@/lib/organismo"
 import type { Rol, Usuario } from "@/lib/type/user"
 import type { Donante } from "@/lib/type/donante"
 import Title from "@/components/ui/title"
@@ -62,6 +71,7 @@ const SELECT_CLASS = (hasError?: boolean) =>
   )
 
 const EMPTY_FORM = {
+  apellido: "",
   nombre: "",
   email: "",
   password: "",
@@ -75,7 +85,18 @@ const EMAIL_MAX = DEFAULT_TEXT_MAX
 const PASSWORD_MAX = 12
 
 const EMPTY_QUICK_EMPLEADO = { rolId: "", nombre: "", apellido: "", telefono: "", cargo: "" }
-const EMPTY_QUICK_DONANTE = { tipoDonanteId: "", nombre: "", razonSocial: "", telefono: "", direccion: "" }
+const EMPTY_QUICK_DONANTE = {
+  tipoDonanteId: "",
+  nombre: "",
+  apellido: "",
+  razonSocial: "",
+  telefono: "",
+  direccion: "",
+  jurisdiccion: "",
+  respApellido: "",
+  respNombre: "",
+  cargoResponsable: "",
+}
 
 const COLUMNS: TableColumn<Usuario>[] = [
   {
@@ -84,7 +105,7 @@ const COLUMNS: TableColumn<Usuario>[] = [
     cell: (row) => (
       <div className="flex flex-wrap items-center gap-3">
         <AvatarInitials nombre={row.nombre} />
-        <span className="font-medium">{row.nombre}</span>
+        <span className="font-medium">{row.nombre} {row.apellido}</span>
       </div>
     ),
   },
@@ -147,6 +168,11 @@ export default function UserManagementPage() {
   const [quickEmpleadoForm, setQuickEmpleadoForm] = useState(EMPTY_QUICK_EMPLEADO)
   const [quickDonanteForm, setQuickDonanteForm] = useState(EMPTY_QUICK_DONANTE)
 
+  const quickTipo = tiposDonante.find((t) => String(t.id) === quickDonanteForm.tipoDonanteId)
+  const quickEsJuridica = esPersonaJuridica(quickTipo)
+  const quickEsOrganismo = esOrganismoPublico(quickTipo)
+  const quickTipoElegido = !!quickDonanteForm.tipoDonanteId
+
   const isEdit = !!editingUser
   const isSaving = isUpdating || isCreating
 
@@ -158,6 +184,7 @@ export default function UserManagementPage() {
       (d: Donante) => d.usuarioId != null && String(d.usuarioId) === String(user.id)
     )
     return {
+      apellido: user.apellido ?? "",
       nombre: user.nombre,
       email: user.email,
       password: "",
@@ -183,6 +210,14 @@ export default function UserManagementPage() {
     setField("nombre", enforceMaxLength(filtered, NOMBRE_MAX, "El nombre"))
   }
 
+  function handleApellidoChange(value: string) {
+    const filtered = value.replace(/[^a-zA-ZÀ-ÿ\s]/g, "")
+    if (filtered !== value) {
+      toast.error("Solamente se permiten letras", { toastId: "nombre-solo-letras" })
+    }
+    setField("apellido", enforceMaxLength(filtered, NOMBRE_MAX, "El apellido"))
+  }
+
   function handleEmailChange(value: string) {
     setField("email", enforceMaxLength(value, EMAIL_MAX, "El email"))
   }
@@ -204,6 +239,16 @@ export default function UserManagementPage() {
 
   function setDonanteField<K extends keyof typeof EMPTY_QUICK_DONANTE>(key: K, value: string) {
     set({ setFrom: setQuickDonanteForm, fileds: key, value, clearError: clearDonanteError })
+  }
+
+  function handleQuickTipoChange(tipoDonanteId: string) {
+    setQuickDonanteForm((f) => ({
+      ...EMPTY_QUICK_DONANTE,
+      tipoDonanteId,
+      telefono: f.telefono,
+      direccion: f.direccion,
+    }))
+    resetDonanteErrors()
   }
 
   function openQuickEmpleado() {
@@ -244,20 +289,57 @@ export default function UserManagementPage() {
   }
 
   async function handleSaveQuickDonante() {
-    if (!validateDonante(quickDonanteForm, {
-      nombre: [required("el nombre"), maxLengthValidator(DEFAULT_TEXT_MAX)],
+    const f = quickDonanteForm
+    const personaValidator = (etiqueta: string, largo = LARGO_NOMBRE_PERSONA) => (v: unknown) =>
+      problemaDeNombre(String(v ?? ""), etiqueta, largo)
+
+    if (!validateDonante(f, {
       tipoDonanteId: [requiredSelect("un tipo de donante")],
-      razonSocial: [maxLengthValidator(DEFAULT_TEXT_MAX)],
-      direccion: [maxLengthValidator(DEFAULT_TEXT_MAX)],
+      ...(quickEsJuridica
+        ? {
+            razonSocial: [
+              required(quickEsOrganismo ? "el nombre del organismo" : "la razón social"),
+              minLength(3),
+              maxLengthValidator(DEFAULT_TEXT_MAX),
+            ],
+          }
+        : {
+            nombre: [personaValidator("el nombre")],
+            apellido: [personaValidator("el apellido")],
+          }),
+      ...(quickEsOrganismo
+        ? {
+            jurisdiccion: [requiredSelect("la jurisdicción")],
+            respApellido: [personaValidator("el apellido del responsable")],
+            respNombre: [personaValidator("el nombre del responsable")],
+            cargoResponsable: [required("el cargo del responsable"), maxLengthValidator(LARGO_CARGO)],
+            telefono: [required("el teléfono del organismo")],
+          }
+        : {}),
+      direccion: [
+        required("la dirección"),
+        minLength(5),
+        (v: unknown) => (tieneNumeroDeCalle(String(v ?? "")) ? null : "Incluí la altura (número de la casa)"),
+        maxLengthValidator(DEFAULT_TEXT_MAX),
+      ],
     })) return
+
+    const nombreEfectivo = quickEsJuridica ? f.razonSocial.trim() : `${f.nombre.trim()} ${f.apellido.trim()}`
 
     try {
       const nuevo = await createDonante({
-        tipoDonanteId: Number(quickDonanteForm.tipoDonanteId),
-        nombre: quickDonanteForm.nombre.trim(),
-        razonSocial: quickDonanteForm.razonSocial.trim() || undefined,
-        telefono: quickDonanteForm.telefono.trim() || undefined,
-        direccion: quickDonanteForm.direccion.trim() || undefined,
+        tipoDonanteId: Number(f.tipoDonanteId),
+        nombre: nombreEfectivo,
+        razonSocial: quickEsJuridica ? f.razonSocial.trim() : undefined,
+        telefono: f.telefono.trim() || undefined,
+        direccion: f.direccion.trim(),
+        ...(quickEsOrganismo
+          ? {
+              jurisdiccion: f.jurisdiccion,
+              responsable: unirResponsable(f.respApellido, f.respNombre),
+              cargoResponsable: f.cargoResponsable.trim(),
+            }
+          : {}),
       })
       await mutateDonantes()
       if (nuevo) setField("donanteId", String(nuevo.id))
@@ -289,16 +371,17 @@ export default function UserManagementPage() {
   const hasAsociado = esDonante ? !!form.donanteId : !!form.empleadoId
   const canSave = isEdit
     ? !!form.rolId && hasAsociado
-    : !!form.nombre.trim() && !!form.email.trim() && form.password.length >= 6 && !!form.rolId && hasAsociado
+    : !!form.apellido.trim() && !!form.nombre.trim() && !!form.email.trim() && form.password.length >= 6 && !!form.rolId && hasAsociado
 
   const canSaveQuickEmpleado =
     !!quickEmpleadoForm.nombre.trim() && !!quickEmpleadoForm.apellido.trim() && !!quickEmpleadoForm.rolId
 
-  const canSaveQuickDonante = !!quickDonanteForm.nombre.trim() && !!quickDonanteForm.tipoDonanteId
+  const canSaveQuickDonante = quickTipoElegido
 
   async function handleSave() {
     const ok = validate(form, {
       ...(!isEdit ? {
+        apellido: [required("el apellido"), onlyLetters(), maxLengthValidator(NOMBRE_MAX)],
         nombre: [required("el nombre"), onlyLetters(), maxLengthValidator(NOMBRE_MAX)],
         email: [required("el email"), emailFormat(), maxLengthValidator(EMAIL_MAX)],
         password: [required("la contraseña"), minLength(6), maxLengthValidator(PASSWORD_MAX)],
@@ -322,6 +405,7 @@ export default function UserManagementPage() {
         toast.success("Usuario actualizado correctamente")
       } else {
         const newUser = await createUsuario({
+          apellido: form.apellido.trim(),
           nombre: form.nombre.trim(),
           email: form.email.trim(),
           password: form.password,
@@ -399,11 +483,22 @@ export default function UserManagementPage() {
         {!isEdit && (
           <>
             <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium">Apellido *</label>
+              <Input
+                value={form.apellido}
+                onChange={(e) => handleApellidoChange(e.target.value)}
+                placeholder="García"
+                className={cn(errors.apellido && "border-destructive focus-visible:ring-destructive")}
+              />
+              <FieldError>{errors.apellido}</FieldError>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Nombre *</label>
               <Input
                 value={form.nombre}
                 onChange={(e) => handleNombreChange(e.target.value)}
-                placeholder="Juan García"
+                placeholder="Juan"
                 className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
               />
               <FieldError>{errors.nombre}</FieldError>
@@ -464,9 +559,7 @@ export default function UserManagementPage() {
           </select>
           <FieldError>{errors.rolId}</FieldError>
         </div>
-
-        {/* Select de donante  solo cuando el rol es donante */}
-        {form.rolId && esDonante && (
+          {form.rolId && esDonante && (
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Donante *</label>
             <div className="flex gap-2">
@@ -499,7 +592,6 @@ export default function UserManagementPage() {
           </div>
         )}
 
-        {/* Select de empleado  cualquier otro rol */}
         {form.rolId && !esDonante && (
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Empleado asociado *</label>
@@ -534,7 +626,6 @@ export default function UserManagementPage() {
         )}
       </FormModal>
 
-      {/* Alta rápida de empleado */}
       <FormModal
         open={quickEmpleadoOpen}
         onOpenChange={setQuickEmpleadoOpen}
@@ -621,7 +712,6 @@ export default function UserManagementPage() {
         </div>
       </FormModal>
 
-      {/* Alta rápida de donante */}
       <FormModal
         open={quickDonanteOpen}
         onOpenChange={setQuickDonanteOpen}
@@ -633,21 +723,10 @@ export default function UserManagementPage() {
         saveLabel="Crear donante"
       >
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">Nombre *</label>
-          <Input
-            value={quickDonanteForm.nombre}
-            onChange={(e) => setDonanteField("nombre", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"))}
-            placeholder="Juan Pérez"
-            className={cn(donanteErrors.nombre && "border-destructive focus-visible:ring-destructive")}
-          />
-          <FieldError>{donanteErrors.nombre}</FieldError>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium">Tipo de donante *</label>
           <select
             value={quickDonanteForm.tipoDonanteId}
-            onChange={(e) => setDonanteField("tipoDonanteId", e.target.value)}
+            onChange={(e) => handleQuickTipoChange(e.target.value)}
             className={SELECT_CLASS(!!donanteErrors.tipoDonanteId)}
           >
             <option value=""> Seleccionar tipo </option>
@@ -658,42 +737,134 @@ export default function UserManagementPage() {
           <FieldError>{donanteErrors.tipoDonanteId}</FieldError>
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">
-            Razón social <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
-          <Input
-            value={quickDonanteForm.razonSocial}
-            onChange={(e) => setDonanteField("razonSocial", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La razón social"))}
-            placeholder="Empresa S.A."
-          />
-          <FieldError>{donanteErrors.razonSocial}</FieldError>
-        </div>
+        {quickTipoElegido && quickEsJuridica && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium">
+              {quickEsOrganismo ? "Nombre del organismo *" : "Razón social *"}
+            </label>
+            <Input
+              value={quickDonanteForm.razonSocial}
+              onChange={(e) => setDonanteField("razonSocial", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, quickEsOrganismo ? "El nombre del organismo" : "La razón social"))}
+              placeholder={quickEsOrganismo ? "Ministerio de Ambiente" : "Empresa S.A."}
+              className={cn(donanteErrors.razonSocial && "border-destructive focus-visible:ring-destructive")}
+            />
+            <FieldError>{donanteErrors.razonSocial}</FieldError>
+          </div>
+        )}
 
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">
-            Teléfono <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
-          <Input
-            value={quickDonanteForm.telefono}
-            onChange={(e) => setDonanteField("telefono", e.target.value.replace(/\D/g, ""))}
-            placeholder="5491112345678"
-            inputMode="numeric"
-            maxLength={20}
-          />
-        </div>
+        {quickTipoElegido && quickEsOrganismo && (
+          <>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium">Jurisdicción *</label>
+              <select
+                value={quickDonanteForm.jurisdiccion}
+                onChange={(e) => setDonanteField("jurisdiccion", e.target.value)}
+                className={SELECT_CLASS(!!donanteErrors.jurisdiccion)}
+              >
+                <option value=""> Seleccionar jurisdicción </option>
+                {JURISDICCIONES.map((j) => (
+                  <option key={j} value={j}>{j}</option>
+                ))}
+              </select>
+              <FieldError>{donanteErrors.jurisdiccion}</FieldError>
+            </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">
-            Dirección <span className="text-muted-foreground font-normal">(opcional)</span>
-          </label>
-          <Input
-            value={quickDonanteForm.direccion}
-            onChange={(e) => setDonanteField("direccion", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La dirección"))}
-            placeholder="Av. Corrientes 1234, CABA"
-          />
-          <FieldError>{donanteErrors.direccion}</FieldError>
-        </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium">Apellido del responsable *</label>
+                <Input
+                  value={quickDonanteForm.respApellido}
+                  onChange={(e) => setDonanteField("respApellido", e.target.value)}
+                  placeholder="Gómez"
+                  maxLength={LARGO_NOMBRE_PERSONA}
+                  className={cn(donanteErrors.respApellido && "border-destructive focus-visible:ring-destructive")}
+                />
+                <FieldError>{donanteErrors.respApellido}</FieldError>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium">Nombre del responsable *</label>
+                <Input
+                  value={quickDonanteForm.respNombre}
+                  onChange={(e) => setDonanteField("respNombre", e.target.value)}
+                  placeholder="Laura"
+                  maxLength={LARGO_NOMBRE_PERSONA}
+                  className={cn(donanteErrors.respNombre && "border-destructive focus-visible:ring-destructive")}
+                />
+                <FieldError>{donanteErrors.respNombre}</FieldError>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium">Cargo del responsable *</label>
+              <Input
+                value={quickDonanteForm.cargoResponsable}
+                onChange={(e) => setDonanteField("cargoResponsable", e.target.value)}
+                placeholder="Directora de Compras"
+                maxLength={LARGO_CARGO}
+                className={cn(donanteErrors.cargoResponsable && "border-destructive focus-visible:ring-destructive")}
+              />
+              <FieldError>{donanteErrors.cargoResponsable}</FieldError>
+            </div>
+          </>
+        )}
+
+        {quickTipoElegido && !quickEsJuridica && (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium">Nombre *</label>
+              <Input
+                value={quickDonanteForm.nombre}
+                onChange={(e) => setDonanteField("nombre", e.target.value)}
+                placeholder="Juan"
+                maxLength={LARGO_NOMBRE_PERSONA}
+                className={cn(donanteErrors.nombre && "border-destructive focus-visible:ring-destructive")}
+              />
+              <FieldError>{donanteErrors.nombre}</FieldError>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium">Apellido *</label>
+              <Input
+                value={quickDonanteForm.apellido}
+                onChange={(e) => setDonanteField("apellido", e.target.value)}
+                placeholder="Pérez"
+                maxLength={LARGO_NOMBRE_PERSONA}
+                className={cn(donanteErrors.apellido && "border-destructive focus-visible:ring-destructive")}
+              />
+              <FieldError>{donanteErrors.apellido}</FieldError>
+            </div>
+          </div>
+        )}
+
+        {quickTipoElegido && (
+          <>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium">Dirección *</label>
+              <Input
+                value={quickDonanteForm.direccion}
+                onChange={(e) => setDonanteField("direccion", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La dirección"))}
+                placeholder="Av. Colón 1234, Córdoba"
+                className={cn(donanteErrors.direccion && "border-destructive focus-visible:ring-destructive")}
+              />
+              <FieldError>{donanteErrors.direccion}</FieldError>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium">
+                Teléfono{" "}
+                {quickEsOrganismo ? "*" : <span className="text-muted-foreground font-normal">(opcional)</span>}
+              </label>
+              <Input
+                value={quickDonanteForm.telefono}
+                onChange={(e) => setDonanteField("telefono", e.target.value.replace(/\D/g, ""))}
+                placeholder="5491112345678"
+                inputMode="numeric"
+                maxLength={20}
+                className={cn(donanteErrors.telefono && "border-destructive focus-visible:ring-destructive")}
+              />
+              <FieldError>{donanteErrors.telefono}</FieldError>
+            </div>
+          </>
+        )}
       </FormModal>
     </div>
   )
