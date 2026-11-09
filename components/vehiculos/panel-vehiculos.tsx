@@ -34,6 +34,7 @@ import {
   type ErroresTipo,
   type FormTipo,
 } from "./campos-tipo-vehiculo"
+import { SiPuede } from "../permisos/si-puede"
 
 type FormVehiculo = DatosTecnicos & {
   patente: string
@@ -230,10 +231,12 @@ export function PanelVehiculos() {
               : `${incompletos} vehículos no tienen kilometraje cargado y no van a poder salir en una hoja de ruta.`}
           </span>
         )}
+        <SiPuede accion="crear">
         <Button className="ml-auto" onClick={() => abrir({ modo: "alta" })}>
           <Plus className="h-4 w-4" />
           Nuevo vehículo
         </Button>
+        </SiPuede>
       </div>
 
       <DataTable

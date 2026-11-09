@@ -26,6 +26,7 @@ import { useFormErrors } from "@/hooks/use-form-errors"
 import { required, requiredSelect, maxLength as maxLengthValidator } from "@/lib/form-validators"
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { Donante, TipoDonante } from "@/lib/type/donante"
+import { filterBySearch, openCreate, openEdit, openView, set } from "@/lib/utils/utils-modal"
 
 type Tab = "donantes" | "tipos"
 
@@ -92,55 +93,7 @@ function DonantesTab() {
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_DONANTE)
 
-  const filtered = donantes.filter(
-    (d) =>
-      d.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      (d.razonSocial ?? "").toLowerCase().includes(search.toLowerCase()) ||
-      (d.telefono ?? "").toLowerCase().includes(search.toLowerCase()),
-  )
-
-  function set(field: keyof typeof EMPTY_DONANTE, value: string | number) {
-    setForm((f) => ({ ...f, [field]: value }))
-    clearError(field)
-  }
-
-  function openCreate() {
-    setIsViewing(false)
-    setEditing(null)
-    setForm(EMPTY_DONANTE)
-    reset()
-    setModalOpen(true)
-  }
-
-  function openEdit(d: Donante) {
-    setIsViewing(false)
-    setEditing(d)
-    setForm({
-      usuarioId: d.usuarioId ?? 0,
-      tipoDonanteId: d.tipoDonanteId,
-      nombre: d.nombre,
-      razonSocial: d.razonSocial ?? "",
-      telefono: d.telefono ?? "",
-      direccion: d.direccion ?? "",
-    })
-    reset()
-    setModalOpen(true)
-  }
-
-  function openView(d: Donante) {
-    setIsViewing(true)
-    setEditing(d)
-    setForm({
-      usuarioId: d.usuarioId ?? 0,
-      tipoDonanteId: d.tipoDonanteId,
-      nombre: d.nombre,
-      razonSocial: d.razonSocial ?? "",
-      telefono: d.telefono ?? "",
-      direccion: d.direccion ?? "",
-    })
-    reset()
-    setModalOpen(true)
-  }
+  const filtered = filterBySearch(donantes, search, ["nombre", "razonSocial", "telefono"]) as Donante[]
 
   async function handleSave() {
     if (!validate(form, {
@@ -203,7 +156,7 @@ function DonantesTab() {
         <span className="text-sm text-muted-foreground">
           {filtered.length} donante{filtered.length !== 1 ? "s" : ""}
         </span>
-        <Button className="ml-auto" onClick={openCreate}>
+        <Button className="ml-auto" onClick={() => openCreate({ setIsViewing, setEditing, setForm, reset, setModalOpen, EMPTY_FORM: EMPTY_DONANTE })}>
           <Plus className="h-4 w-4" />
           Nuevo donante
         </Button>
@@ -217,8 +170,28 @@ function DonantesTab() {
         emptyText="No hay donantes registrados."
         emptySearchText="No se encontraron donantes con ese criterio."
         search={search}
-        onView={openView}
-        onEdit={openEdit}
+        onView={(t) => openView({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: {
+            usuarioId: t.usuarioId ?? 0,
+            tipoDonanteId: t.tipoDonanteId,
+            nombre: t.nombre,
+            razonSocial: t.razonSocial ?? "",
+            telefono: t.telefono ?? "",
+            direccion: t.direccion ?? "",
+          },
+        })}
+        onEdit={(t) => openEdit({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: {
+            usuarioId: t.usuarioId ?? 0,
+            tipoDonanteId: t.tipoDonanteId,
+            nombre: t.nombre,
+            razonSocial: t.razonSocial ?? "",
+            telefono: t.telefono ?? "",
+            direccion: t.direccion ?? "",
+          },
+        })}
         onDelete={handleDelete}
         isDeleting={isDeleting}
       />
@@ -242,7 +215,7 @@ function DonantesTab() {
           <label className="text-sm font-medium">Nombre *</label>
           <Input
             value={form.nombre}
-            onChange={(e) => set("nombre", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "nombre", value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"), clearError })}
             placeholder="Juan Pérez"
             className={cn(errors.nombre && "border-destructive focus-visible:ring-destructive")}
           />
@@ -255,7 +228,7 @@ function DonantesTab() {
           </label>
           <Input
             value={form.razonSocial}
-            onChange={(e) => set("razonSocial", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La razón social"))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "razonSocial", value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La razón social"), clearError })}
             placeholder="Empresa S.A."
           />
           <FieldError>{errors.razonSocial}</FieldError>
@@ -265,7 +238,7 @@ function DonantesTab() {
           <label className="text-sm font-medium">Usuario asociado *</label>
           <select
             value={form.usuarioId}
-            onChange={(e) => set("usuarioId", Number(e.target.value))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "usuarioId", value: Number(e.target.value), clearError })}
             className={selectCls(errors.usuarioId)}
           >
             <option value={0}> Seleccionar usuario </option>
@@ -282,7 +255,7 @@ function DonantesTab() {
           <label className="text-sm font-medium">Tipo de donante *</label>
           <select
             value={form.tipoDonanteId}
-            onChange={(e) => set("tipoDonanteId", Number(e.target.value))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "tipoDonanteId", value: Number(e.target.value), clearError })}
             className={selectCls(errors.tipoDonanteId)}
           >
             <option value={0}> Seleccionar tipo </option>
@@ -301,7 +274,7 @@ function DonantesTab() {
           </label>
           <Input
             value={form.telefono}
-            onChange={(e) => set("telefono", e.target.value.replace(/\D/g, ""))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "telefono", value: e.target.value.replace(/\D/g, ""), clearError })}
             placeholder="5491112345678"
             inputMode="numeric"
             maxLength={20}
@@ -314,7 +287,7 @@ function DonantesTab() {
           </label>
           <Input
             value={form.direccion}
-            onChange={(e) => set("direccion", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La dirección"))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "direccion", value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La dirección"), clearError })}
             placeholder="Av. Corrientes 1234, CABA"
           />
           <FieldError>{errors.direccion}</FieldError>
@@ -344,30 +317,6 @@ function TiposTab() {
   const [editing, setEditing] = useState<TipoDonante | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_TIPO)
-
-  function openCreate() {
-    setIsViewing(false)
-    setEditing(null)
-    setForm(EMPTY_TIPO)
-    reset()
-    setModalOpen(true)
-  }
-
-  function openEdit(t: TipoDonante) {
-    setIsViewing(false)
-    setEditing(t)
-    setForm({ descripcion: t.descripcion })
-    reset()
-    setModalOpen(true)
-  }
-
-  function openView(t: TipoDonante) {
-    setIsViewing(true)
-    setEditing(t)
-    setForm({ descripcion: t.descripcion })
-    reset()
-    setModalOpen(true)
-  }
 
   async function handleSave() {
     if (!validate(form, { descripcion: [required("la descripción"), maxLengthValidator(DEFAULT_TEXT_MAX)] })) return
@@ -401,7 +350,7 @@ function TiposTab() {
   return (
     <>
       <div className="flex items-center">
-        <Button className="ml-auto" onClick={openCreate}>
+        <Button className="ml-auto" onClick={() => openCreate({ setIsViewing, setEditing, setForm, reset, setModalOpen, EMPTY_FORM: EMPTY_TIPO })}>
           <Plus className="h-4 w-4" />
           Nuevo tipo
         </Button>
@@ -413,8 +362,14 @@ function TiposTab() {
         isLoading={isLoading}
         loadingText="Cargando tipos..."
         emptyText="No hay tipos de donante registrados."
-        onView={openView}
-        onEdit={openEdit}
+        onView={(t) => openView({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: { descripcion: t.descripcion },
+        })}
+        onEdit={(t) => openEdit({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: { descripcion: t.descripcion },
+        })}
         onDelete={handleDelete}
         isDeleting={isDeleting}
       />
@@ -438,10 +393,7 @@ function TiposTab() {
           <label className="text-sm font-medium">Descripción *</label>
           <Input
             value={form.descripcion}
-            onChange={(e) => {
-              setForm({ descripcion: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción") })
-              clearError("descripcion")
-            }}
+            onChange={(e) => set({ setFrom: setForm, fileds: "descripcion", value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción"), clearError })}
             placeholder="Ej: Persona física, Empresa..."
             className={cn(errors.descripcion && "border-destructive focus-visible:ring-destructive")}
           />

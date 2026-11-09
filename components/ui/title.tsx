@@ -1,4 +1,5 @@
 "use client"
+import { SiPuede } from "../permisos/si-puede"
 import { Button } from "./button"
 import { SearchInput } from "./search-input"
 import { Plus } from "lucide-react"
@@ -35,10 +36,12 @@ const Title = ({
         <span className="text-sm text-muted-foreground">
           {filtered.length} método{filtered.length !== 1 ? "s" : ""}
         </span>
-        <Button className="ml-auto" onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Nuevo método
-        </Button>
+        <SiPuede accion="crear">
+          <Button className="ml-auto" onClick={openCreate}>
+            <Plus className="h-4 w-4" />
+            Nuevo método
+          </Button>
+        </SiPuede>
       </div>
     </>
   )

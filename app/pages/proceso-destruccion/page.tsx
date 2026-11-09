@@ -5,7 +5,6 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
@@ -41,6 +40,9 @@ import type { Marca } from "@/lib/type/marca"
 import type { Modelo } from "@/lib/type/modelo"
 import { ESTADO_COLORS_PROCESO_DESTRUCCION } from "@/lib/utils/estados"
 import { dia, hoyIso } from "@/lib/utils/fechas"
+import { openCreate, openEdit, openView, set } from "@/lib/utils/utils-modal"
+import { useFormErrors } from "@/hooks/use-form-errors"
+import Title from "@/components/ui/title"
 
 const EMPTY_FORM = {
   medioAlmacenamientoId: "",
@@ -146,6 +148,10 @@ export default function ProcesoDestruccionPage() {
   const { createMedio, isLoading: isCreatingMedio } = useCreateMedioAlmacenamiento()
   const { createMetodo, isLoading: isCreatingMetodo } = useCreateMetodoDestruccion()
 
+  const { clearError, reset } = useFormErrors<typeof EMPTY_FORM>()
+  const { clearError: clearQuickMedioError } = useFormErrors<typeof EMPTY_QUICK_MEDIO>()
+  const { clearError: clearQuickMetodoError } = useFormErrors<typeof EMPTY_QUICK_METODO>()
+
   const [search, setSearch] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<ProcesoDestruccion | null>(null)
@@ -175,45 +181,9 @@ export default function ProcesoDestruccionPage() {
     )
   })
 
-  function openCreate() {
-    setIsViewing(false)
-    setEditing(null)
-    const estadoPendiente = estados.find((e: EstadoProcesoDestruccion) =>
-      e.nombre.toLowerCase() === "pendiente",
-    )
-    setForm({
-      ...EMPTY_FORM,
-      fecha: hoyIso(),
-      estadoId: estadoPendiente ? String(estadoPendiente.id) : "",
-    })
-    setModalOpen(true)
-  }
-
-  function openEdit(p: ProcesoDestruccion) {
-    setIsViewing(false)
-    setEditing(p)
-    setForm({
-      medioAlmacenamientoId: String(p.medioAlmacenamientoId),
-      fecha: p.fecha ? p.fecha.slice(0, 10) : "",
-      metodoDestruccionId: p.metodoDestruccionId ? String(p.metodoDestruccionId) : "",
-      estadoId: p.estadoId ? String(p.estadoId) : "",
-      empleadoId: p.empleadoId ? String(p.empleadoId) : "",
-    })
-    setModalOpen(true)
-  }
-
-  function openView(p: ProcesoDestruccion) {
-    setIsViewing(true)
-    setEditing(p)
-    setForm({
-      medioAlmacenamientoId: String(p.medioAlmacenamientoId),
-      fecha: p.fecha ? p.fecha.slice(0, 10) : "",
-      metodoDestruccionId: p.metodoDestruccionId ? String(p.metodoDestruccionId) : "",
-      estadoId: p.estadoId ? String(p.estadoId) : "",
-      empleadoId: p.empleadoId ? String(p.empleadoId) : "",
-    })
-    setModalOpen(true)
-  }
+  const estadoPendiente = estados.find((e: EstadoProcesoDestruccion) =>
+    e.nombre.toLowerCase() === "pendiente",
+  )
 
   async function handleSave() {
     if (!form.medioAlmacenamientoId) {
@@ -317,28 +287,21 @@ export default function ProcesoDestruccionPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Procesos de Destrucción</h1>
-        <p className="text-sm text-muted-foreground">
-          Administrá los procesos de destrucción segura de medios de almacenamiento.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          placeholder="Buscar por medio, método, estado o empleado..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} proceso{filtered.length !== 1 ? "s" : ""}
-        </span>
-        <Button className="ml-auto" onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Nuevo proceso
-        </Button>
-      </div>
+      <Title
+        titlePage="Procesos de Destrucción"
+        description="Administrá los procesos de destrucción segura de medios de almacenamiento."
+        search={search}
+        setSearch={setSearch}
+        filtered={filtered}
+        openCreate={() => openCreate({
+          setIsViewing, setEditing, setForm, reset, setModalOpen,
+          EMPTY_FORM: {
+            ...EMPTY_FORM,
+            fecha: hoyIso(),
+            estadoId: estadoPendiente ? String(estadoPendiente.id) : "",
+          },
+        })}
+      />
 
       <DataTable
         data={filtered}
@@ -348,8 +311,26 @@ export default function ProcesoDestruccionPage() {
         emptyText="No hay procesos de destrucción registrados."
         emptySearchText="No se encontraron procesos con ese criterio."
         search={search}
-        onView={openView}
-        onEdit={openEdit}
+        onView={(t) => openView({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: {
+            medioAlmacenamientoId: String(t.medioAlmacenamientoId),
+            fecha: t.fecha ? t.fecha.slice(0, 10) : "",
+            metodoDestruccionId: t.metodoDestruccionId ? String(t.metodoDestruccionId) : "",
+            estadoId: t.estadoId ? String(t.estadoId) : "",
+            empleadoId: t.empleadoId ? String(t.empleadoId) : "",
+          },
+        })}
+        onEdit={(t) => openEdit({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: {
+            medioAlmacenamientoId: String(t.medioAlmacenamientoId),
+            fecha: t.fecha ? t.fecha.slice(0, 10) : "",
+            metodoDestruccionId: t.metodoDestruccionId ? String(t.metodoDestruccionId) : "",
+            estadoId: t.estadoId ? String(t.estadoId) : "",
+            empleadoId: t.empleadoId ? String(t.empleadoId) : "",
+          },
+        })}
         onDelete={handleDelete}
         isDeleting={isDeleting}
       />
@@ -374,7 +355,7 @@ export default function ProcesoDestruccionPage() {
           <div className="flex gap-2">
             <select
               value={form.medioAlmacenamientoId}
-              onChange={(e) => setForm((f) => ({ ...f, medioAlmacenamientoId: e.target.value }))}
+              onChange={(e) => set({ setFrom: setForm, fileds: "medioAlmacenamientoId", value: e.target.value, clearError })}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="">Seleccionar medio...</option>
@@ -403,7 +384,7 @@ export default function ProcesoDestruccionPage() {
           <div className="flex gap-2">
             <select
               value={form.metodoDestruccionId}
-              onChange={(e) => setForm((f) => ({ ...f, metodoDestruccionId: e.target.value }))}
+              onChange={(e) => set({ setFrom: setForm, fileds: "metodoDestruccionId", value: e.target.value, clearError })}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="">Seleccionar método...</option>
@@ -430,7 +411,7 @@ export default function ProcesoDestruccionPage() {
           <select
             value={form.estadoId}
             disabled={!editing}
-            onChange={(e) => setForm((f) => ({ ...f, estadoId: e.target.value }))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "estadoId", value: e.target.value, clearError })}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <option value="">Sin estado especificado</option>
@@ -447,7 +428,7 @@ export default function ProcesoDestruccionPage() {
             value={form.fecha}
             min={hoyIso()}
             disabled={!editing}
-            onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "fecha", value: e.target.value, clearError })}
           />
         </div>
 
@@ -455,7 +436,7 @@ export default function ProcesoDestruccionPage() {
           <label className="text-sm font-medium">Empleado responsable *</label>
           <select
             value={form.empleadoId}
-            onChange={(e) => setForm((f) => ({ ...f, empleadoId: e.target.value }))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "empleadoId", value: e.target.value, clearError })}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="">Seleccionar empleado...</option>
@@ -483,7 +464,7 @@ export default function ProcesoDestruccionPage() {
           <label className="text-sm font-medium">Material *</label>
           <select
             value={quickMedioForm.materialId}
-            onChange={(e) => setQuickMedioForm((f) => ({ ...f, materialId: e.target.value }))}
+            onChange={(e) => set({ setFrom: setQuickMedioForm, fileds: "materialId", value: e.target.value, clearError: clearQuickMedioError })}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="">Seleccionar material...</option>
@@ -501,7 +482,7 @@ export default function ProcesoDestruccionPage() {
           </label>
           <select
             value={quickMedioForm.tipoId}
-            onChange={(e) => setQuickMedioForm((f) => ({ ...f, tipoId: e.target.value }))}
+            onChange={(e) => set({ setFrom: setQuickMedioForm, fileds: "tipoId", value: e.target.value, clearError: clearQuickMedioError })}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="">Sin tipo</option>
@@ -517,7 +498,7 @@ export default function ProcesoDestruccionPage() {
           </label>
           <select
             value={quickMedioForm.marcaId}
-            onChange={(e) => setQuickMedioForm((f) => ({ ...f, marcaId: e.target.value }))}
+            onChange={(e) => set({ setFrom: setQuickMedioForm, fileds: "marcaId", value: e.target.value, clearError: clearQuickMedioError })}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="">Sin marca</option>
@@ -533,7 +514,7 @@ export default function ProcesoDestruccionPage() {
           </label>
           <select
             value={quickMedioForm.modeloId}
-            onChange={(e) => setQuickMedioForm((f) => ({ ...f, modeloId: e.target.value }))}
+            onChange={(e) => set({ setFrom: setQuickMedioForm, fileds: "modeloId", value: e.target.value, clearError: clearQuickMedioError })}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="">Sin modelo</option>
@@ -551,7 +532,7 @@ export default function ProcesoDestruccionPage() {
           </label>
           <Input
             value={quickMedioForm.terminosUso}
-            onChange={(e) => setQuickMedioForm((f) => ({ ...f, terminosUso: e.target.value }))}
+            onChange={(e) => set({ setFrom: setQuickMedioForm, fileds: "terminosUso", value: e.target.value, clearError: clearQuickMedioError })}
             placeholder="Ej: Uso en ambiente seco, temperatura controlada..."
             maxLength={500}
           />
@@ -573,7 +554,7 @@ export default function ProcesoDestruccionPage() {
           <label className="text-sm font-medium">Nombre *</label>
           <Input
             value={quickMetodoForm.nombre}
-            onChange={(e) => setQuickMetodoForm((f) => ({ ...f, nombre: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre") }))}
+            onChange={(e) => set({ setFrom: setQuickMetodoForm, fileds: "nombre", value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"), clearError: clearQuickMetodoError })}
             placeholder="Ej: Trituración física, Desmagnetización..."
           />
         </div>
@@ -584,7 +565,7 @@ export default function ProcesoDestruccionPage() {
           </label>
           <Input
             value={quickMetodoForm.descripcion}
-            onChange={(e) => setQuickMetodoForm((f) => ({ ...f, descripcion: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción") }))}
+            onChange={(e) => set({ setFrom: setQuickMetodoForm, fileds: "descripcion", value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción"), clearError: clearQuickMetodoError })}
             placeholder="Descripción del método de destrucción..."
           />
         </div>

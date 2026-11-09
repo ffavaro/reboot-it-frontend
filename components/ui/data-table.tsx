@@ -27,6 +27,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { usePuede } from "@/hooks/use-permisos"
+import { useEffect, useState } from "react"
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100]
 
@@ -143,24 +145,28 @@ export function DataTable<T extends { id: number | string }>({
   emptySearchText = "No se encontraron resultados con ese criterio.",
   search,
   onView,
-  onEdit,
-  onDelete,
+  onEdit: editarFila,
+  onDelete: borrarFila,
   onDownload,
   isDeleting,
   pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
 }: DataTableProps<T>) {
+    const puedeEditar = usePuede("editar")
+  const puedeBorrar = usePuede("baja")
+  const onEdit = puedeEditar ? editarFila : undefined
+  const onDelete = puedeBorrar ? borrarFila : undefined
+
   const hasActions = !!onView || !!onEdit || !!onDelete || !!onDownload
   const colSpan = columns.length + (hasActions ? 1 : 0)
 
-  const [pageSize, setPageSize] = React.useState(pageSizeOptions[0] ?? 10)
-  const [page, setPage] = React.useState(1)
+  const [pageSize, setPageSize] = useState(pageSizeOptions[0] ?? 10)
+  const [page, setPage] = useState(1)
 
   const totalItems = data.length
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
 
-  // Si cambia la búsqueda o el resultado filtrado deja de tener tantas páginas, volvemos a una válida
-  React.useEffect(() => { setPage(1) }, [search])
-  React.useEffect(() => { setPage((p) => Math.min(p, totalPages)) }, [totalPages])
+  useEffect(() => { setPage(1) }, [search])
+  useEffect(() => { setPage((p) => Math.min(p, totalPages)) }, [totalPages])
 
   const currentPage = Math.min(page, totalPages)
   const startIndex = (currentPage - 1) * pageSize

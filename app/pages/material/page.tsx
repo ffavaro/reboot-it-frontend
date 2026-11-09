@@ -5,7 +5,6 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
@@ -39,6 +38,9 @@ import type { CondicionMaterial } from "@/lib/type/condicion-material"
 import type { Tipo } from "@/lib/type/tipo"
 import type { Marca } from "@/lib/type/marca"
 import type { Modelo } from "@/lib/type/modelo"
+import { openCreate, openEdit, openView, set } from "@/lib/utils/utils-modal"
+import { useFormErrors } from "@/hooks/use-form-errors"
+import Title from "@/components/ui/title"
 
 const EMPTY_FORM = { loteId: "", tipoMaterialId: "", condicionMaterialId: "", descripcion: "" }
 const EMPTY_QUICK_TIPO = { nombre: "", descripcion: "" }
@@ -114,6 +116,10 @@ export default function MaterialPage() {
   const [quickTipoForm, setQuickTipoForm] = useState(EMPTY_QUICK_TIPO)
   const [quickLoteForm, setQuickLoteForm] = useState(EMPTY_QUICK_LOTE)
 
+  const { clearError } = useFormErrors<typeof EMPTY_FORM>()
+  const { clearError: clearQuickTipoError } = useFormErrors<typeof EMPTY_QUICK_TIPO>()
+  const { clearError: clearQuickLoteError } = useFormErrors<typeof EMPTY_QUICK_LOTE>()
+
   const modelosFiltrados = destruccionMarcaId
     ? modelos.filter((m: Modelo) => String(m.marcaId) === destruccionMarcaId)
     : modelos
@@ -145,47 +151,6 @@ export default function MaterialPage() {
     setDestruccionTipoId("")
     setDestruccionMarcaId("")
     setDestruccionModeloId("")
-  }
-
-  function openCreate() {
-    setIsViewing(false)
-    setEditing(null)
-    setForm({
-      ...EMPTY_FORM,
-      condicionMaterialId: condicionADefinir ? String(condicionADefinir.id) : "",
-    })
-    resetDestruccion()
-    setModalOpen(true)
-  }
-
-  function openEdit(m: Material) {
-    setIsViewing(false)
-    setEditing(m)
-    setForm({
-      loteId: m.loteId ? String(m.loteId) : "",
-      tipoMaterialId: String(m.tipoMaterialId),
-      condicionMaterialId: m.condicionMaterialId
-        ? String(m.condicionMaterialId)
-        : condicionADefinir ? String(condicionADefinir.id) : "",
-      descripcion: m.descripcion ?? "",
-    })
-    resetDestruccion()
-    setModalOpen(true)
-  }
-
-  function openView(m: Material) {
-    setIsViewing(true)
-    setEditing(m)
-    setForm({
-      loteId: m.loteId ? String(m.loteId) : "",
-      tipoMaterialId: String(m.tipoMaterialId),
-      condicionMaterialId: m.condicionMaterialId
-        ? String(m.condicionMaterialId)
-        : condicionADefinir ? String(condicionADefinir.id) : "",
-      descripcion: m.descripcion ?? "",
-    })
-    resetDestruccion()
-    setModalOpen(true)
   }
 
   async function handleSave() {
@@ -313,28 +278,20 @@ export default function MaterialPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Materiales</h1>
-        <p className="text-sm text-muted-foreground">
-          Administrá los materiales registrados por lote.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          placeholder="Buscar por lote, tipo, condición o descripción..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} material{filtered.length !== 1 ? "es" : ""}
-        </span>
-        <Button className="ml-auto" onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Nuevo material
-        </Button>
-      </div>
+      <Title
+        titlePage="Materiales"
+        description="Administrá los materiales registrados por lote."
+        search={search}
+        setSearch={setSearch}
+        filtered={filtered}
+        openCreate={() => openCreate({
+          setIsViewing, setEditing, setForm, reset: resetDestruccion, setModalOpen,
+          EMPTY_FORM: {
+            ...EMPTY_FORM,
+            condicionMaterialId: condicionADefinir ? String(condicionADefinir.id) : "",
+          },
+        })}
+      />
 
       <DataTable
         data={filtered}
@@ -344,8 +301,28 @@ export default function MaterialPage() {
         emptyText="No hay materiales registrados."
         emptySearchText="No se encontraron materiales con ese criterio."
         search={search}
-        onView={openView}
-        onEdit={openEdit}
+        onView={(t) => openView({
+          t, setIsViewing, setEditing, setForm, reset: resetDestruccion, setModalOpen,
+          jsonEntidad: {
+            loteId: t.loteId ? String(t.loteId) : "",
+            tipoMaterialId: String(t.tipoMaterialId),
+            condicionMaterialId: t.condicionMaterialId
+              ? String(t.condicionMaterialId)
+              : condicionADefinir ? String(condicionADefinir.id) : "",
+            descripcion: t.descripcion ?? "",
+          },
+        })}
+        onEdit={(t) => openEdit({
+          t, setIsViewing, setEditing, setForm, reset: resetDestruccion, setModalOpen,
+          jsonEntidad: {
+            loteId: t.loteId ? String(t.loteId) : "",
+            tipoMaterialId: String(t.tipoMaterialId),
+            condicionMaterialId: t.condicionMaterialId
+              ? String(t.condicionMaterialId)
+              : condicionADefinir ? String(condicionADefinir.id) : "",
+            descripcion: t.descripcion ?? "",
+          },
+        })}
         onDelete={handleDelete}
         isDeleting={isDeleting}
       />
@@ -366,7 +343,7 @@ export default function MaterialPage() {
             placeholder="Descripción del material..."
             value={form.descripcion}
             disabled={isViewing}
-            onChange={(e) => setForm((f) => ({ ...f, descripcion: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción") }))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "descripcion", value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción"), clearError })}
           />
         </div>
 
@@ -495,7 +472,7 @@ export default function MaterialPage() {
           </label>
           <select
             value={form.condicionMaterialId}
-            onChange={(e) => setForm((f) => ({ ...f, condicionMaterialId: e.target.value }))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "condicionMaterialId", value: e.target.value, clearError })}
             disabled={isViewing}
             className="flex h-9 w-full rounded-md border border-input bg-muted px-3 py-1 text-sm shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
           >
@@ -512,7 +489,7 @@ export default function MaterialPage() {
           <div className="flex gap-2">
             <select
               value={form.loteId}
-              onChange={(e) => setForm((f) => ({ ...f, loteId: e.target.value }))}
+              onChange={(e) => set({ setFrom: setForm, fileds: "loteId", value: e.target.value, clearError })}
               disabled={isViewing || Boolean(editing?.id)}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
             >
@@ -554,7 +531,7 @@ export default function MaterialPage() {
           <label className="text-sm font-medium">Nombre *</label>
           <Input
             value={quickTipoForm.nombre}
-            onChange={(e) => setQuickTipoForm((f) => ({ ...f, nombre: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre") }))}
+            onChange={(e) => set({ setFrom: setQuickTipoForm, fileds: "nombre", value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"), clearError: clearQuickTipoError })}
             placeholder="Ej: Electrónico, Eléctrico, Batería..."
           />
         </div>
@@ -565,7 +542,7 @@ export default function MaterialPage() {
           </label>
           <Input
             value={quickTipoForm.descripcion}
-            onChange={(e) => setQuickTipoForm((f) => ({ ...f, descripcion: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción") }))}
+            onChange={(e) => set({ setFrom: setQuickTipoForm, fileds: "descripcion", value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción"), clearError: clearQuickTipoError })}
             placeholder="Breve descripción del tipo de material"
           />
         </div>
@@ -586,7 +563,7 @@ export default function MaterialPage() {
           <label className="text-sm font-medium">Donación *</label>
           <Select
             value={quickLoteForm.donacionId}
-            onValueChange={(v) => setQuickLoteForm((f) => ({ ...f, donacionId: v ?? "" }))}
+            onValueChange={(v) => set({ setFrom: setQuickLoteForm, fileds: "donacionId", value: v ?? "", clearError: clearQuickLoteError })}
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Seleccioná una donación" />
@@ -613,7 +590,7 @@ export default function MaterialPage() {
             inputMode="decimal"
             placeholder="Ej: 120.50"
             value={quickLoteForm.pesoBrutoKg}
-            onChange={(e) => setQuickLoteForm((f) => ({ ...f, pesoBrutoKg: enforceDecimalInput(e.target.value, DEFAULT_WEIGHT_MAX_DIGITS, "El peso bruto") }))}
+            onChange={(e) => set({ setFrom: setQuickLoteForm, fileds: "pesoBrutoKg", value: enforceDecimalInput(e.target.value, DEFAULT_WEIGHT_MAX_DIGITS, "El peso bruto"), clearError: clearQuickLoteError })}
           />
         </div>
 
@@ -625,7 +602,7 @@ export default function MaterialPage() {
             rows={3}
             placeholder="Observaciones sobre el lote..."
             value={quickLoteForm.observaciones}
-            onChange={(e) => setQuickLoteForm((f) => ({ ...f, observaciones: e.target.value }))}
+            onChange={(e) => set({ setFrom: setQuickLoteForm, fileds: "observaciones", value: e.target.value, clearError: clearQuickLoteError })}
             className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
           />
         </div>

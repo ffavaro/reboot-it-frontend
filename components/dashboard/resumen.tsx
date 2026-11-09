@@ -3,11 +3,10 @@
 import Link from "next/link"
 import { ArrowRight, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { usePerfil } from "@/hooks/use-auth"
+import { useMisPermisos } from "@/hooks/use-permisos"
 import { ubicarRuta } from "@/lib/type/menu"
 import { decimal, entero, porcentaje } from "@/lib/utils/formato"  
 import type { Contador, ResumenCircuito } from "@/lib/type/dashboard"
-
 
 function contadores(p: ResumenCircuito["pendiente"] | undefined): Contador[] {
   const lista: (Contador | null)[] = [
@@ -60,7 +59,7 @@ function TarjetaPendiente({ contador, enlazar }: { contador: Contador; enlazar: 
 }
 
 export function TrabajoPendiente({ resumen }: { resumen?: ResumenCircuito }) {
-  const perfil = usePerfil()
+  const { permisos } = useMisPermisos()
   const lista = contadores(resumen?.pendiente)
   return (
     <section aria-labelledby="dash-pendiente" className="flex flex-col gap-3">
@@ -70,7 +69,7 @@ export function TrabajoPendiente({ resumen }: { resumen?: ResumenCircuito }) {
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {lista.map((c) => (
-          <TarjetaPendiente key={c.clave} contador={c} enlazar={!!perfil && ubicarRuta(c.ruta, perfil) !== null} />
+          <TarjetaPendiente key={c.clave} contador={c} enlazar={!!permisos && ubicarRuta(c.ruta, permisos) !== null} />
         ))}
       </div>
     </section>

@@ -6,7 +6,6 @@ import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { SearchInput } from "@/components/ui/search-input"
 import { DataTable, TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { FieldError } from "@/components/ui/field"
@@ -19,6 +18,8 @@ import { required, requiredSelect, minLength, onlyLetters, emailFormat, maxLengt
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { Rol, Usuario } from "@/lib/type/user"
 import type { Donante } from "@/lib/type/donante"
+import Title from "@/components/ui/title"
+import { openCreate, openEdit, openView, set, filterBySearch } from "@/lib/utils/utils-modal"
 
 const ROL_STYLES: Record<string, string> = {
   admin: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
@@ -152,25 +153,26 @@ export default function UserManagementPage() {
   const selectedRol = roles.find((r) => String(r.id) === String(form.rolId))
   const esDonante = selectedRol?.nombre.toLowerCase() === "donante"
 
-  useEffect(() => {
-    if (editingUser) {
-      const donanteVinculado = donantes.find(
-        (d: Donante) => d.usuarioId != null && String(d.usuarioId) === String(editingUser.id)
-      )
-      setForm({
-        nombre: editingUser.nombre,
-        email: editingUser.email,
-        password: "",
-        rolId: String(editingUser.rol.id),
-        empleadoId: editingUser.empleadoId ? String(editingUser.empleadoId) : "",
-        donanteId: donanteVinculado ? String(donanteVinculado.id) : "",
-      })
+  function buildUserForm(user: Usuario) {
+    const donanteVinculado = donantes.find(
+      (d: Donante) => d.usuarioId != null && String(d.usuarioId) === String(user.id)
+    )
+    return {
+      nombre: user.nombre,
+      email: user.email,
+      password: "",
+      rolId: String(user.rol.id),
+      empleadoId: user.empleadoId ? String(user.empleadoId) : "",
+      donanteId: donanteVinculado ? String(donanteVinculado.id) : "",
     }
+  }
+
+  useEffect(() => {
+    if (editingUser) setForm(buildUserForm(editingUser))
   }, [editingUser, donantes])
 
   function setField<K extends keyof typeof EMPTY_FORM>(key: K, value: string) {
-    setForm((f) => ({ ...f, [key]: value }))
-    clearError(key)
+    set({ setFrom: setForm, fileds: key, value, clearError })
   }
 
   function handleNombreChange(value: string) {
@@ -197,13 +199,11 @@ export default function UserManagementPage() {
   }
 
   function setEmpleadoField<K extends keyof typeof EMPTY_QUICK_EMPLEADO>(key: K, value: string) {
-    setQuickEmpleadoForm((f) => ({ ...f, [key]: value }))
-    clearEmpleadoError(key)
+    set({ setFrom: setQuickEmpleadoForm, fileds: key, value, clearError: clearEmpleadoError })
   }
 
   function setDonanteField<K extends keyof typeof EMPTY_QUICK_DONANTE>(key: K, value: string) {
-    setQuickDonanteForm((f) => ({ ...f, [key]: value }))
-    clearDonanteError(key)
+    set({ setFrom: setQuickDonanteForm, fileds: key, value, clearError: clearDonanteError })
   }
 
   function openQuickEmpleado() {
@@ -268,26 +268,12 @@ export default function UserManagementPage() {
     }
   }
 
-  function openCreate() {
-    setIsViewing(false)
-    setEditingUser(null)
-    setForm(EMPTY_FORM)
-    reset()
-    setModalOpen(true)
-  }
-
-  function openEdit(user: Usuario) {
-    setIsViewing(false)
-    reset()
-    setEditingUser(user)
-    setModalOpen(true)
-  }
-
-  function openView(user: Usuario) {
-    setIsViewing(true)
-    reset()
-    setEditingUser(user)
-    setModalOpen(true)
+  const modalSetters = {
+    setIsViewing,
+    setEditing: setEditingUser,
+    setForm,
+    reset,
+    setModalOpen,
   }
 
   function handleModalChange(open: boolean) {
@@ -298,11 +284,7 @@ export default function UserManagementPage() {
     }
   }
 
-  const filtered = usuarios.filter(
-    (u) =>
-      u.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = filterBySearch(usuarios, search, ["nombre", "email"]) as Usuario[]
 
   const hasAsociado = esDonante ? !!form.donanteId : !!form.empleadoId
   const canSave = isEdit
@@ -375,25 +357,14 @@ export default function UserManagementPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Gestión de Usuarios</h1>
-        <p className="text-sm text-muted-foreground">
-          Administrá los usuarios del sistema, sus roles y su vinculación con empleados.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          placeholder="Buscar por nombre o email..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <Button onClick={openCreate} className="ml-auto">
-          <Plus className="h-4 w-4" />
-          Nuevo usuario
-        </Button>
-      </div>
+      <Title
+      titlePage="Gestión de Usuarios"
+      description=" Administrá los usuarios del sistema, sus roles y su vinculación con empleados."
+      search={search}
+      setSearch={setSearch}
+      filtered={filtered}
+      openCreate={() => openCreate({ ...modalSetters, EMPTY_FORM })}
+      ></Title>
 
       <DataTable
         data={filtered}
@@ -403,8 +374,8 @@ export default function UserManagementPage() {
         emptyText="No hay usuarios registrados."
         emptySearchText="No se encontraron usuarios con ese criterio."
         search={search}
-        onView={openView}
-        onEdit={openEdit}
+        onView={(user) =>  openView({ ...modalSetters, t: user, jsonEntidad: buildUserForm(user) })}
+        onEdit={(user) =>  openEdit({ ...modalSetters, t: user, jsonEntidad: buildUserForm(user) })}
         onDelete={handleDelete}
         isDeleting={isDeleting}
       />

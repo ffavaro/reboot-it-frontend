@@ -1,26 +1,26 @@
 import {
-  BarChart2, Briefcase, CalendarDays, Factory, FileBarChart, FileCheck, Heart, History, Layers, Library, Lock, MapPin,
+  BarChart2, Briefcase, CalendarDays, Camera, Factory, FileBarChart, FileCheck, Heart, History, Layers, Library, Lock, MapPin,
   Package, PackageOpen, Recycle, Route, Shield, Trash2, Truck, User, UserCog, Users, Warehouse,
 } from "lucide-react"
-import type { TokenPayload } from "@/lib/auth-utils"
-import type { Destino, EntradaMenu, GrupoMenu, Perfil, Ubicacion } from "@/lib/type/sidebar"
+import { pantallaDeRuta, RUTA_SIEMPRE_PERMITIDA } from "@/lib/type/pantallas"
+import type { Alcance, PermisosPorClave } from "@/lib/type/permisos"
+import type { Destino, EntradaMenu, GrupoMenu, Ubicacion } from "@/lib/type/sidebar"
 
-const EQUIPO: Perfil[] = ["equipo"]
-const SOLO_DONANTE: Perfil[] = ["donante"]
-const SOLO_ADMIN: Perfil[] = ["admin"]
-const CON_TRANSPORTISTA: Perfil[] = ["equipo", "transportista"]
+const SOLO_PROPIOS: Alcance[] = ["PROPIOS"]
+const SIN_PROPIOS: Alcance[] = ["TODOS", "EN_PLANTA", "ASIGNADOS"]
+const DE_PLANTA: Alcance[] = ["TODOS", "EN_PLANTA"]
 
-const destino = (etiqueta: string, ruta: string, perfiles?: Perfil[]): Destino => ({ etiqueta, ruta, perfiles })
+const destino = (etiqueta: string, ruta: string, alcances?: Alcance[]): Destino => ({ etiqueta, ruta, alcances })
 
-const simple = (etiqueta: string, ruta: string, icono: EntradaMenu["icono"], perfiles?: Perfil[]): EntradaMenu => ({
+const simple = (etiqueta: string, ruta: string, icono: EntradaMenu["icono"], alcances?: Alcance[]): EntradaMenu => ({
   etiqueta,
   icono,
-  perfiles,
+  alcances,
   destinos: [destino(etiqueta, ruta)],
 })
 
 export const ACCESOS_DIRECTOS: EntradaMenu[] = [
-  simple("Dashboard", "/pages/dashboard", BarChart2, EQUIPO),
+  simple("Dashboard", "/pages/dashboard", BarChart2),
 ]
 
 export const GRUPOS_MENU: GrupoMenu[] = [
@@ -28,11 +28,11 @@ export const GRUPOS_MENU: GrupoMenu[] = [
     etiqueta: "Recepción",
     icono: Recycle,
     entradas: [
-      simple("Donaciones", "/pages/donacion", Heart, EQUIPO),
+      simple("Donaciones", "/pages/donacion", Heart, SIN_PROPIOS),
       {
         etiqueta: "Mis donaciones",
         icono: Heart,
-        perfiles: SOLO_DONANTE,
+        alcances: SOLO_PROPIOS,
         destinos: [
           destino("Donaciones", "/pages/donacion"),
           destino("Turnos", "/pages/turno"),
@@ -43,10 +43,10 @@ export const GRUPOS_MENU: GrupoMenu[] = [
       {
         etiqueta: "Agenda de turnos",
         icono: CalendarDays,
-        perfiles: CON_TRANSPORTISTA,
+        alcances: SIN_PROPIOS,
         destinos: [
-          destino("Lista", "/pages/turno", CON_TRANSPORTISTA),
-          destino("Calendario", "/pages/agenda", EQUIPO),
+          destino("Lista", "/pages/turno"),
+          destino("Calendario", "/pages/agenda", DE_PLANTA),
         ],
       },
     ],
@@ -55,21 +55,19 @@ export const GRUPOS_MENU: GrupoMenu[] = [
     etiqueta: "Logística",
     icono: Route,
     entradas: [
-      simple("Hoja de ruta", "/pages/hoja-ruta", MapPin, CON_TRANSPORTISTA),
+      simple("Hoja de ruta", "/pages/hoja-ruta", MapPin),
       {
         etiqueta: "Retiros",
         icono: PackageOpen,
-        perfiles: CON_TRANSPORTISTA,
         destinos: [
-          destino("Retiros", "/pages/retiro", CON_TRANSPORTISTA),
-          destino("Constancias de retiro", "/pages/constancia-retiro", EQUIPO),
+          destino("Retiros", "/pages/retiro"),
+          destino("Constancias de retiro", "/pages/constancia-retiro", SIN_PROPIOS),
         ],
       },
       {
         etiqueta: "Flota",
         icono: Truck,
-        perfiles: CON_TRANSPORTISTA,
-        destinos: [destino("Vehículos", "/pages/vehicles", CON_TRANSPORTISTA)],
+        destinos: [destino("Vehículos", "/pages/vehicles")],
       },
     ],
   },
@@ -78,7 +76,8 @@ export const GRUPOS_MENU: GrupoMenu[] = [
     icono: Factory,
     entradas: [
       simple("Clasificación", "/pages/material", Layers),
-      simple("Lotes", "/pages/lote", Package),
+       simple("Lotes", "/pages/lote", Package),
+      simple("Registro fotográfico", "/pages/registro-fotografico", Camera),
       {
         etiqueta: "Depósito",
         icono: Warehouse,
@@ -98,7 +97,7 @@ export const GRUPOS_MENU: GrupoMenu[] = [
           destino("Medios de almacenamiento", "/pages/medio-almacenamiento"),
         ],
       },
-      simple("Certificados", "/pages/certificado-disposicion", FileCheck, EQUIPO),
+      simple("Certificados", "/pages/certificado-disposicion", FileCheck, SIN_PROPIOS),
     ],
   },
   {
@@ -108,6 +107,7 @@ export const GRUPOS_MENU: GrupoMenu[] = [
       {
         etiqueta: "Reportes",
         icono: FileBarChart,
+        alcances: DE_PLANTA,
         destinos: [
           destino("Donaciones", "/pages/reportes/donaciones"),
           destino("Retiros", "/pages/reportes/retiros"),
@@ -151,38 +151,33 @@ export const GRUPOS_MENU: GrupoMenu[] = [
     entradas: [
       simple("Usuarios", "/pages/user-management", UserCog),
       simple("Roles y permisos", "/pages/roles", Shield),
-      simple("Auditoría", "/pages/auditoria", History, SOLO_ADMIN),
+      simple("Auditoría", "/pages/auditoria", History),
     ],
   },
 ]
 
-export function perfilDeUsuario(usuario: TokenPayload | null): Perfil {
-  const rol = usuario?.rol?.nombre?.trim().toLowerCase()
-  if (rol === "donante" || rol === "transportista" || rol === "admin") return rol
-  return "equipo"
+function visible(permisos: PermisosPorClave, ruta: string, alcances: Alcance[] | undefined): boolean {
+  const clave = pantallaDeRuta(ruta)
+  if (clave === null) return true
+  const permiso = permisos[clave]
+  return !!permiso?.ver && (!alcances || alcances.includes(permiso.alcance))
 }
 
-const equivalentes = (perfil: Perfil): Perfil[] => (perfil === "admin" ? ["admin", "equipo"] : [perfil])
-
-const habilitado = (perfiles: Perfil[] | undefined, perfil: Perfil) =>
-  equivalentes(perfil).some((p) => (perfiles ?? EQUIPO).includes(p))
-
-function recortarEntrada(entrada: EntradaMenu, perfil: Perfil): EntradaMenu | null {
-  if (!habilitado(entrada.perfiles, perfil)) return null
-  const destinos = entrada.destinos.filter((d) => habilitado(d.perfiles ?? entrada.perfiles, perfil))
+function recortarEntrada(entrada: EntradaMenu, permisos: PermisosPorClave): EntradaMenu | null {
+  const destinos = entrada.destinos.filter((d) => visible(permisos, d.ruta, d.alcances ?? entrada.alcances))
   return destinos.length ? { ...entrada, destinos } : null
 }
 
-const recortarLista = (entradas: EntradaMenu[], perfil: Perfil) =>
-  entradas.flatMap((e) => recortarEntrada(e, perfil) ?? [])
+const recortarLista = (entradas: EntradaMenu[], permisos: PermisosPorClave) =>
+  entradas.flatMap((e) => recortarEntrada(e, permisos) ?? [])
 
-export function accesosParaPerfil(perfil: Perfil): EntradaMenu[] {
-  return recortarLista(ACCESOS_DIRECTOS, perfil)
+export function accesosVisibles(permisos: PermisosPorClave): EntradaMenu[] {
+  return recortarLista(ACCESOS_DIRECTOS, permisos)
 }
 
-export function gruposParaPerfil(perfil: Perfil): GrupoMenu[] {
+export function gruposVisibles(permisos: PermisosPorClave): GrupoMenu[] {
   return GRUPOS_MENU.reduce<GrupoMenu[]>((acc, grupo) => {
-    const entradas = recortarLista(grupo.entradas, perfil)
+    const entradas = recortarLista(grupo.entradas, permisos)
     return entradas.length ? [...acc, { ...grupo, entradas }] : acc
   }, [])
 }
@@ -190,8 +185,8 @@ export function gruposParaPerfil(perfil: Perfil): GrupoMenu[] {
 const corresponde = (pathname: string, ruta: string) =>
   pathname === ruta || pathname.startsWith(`${ruta}/`)
 
-export function ubicarRuta(pathname: string, perfil: Perfil): Ubicacion | null {
-  const entradas = [...accesosParaPerfil(perfil), ...gruposParaPerfil(perfil).flatMap((g) => g.entradas)]
+export function ubicarRuta(pathname: string, permisos: PermisosPorClave): Ubicacion | null {
+  const entradas = [...accesosVisibles(permisos), ...gruposVisibles(permisos).flatMap((g) => g.entradas)]
   let mejor: Ubicacion | null = null
   for (const entrada of entradas) {
     for (const d of entrada.destinos) {
@@ -203,3 +198,8 @@ export function ubicarRuta(pathname: string, perfil: Perfil): Ubicacion | null {
 }
 
 export const rutaInicial = (entrada: EntradaMenu) => entrada.destinos[0].ruta
+
+export function primeraRutaPermitida(permisos: PermisosPorClave): string {
+  const primera = [...accesosVisibles(permisos), ...gruposVisibles(permisos).flatMap((g) => g.entradas)][0]
+  return primera ? rutaInicial(primera) : RUTA_SIEMPRE_PERMITIDA
+}

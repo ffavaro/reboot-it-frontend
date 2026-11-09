@@ -1,12 +1,8 @@
 "use client"
-import { Plus } from "lucide-react"
-
 import { useState } from "react"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
@@ -16,6 +12,8 @@ import { useFormErrors } from "@/hooks/use-form-errors"
 import { required, maxLength as maxLengthValidator } from "@/lib/form-validators"
 import { enforceMaxLength, DEFAULT_TEXT_MAX } from "@/lib/utils/text-limit"
 import type { Rack } from "@/lib/type/rack"
+import { filterBySearch, openCreate, openEdit, openView, set } from "@/lib/utils/utils-modal"
+import Title from "@/components/ui/title"
 
 const EMPTY_FORM = { codigo: "", ubicacion: "" }
 
@@ -58,42 +56,7 @@ export default function RackPage() {
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
-  const filtered = racks.filter((r: Rack) => {
-    const q = search.toLowerCase()
-    return (
-      r.codigo.toLowerCase().includes(q) ||
-      (r.ubicacion ?? "").toLowerCase().includes(q)
-    )
-  })
-
-  function set(field: keyof typeof EMPTY_FORM, value: string) {
-    setForm((f) => ({ ...f, [field]: value }))
-    clearError(field)
-  }
-
-  function openCreate() {
-    setIsViewing(false)
-    setEditing(null)
-    setForm({ ...EMPTY_FORM, codigo: generateRackCodigo(racks) })
-    reset()
-    setModalOpen(true)
-  }
-
-  function openEdit(r: Rack) {
-    setIsViewing(false)
-    setEditing(r)
-    setForm({ codigo: r.codigo, ubicacion: r.ubicacion ?? "" })
-    reset()
-    setModalOpen(true)
-  }
-
-  function openView(r: Rack) {
-    setIsViewing(true)
-    setEditing(r)
-    setForm({ codigo: r.codigo, ubicacion: r.ubicacion ?? "" })
-    reset()
-    setModalOpen(true)
-  }
+  const filtered = filterBySearch(racks, search, ["codigo", "ubicacion"]) as Rack[]
 
   async function handleSave() {
     if (!validate(form, {
@@ -133,28 +96,17 @@ export default function RackPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Racks</h1>
-        <p className="text-sm text-muted-foreground">
-          Administrá los racks de almacenamiento físico del depósito.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          placeholder="Buscar por código o ubicación..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} rack{filtered.length !== 1 ? "s" : ""}
-        </span>
-        <Button className="ml-auto" onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Nuevo rack
-        </Button>
-      </div>
+      <Title
+        titlePage="Racks"
+        description="Administrá los racks de almacenamiento físico del depósito."
+        search={search}
+        setSearch={setSearch}
+        filtered={filtered}
+        openCreate={() => openCreate({
+          setIsViewing, setEditing, setForm, reset, setModalOpen,
+          EMPTY_FORM: { ...EMPTY_FORM, codigo: generateRackCodigo(racks) },
+        })}
+      />
 
       <DataTable
         data={filtered}
@@ -164,8 +116,14 @@ export default function RackPage() {
         emptyText="No hay racks registrados."
         emptySearchText="No se encontraron racks con ese criterio."
         search={search}
-        onView={openView}
-        onEdit={openEdit}
+        onView={(t) => openView({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: { codigo: t.codigo, ubicacion: t.ubicacion ?? "" },
+        })}
+        onEdit={(t) => openEdit({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: { codigo: t.codigo, ubicacion: t.ubicacion ?? "" },
+        })}
         onDelete={handleDelete}
         isDeleting={isDeleting}
       />
@@ -202,7 +160,7 @@ export default function RackPage() {
           <label className="text-sm font-medium">Ubicación *</label>
           <Input
             value={form.ubicacion}
-            onChange={(e) => set("ubicacion", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La ubicación"))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "ubicacion", value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La ubicación"), clearError })}
             placeholder="Ej: Depósito A, Sector 2, Pasillo 3..."
             className={cn(errors.ubicacion && "border-destructive focus-visible:ring-destructive")}
           />

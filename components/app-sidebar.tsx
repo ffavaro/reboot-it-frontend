@@ -19,8 +19,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
-import { accesosParaPerfil, gruposParaPerfil, rutaInicial, ubicarRuta } from "@/lib/type/menu"
-import { usePerfil } from "@/hooks/use-auth"
+import { accesosVisibles, gruposVisibles, rutaInicial, ubicarRuta } from "@/lib/type/menu"
+import { useMisPermisos } from "@/hooks/use-permisos"
 import type { EntradaMenu, GrupoMenu } from "@/lib/type/sidebar"
 
 const estiloOpcion = cn(
@@ -125,12 +125,12 @@ function GrupoCompacto({ grupo, activa }: { grupo: GrupoMenu; activa: string | n
 
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
-  const perfil = usePerfil()
+  const { permisos } = useMisPermisos()
   const { state, isMobile } = useSidebar()
 
-  const accesos = perfil ? accesosParaPerfil(perfil) : []
-  const grupos = perfil ? gruposParaPerfil(perfil) : []
-  const activa = perfil ? ubicarRuta(pathname, perfil)?.entrada.etiqueta ?? null : null
+  const accesos = permisos ? accesosVisibles(permisos) : []
+  const grupos = permisos ? gruposVisibles(permisos) : []
+  const activa = permisos ? ubicarRuta(pathname, permisos)?.entrada.etiqueta ?? null : null
   const compacto = state === "collapsed" && !isMobile
 
   return (

@@ -4,12 +4,12 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { ubicarRuta } from "@/lib/type/menu"
-import { usePerfil } from "@/hooks/use-auth"
+import { useMisPermisos } from "@/hooks/use-permisos"
 
 export function PestanasSeccion() {
   const pathname = usePathname()
-  const perfil = usePerfil()
-  const ubicacion = perfil ? ubicarRuta(pathname, perfil) : null
+  const { permisos } = useMisPermisos()
+  const ubicacion = permisos ? ubicarRuta(pathname, permisos) : null
 
   if (!ubicacion || ubicacion.entrada.destinos.length < 2) return null
 

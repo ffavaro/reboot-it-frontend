@@ -5,7 +5,6 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { useModelos, useCreateModelo, useUpdateModelo, useDeleteModelo } from "@/hooks/use-modelo"
@@ -16,6 +15,9 @@ import type { Modelo } from "@/lib/type/modelo"
 import type { Tipo } from "@/lib/type/tipo"
 import type { Marca } from "@/lib/type/marca"
 import type { TableColumn } from "@/components/ui/data-table"
+import { openCreate, openEdit, openView, set } from "@/lib/utils/utils-modal"
+import { useFormErrors } from "@/hooks/use-form-errors"
+import Title from "@/components/ui/title"
 
 const EMPTY_FORM = { nombre: "", marcaId: "", tipoId: "" }
 const EMPTY_QUICK = { nombre: "" }
@@ -59,32 +61,15 @@ export default function ModelosPage() {
   const [quickMarcaForm, setQuickMarcaForm] = useState(EMPTY_QUICK)
   const [quickTipoForm, setQuickTipoForm] = useState(EMPTY_QUICK)
 
+  const { clearError, reset } = useFormErrors<typeof EMPTY_FORM>()
+  const { clearError: clearQuickMarcaError } = useFormErrors<typeof EMPTY_QUICK>()
+  const { clearError: clearQuickTipoError } = useFormErrors<typeof EMPTY_QUICK>()
+
   const filtered = modelos.filter((m: Modelo) =>
     m.nombre.toLowerCase().includes(search.toLowerCase()) ||
     (m.marca?.nombre ?? "").toLowerCase().includes(search.toLowerCase()) ||
     (m.tipo?.nombre ?? "").toLowerCase().includes(search.toLowerCase()),
   )
-
-  function openCreate() {
-    setIsViewing(false)
-    setEditing(null)
-    setForm(EMPTY_FORM)
-    setModalOpen(true)
-  }
-
-  function openEdit(m: Modelo) {
-    setIsViewing(false)
-    setEditing(m)
-    setForm({ nombre: m.nombre, marcaId: String(m.marcaId), tipoId: String(m.tipoId) })
-    setModalOpen(true)
-  }
-
-  function openView(m: Modelo) {
-    setIsViewing(true)
-    setEditing(m)
-    setForm({ nombre: m.nombre, marcaId: String(m.marcaId), tipoId: String(m.tipoId) })
-    setModalOpen(true)
-  }
 
   async function handleSave() {
     if (!form.nombre.trim() || !form.marcaId || !form.tipoId) {
@@ -169,28 +154,14 @@ export default function ModelosPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Modelos</h1>
-        <p className="text-sm text-muted-foreground">
-          Administrá los modelos de medios de almacenamiento por marca y tipo.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          placeholder="Buscar por nombre, marca o tipo..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} modelo{filtered.length !== 1 ? "s" : ""}
-        </span>
-        <Button className="ml-auto" onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Nuevo modelo
-        </Button>
-      </div>
+      <Title
+        titlePage="Modelos"
+        description="Administrá los modelos de medios de almacenamiento por marca y tipo."
+        search={search}
+        setSearch={setSearch}
+        filtered={filtered}
+        openCreate={() => openCreate({ setIsViewing, setEditing, setForm, reset, setModalOpen, EMPTY_FORM })}
+      />
 
       <DataTable
         data={filtered}
@@ -200,8 +171,14 @@ export default function ModelosPage() {
         emptyText="No hay modelos registrados."
         emptySearchText="No se encontraron modelos con ese criterio."
         search={search}
-        onView={openView}
-        onEdit={openEdit}
+        onView={(t) => openView({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: { nombre: t.nombre, marcaId: String(t.marcaId), tipoId: String(t.tipoId) },
+        })}
+        onEdit={(t) => openEdit({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: { nombre: t.nombre, marcaId: String(t.marcaId), tipoId: String(t.tipoId) },
+        })}
         onDelete={handleDelete}
         isDeleting={isDeleting}
       />
@@ -225,7 +202,7 @@ export default function ModelosPage() {
           <label className="text-sm font-medium">Nombre *</label>
           <Input
             value={form.nombre}
-            onChange={(e) => setForm((f) => ({ ...f, nombre: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre") }))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "nombre", value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"), clearError })}
             placeholder="Ej: Barracuda 2TB, Blue 1TB..."
           />
         </div>
@@ -235,7 +212,7 @@ export default function ModelosPage() {
           <div className="flex gap-2">
             <select
               value={form.marcaId}
-              onChange={(e) => setForm((f) => ({ ...f, marcaId: e.target.value }))}
+              onChange={(e) => set({ setFrom: setForm, fileds: "marcaId", value: e.target.value, clearError })}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="">Seleccionar marca...</option>
@@ -262,7 +239,7 @@ export default function ModelosPage() {
           <div className="flex gap-2">
             <select
               value={form.tipoId}
-              onChange={(e) => setForm((f) => ({ ...f, tipoId: e.target.value }))}
+              onChange={(e) => set({ setFrom: setForm, fileds: "tipoId", value: e.target.value, clearError })}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="">Seleccionar tipo...</option>
@@ -300,7 +277,7 @@ export default function ModelosPage() {
           <label className="text-sm font-medium">Nombre *</label>
           <Input
             value={quickMarcaForm.nombre}
-            onChange={(e) => setQuickMarcaForm({ nombre: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre") })}
+            onChange={(e) => set({ setFrom: setQuickMarcaForm, fileds: "nombre", value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"), clearError: clearQuickMarcaError })}
             placeholder="Ej: Seagate, WD, Kingston, Samsung..."
           />
         </div>
@@ -321,7 +298,7 @@ export default function ModelosPage() {
           <label className="text-sm font-medium">Nombre *</label>
           <Input
             value={quickTipoForm.nombre}
-            onChange={(e) => setQuickTipoForm({ nombre: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre") })}
+            onChange={(e) => set({ setFrom: setQuickTipoForm, fileds: "nombre", value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "El nombre"), clearError: clearQuickTipoError })}
             placeholder="Ej: HDD, SSD, Pendrive, DVD..."
           />
         </div>

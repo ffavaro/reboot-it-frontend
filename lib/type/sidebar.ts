@@ -1,18 +1,17 @@
 import type { LucideIcon } from "lucide-react"
-
-export type Perfil = "admin" | "equipo" | "donante" | "transportista"
+import { Alcance } from "./permisos"
 
 export interface Destino {
   etiqueta: string
   ruta: string
-  perfiles?: Perfil[]
+  alcances?: Alcance[]
 }
 
 export interface EntradaMenu {
   etiqueta: string
   icono: LucideIcon
   destinos: Destino[]
-  perfiles?: Perfil[]
+  alcances?: Alcance[]
 }
 
 export interface GrupoMenu {

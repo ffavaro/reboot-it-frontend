@@ -1,12 +1,8 @@
 "use client"
-import { Plus } from "lucide-react"
-
 import { useState } from "react"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { FieldError } from "@/components/ui/field"
@@ -23,6 +19,7 @@ import type { CondicionMaterial } from "@/lib/type/condicion-material"
 import type { TableColumn } from "@/components/ui/data-table"
 import Title from "@/components/ui/title"
 import { Label } from "@/components/ui/label"
+import { filterBySearch, openCreate, openEdit, openView, set } from "@/lib/utils/utils-modal"
 
 const EMPTY_FORM = { condicion: "", descripcion: "" }
 
@@ -73,40 +70,7 @@ export default function CondicionMaterialPage() {
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
-  const filtered = condiciones.filter(
-    (c) =>
-      c.condicion.toLowerCase().includes(search.toLowerCase()) ||
-      (c.descripcion ?? "").toLowerCase().includes(search.toLowerCase()),
-  )
-
-  const set = (field: keyof typeof EMPTY_FORM, value: string) => {
-    setForm((f) => ({ ...f, [field]: value }))
-    clearError(field)
-  }
-
-  const openCreate = () => {
-    setIsViewing(false)
-    setEditing(null)
-    setForm(EMPTY_FORM)
-    reset()
-    setModalOpen(true)
-  }
-
-  const openEdit = (c: CondicionMaterial) => {
-    setIsViewing(false)
-    setEditing(c)
-    setForm({ condicion: c.condicion, descripcion: c.descripcion ?? "" })
-    reset()
-    setModalOpen(true)
-  }
-
-  const openView = (c: CondicionMaterial) => {
-    setIsViewing(true)
-    setEditing(c)
-    setForm({ condicion: c.condicion, descripcion: c.descripcion ?? "" })
-    reset()
-    setModalOpen(true)
-  }
+  const filtered = filterBySearch(condiciones, search, ["condicion", "descripcion"]) as CondicionMaterial[]
 
   const handleSave = async () => {
     if (!validate(form, {
@@ -152,7 +116,7 @@ export default function CondicionMaterialPage() {
         search={search}
         setSearch={setSearch}
         filtered={filtered}
-        openCreate={openCreate}
+        openCreate={() => openCreate({ setIsViewing, setEditing, setForm, reset, setModalOpen, EMPTY_FORM })}
       />
 
       <DataTable
@@ -163,8 +127,14 @@ export default function CondicionMaterialPage() {
         emptyText="No hay condiciones registradas."
         emptySearchText="No se encontraron condiciones con ese criterio."
         search={search}
-        onView={openView}
-        onEdit={openEdit}
+        onView={(t) => openView({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: { condicion: t.condicion, descripcion: t.descripcion ?? "" },
+        })}
+        onEdit={(t) => openEdit({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: { condicion: t.condicion, descripcion: t.descripcion ?? "" },
+        })}
         onDelete={handleDelete}
         isDeleting={isDeleting}
       />
@@ -188,7 +158,7 @@ export default function CondicionMaterialPage() {
           <Label className="text-sm font-medium">Condición *</Label>
           <Input
             value={form.condicion}
-            onChange={(e) => set("condicion", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La condición"))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "condicion", value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La condición"), clearError })}
             placeholder="Ej: Funcional, Reparable, Obsoleto..."
             className={cn(errors.condicion && "border-destructive focus-visible:ring-destructive")}
           />
@@ -201,7 +171,7 @@ export default function CondicionMaterialPage() {
           </Label>
           <Input
             value={form.descripcion}
-            onChange={(e) => set("descripcion", enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción"))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "descripcion", value: enforceMaxLength(e.target.value, DEFAULT_TEXT_MAX, "La descripción"), clearError })}
             placeholder="Breve descripción de la condición"
           />
           <FieldError>{errors.descripcion}</FieldError>

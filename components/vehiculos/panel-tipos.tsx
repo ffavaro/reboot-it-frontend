@@ -24,6 +24,7 @@ import {
   type ErroresTipo,
   type FormTipo,
 } from "./campos-tipo-vehiculo"
+import { SiPuede } from "../permisos/si-puede"
 
 type Apertura = { modo: "alta" } | { modo: "edicion" | "vista"; tipo: TipoVehiculo }
 
@@ -88,10 +89,13 @@ export function PanelTipos() {
   return (
     <>
       <div className="flex items-center">
-        <Button className="ml-auto" onClick={() => abrir({ modo: "alta" })}>
-          <Plus className="h-4 w-4" />
-          Nuevo tipo
-        </Button>
+        <SiPuede accion="crear">
+
+          <Button className="ml-auto" onClick={() => abrir({ modo: "alta" })}>
+            <Plus className="h-4 w-4" />
+            Nuevo tipo
+          </Button>
+        </SiPuede>
       </div>
 
       <DataTable

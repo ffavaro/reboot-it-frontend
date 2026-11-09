@@ -1,12 +1,8 @@
 "use client"
-import { Plus } from "lucide-react"
-
 import { useState } from "react"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
@@ -29,6 +25,8 @@ import { useFormErrors } from "@/hooks/use-form-errors"
 import { requiredSelect, positiveNumber, maxDigits } from "@/lib/form-validators"
 import { enforceDecimalInput, DEFAULT_WEIGHT_MAX_DIGITS } from "@/lib/utils/number-limit"
 import type { Lote } from "@/lib/type/lote"
+import { openCreate, openEdit, openView, set } from "@/lib/utils/utils-modal"
+import Title from "@/components/ui/title"
 
 const EMPTY_FORM = { donacionId: "", pesoBrutoKg: "", observaciones: "" }
 
@@ -89,38 +87,6 @@ export default function LotePage() {
     )
   })
 
-  function openCreate() {
-    setIsViewing(false)
-    setEditing(null)
-    setForm(EMPTY_FORM)
-    reset()
-    setModalOpen(true)
-  }
-
-  function openEdit(l: Lote) {
-    setIsViewing(false)
-    setEditing(l)
-    setForm({
-      donacionId: String(l.donacionId),
-      pesoBrutoKg: l.pesoBrutoKg !== null && l.pesoBrutoKg !== undefined ? String(l.pesoBrutoKg) : String(l.donacion?.pesoEstimadoKg),
-      observaciones: l.observaciones ?? "",
-    })
-    reset()
-    setModalOpen(true)
-  }
-
-  function openView(l: Lote) {
-    setIsViewing(true)
-    setEditing(l)
-    setForm({
-      donacionId: String(l.donacionId),
-      pesoBrutoKg: l.pesoBrutoKg !== null && l.pesoBrutoKg !== undefined ? String(l.pesoBrutoKg) : "",
-      observaciones: l.observaciones ?? "",
-    })
-    reset()
-    setModalOpen(true)
-  }
-
   async function handleSave() {
     if (!validate(form, {
       donacionId: [requiredSelect("una donación")],
@@ -158,28 +124,14 @@ export default function LotePage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Lotes</h1>
-        <p className="text-sm text-muted-foreground">
-          Administrá los lotes de materiales asociados a donaciones.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput
-          placeholder="Buscar por ID, donación u observaciones..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
-          {filtered.length} lote{filtered.length !== 1 ? "s" : ""}
-        </span>
-        <Button className="ml-auto" onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Nuevo lote
-        </Button>
-      </div>
+      <Title
+        titlePage="Lotes"
+        description="Administrá los lotes de materiales asociados a donaciones."
+        search={search}
+        setSearch={setSearch}
+        filtered={filtered}
+        openCreate={() => openCreate({ setIsViewing, setEditing, setForm, reset, setModalOpen, EMPTY_FORM })}
+      />
 
       <DataTable
         data={filtered}
@@ -189,8 +141,22 @@ export default function LotePage() {
         emptyText="No hay lotes registrados."
         emptySearchText="No se encontraron lotes con ese criterio."
         search={search}
-        onView={openView}
-        onEdit={openEdit}
+        onView={(t) => openView({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: {
+            donacionId: String(t.donacionId),
+            pesoBrutoKg: t.pesoBrutoKg !== null && t.pesoBrutoKg !== undefined ? String(t.pesoBrutoKg) : "",
+            observaciones: t.observaciones ?? "",
+          },
+        })}
+        onEdit={(t) => openEdit({
+          t, setIsViewing, setEditing, setForm, reset, setModalOpen,
+          jsonEntidad: {
+            donacionId: String(t.donacionId),
+            pesoBrutoKg: t.pesoBrutoKg !== null && t.pesoBrutoKg !== undefined ? String(t.pesoBrutoKg) : String(t.donacion?.pesoEstimadoKg),
+            observaciones: t.observaciones ?? "",
+          },
+        })}
         onDelete={handleDelete}
         isDeleting={isDeleting}
       />
@@ -209,7 +175,7 @@ export default function LotePage() {
           <label className="text-sm font-medium">Donación</label>
           <Select
             value={form.donacionId}
-            onValueChange={(v) => { setForm((f) => ({ ...f, donacionId: v ?? "" })); clearError("donacionId") }}
+            onValueChange={(v) => set({ setFrom: setForm, fileds: "donacionId", value: v ?? "", clearError })}
             disabled={isViewing}
           >
             <SelectTrigger className={cn("w-full", errors.donacionId && "border-destructive ring-1 ring-destructive")}>
@@ -238,10 +204,7 @@ export default function LotePage() {
             inputMode="decimal"
             placeholder="Ej: 120.50"
             value={form.pesoBrutoKg}
-            onChange={(e) => {
-              setForm((f) => ({ ...f, pesoBrutoKg: enforceDecimalInput(e.target.value, DEFAULT_WEIGHT_MAX_DIGITS, "El peso bruto") }))
-              clearError("pesoBrutoKg")
-            }}
+            onChange={(e) => set({ setFrom: setForm, fileds: "pesoBrutoKg", value: enforceDecimalInput(e.target.value, DEFAULT_WEIGHT_MAX_DIGITS, "El peso bruto"), clearError })}
             className={cn(errors.pesoBrutoKg && "border-destructive focus-visible:ring-destructive")}
           />
           <FieldError>{errors.pesoBrutoKg}</FieldError>
@@ -255,7 +218,7 @@ export default function LotePage() {
             rows={3}
             placeholder="Observaciones sobre el lote..."
             value={form.observaciones}
-            onChange={(e) => setForm((f) => ({ ...f, observaciones: e.target.value }))}
+            onChange={(e) => set({ setFrom: setForm, fileds: "observaciones", value: e.target.value, clearError })}
             className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
           />
         </div>
