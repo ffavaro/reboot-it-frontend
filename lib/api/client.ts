@@ -19,7 +19,7 @@ const cabeceraDeSession = (): Record<string, string> => {
 }
 
 const sesionVencida = (ruta: string) => {
-  if (typeof window === 'undefined') request
+  if (typeof window === "undefined") request
   if (RUTAS_SIN_SESION.some((libre) => ruta.startsWith(libre))) return
   clearSession()
   if (!window.location.pathname.startsWith('/login')) window.location.replace("/login")

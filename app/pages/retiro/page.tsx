@@ -24,7 +24,7 @@ import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import type { Vehiculo } from "@/lib/type/vehicle"
 import type { Donacion } from "@/lib/type/donacion"
 import type { Turno } from "@/lib/type/turno"
-import { formatDate } from "@/lib/utils/helpers"
+import { dia } from "@/lib/utils/fechas"
 
 const EMPTY_FORM = {
   donacionId: "",
@@ -62,7 +62,7 @@ const columns: TableColumn<Retiro>[] = [
     header: "Fecha inicio",
     cell: (r) => (
       <span className="text-muted-foreground">
-        {formatDate(r.fechaInicio) ?? <span className="italic"></span>}
+        {dia(r.fechaInicio)}
       </span>
     ),
   },

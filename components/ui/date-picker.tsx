@@ -4,23 +4,10 @@ import * as React from "react"
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
-
-const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
-const DIAS = ["Lu", "Ma", "Mi", "Ju", "Vi"]
-const DIAS_SEMANA = ["Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do"]
-
-function pad(n: number) {
-  return String(n).padStart(2, "0")
-}
+import { DIAS_CAL_CORTOS, DIAS_CAL_LARGOS, dos, hoyIso, MESES_CORTOS, MESES_ES } from "@/lib/utils/fechas"
 
 function toISO(year: number, month: number, day: number) {
-  return `${year}-${pad(month + 1)}-${pad(day)}`
-}
-
-function todayISO() {
-  const d = new Date()
-  return toISO(d.getFullYear(), d.getMonth(), d.getDate())
+  return `${year}-${dos(month + 1)}-${dos(day)}`
 }
 
 function parseISO(iso: string): { year: number; month: number; day: number } | null {
@@ -28,7 +15,6 @@ function parseISO(iso: string): { year: number; month: number; day: number } | n
   return m ? { year: Number(m[1]), month: Number(m[2]) - 1, day: Number(m[3]) } : null
 }
 
-// Sábado y domingo no se pueden elegir
 function esFinDeSemana(iso: string) {
   const p = parseISO(iso)
   if (!p) return false
@@ -38,19 +24,17 @@ function esFinDeSemana(iso: string) {
 
 function formatLabel(iso: string) {
   const p = parseISO(iso)
-  return p ? `${pad(p.day)} ${MESES_CORTOS[p.month]} ${p.year}` : ""
+  return p ? `${dos(p.day)} ${MESES_CORTOS[p.month]} ${p.year}` : ""
 }
 
 type DatePickerProps = {
-  value: string                      // yyyy-MM-dd o ""
-  onChange: (value: string) => void  // yyyy-MM-dd o ""
+  value: string                     
+  onChange: (value: string) => void 
   min?: string
   max?: string
   placeholder?: string
   clearable?: boolean
-  // "field" imita el estilo de los Input de los formularios; "inline" es el compacto de las barras de filtros
   variant?: "inline" | "field"
-  // Por defecto solo se eligen días hábiles (turnos); los filtros de reportes necesitan también sábado y domingo
   conFinDeSemana?: boolean
   className?: string
   "aria-label"?: string
@@ -60,12 +44,12 @@ export function DatePicker({
   value, onChange, min, max, placeholder = "Seleccionar fecha", clearable = false, variant = "inline", conFinDeSemana = false, className, ...props
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false)
-  const initial = parseISO(value) ?? parseISO(todayISO())!
+  const initial = parseISO(value) ?? parseISO(hoyIso())!
   const [view, setView] = React.useState({ year: initial.year, month: initial.month })
 
   function handleOpenChange(next: boolean) {
     if (next) {
-      const p = parseISO(value) ?? parseISO(todayISO())!
+      const p = parseISO(value) ?? parseISO(hoyIso())!
       setView({ year: p.year, month: p.month })
     }
     setOpen(next)
@@ -78,7 +62,7 @@ export function DatePicker({
     })
   }
 
-  const dias = conFinDeSemana ? DIAS_SEMANA : DIAS
+  const dias = conFinDeSemana ? DIAS_CAL_LARGOS : DIAS_CAL_CORTOS
   const isDisabled = (iso: string) => (!!min && iso < min) || (!!max && iso > max) || (!conFinDeSemana && esFinDeSemana(iso))
 
   function elegir(iso: string) {
@@ -99,7 +83,7 @@ export function DatePicker({
 
   while (celdas.length < dias.length * 6) celdas.push(null)
 
-  const hoy = todayISO()
+  const hoy = hoyIso()
   const anioActual = new Date().getFullYear()
   const anioDesde = Math.min(min ? Number(min.slice(0, 4)) : anioActual - 30, view.year)
   const anioHasta = Math.max(max ? Number(max.slice(0, 4)) : anioActual + 15, view.year)
@@ -142,7 +126,7 @@ export function DatePicker({
               onChange={(e) => setView((v) => ({ ...v, month: Number(e.target.value) }))}
               className="h-7 rounded-md bg-transparent px-1 text-sm font-medium hover:bg-muted focus:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
             >
-              {MESES.map((m, i) => <option key={m} value={i}>{m}</option>)}
+              {MESES_ES.map((m, i) => <option key={m} value={i}>{m}</option>)}
             </select>
             <select
               aria-label="Año"

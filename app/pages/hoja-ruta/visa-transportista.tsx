@@ -10,7 +10,8 @@ import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
 import { useUsuarios } from "@/hooks/use-users"
 import { hojaRutaApi } from "@/lib/api/hoja-ruta"
 import { descargarConstanciaPdf } from "@/lib/utils/constancia-pdf"
-import { formatFechaISO, getErrorMessage, getTransportistaActual, sumarDias } from "@/lib/utils/helpers"
+import { textoDeError, getTransportistaActual } from "@/lib/utils/helpers"
+import { dia, sumarDias } from "@/lib/utils/fechas"
 import { abrirEnPestana, urlWhatsApp } from "@/lib/utils/hoja-ruta"
 import type { HojaRutaDia, ParadaHojaRuta } from "@/lib/type/hoja-ruta"
 import { HojaRutaCard } from "./hoja-ruta-card"
@@ -49,7 +50,7 @@ export function VistaTransportista() {
     try {
       descargarConstanciaPdf(await hojaRutaApi.constancia(turnoId))
     } catch (error) {
-      toast.error(getErrorMessage(error, "No se pudo descargar la constancia"))
+      toast.error(textoDeError(error, "No se pudo descargar la constancia"))
     }
   }
 
@@ -150,7 +151,7 @@ export function VistaTransportista() {
           {sinResultados ? (
             <p className="py-4 text-sm italic text-muted-foreground">
               {fecha
-                ? `No tenés hojas de ruta para el ${formatFechaISO(fecha)}.`
+                ? `No tenés hojas de ruta para el ${dia(fecha)}.`
                 : "No tenés turnos pendientes de retiro."}
             </p>
           ) : (

@@ -1,5 +1,6 @@
 "use client"
 
+import { diaYHora } from "@/lib/utils/fechas"
 import { useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight, RotateCcw, ShieldAlert } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -18,14 +19,6 @@ const COLUMNAS = ["Fecha y hora", "Usuario", "Rol", "Acción", "Resultado", "Ent
 
 const claseFiltro =
   "h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-
-function fechaHora(iso: string) {
-  const f = new Date(iso)
-  if (Number.isNaN(f.getTime())) return iso
-  const dia = f.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
-  const hora = f.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })
-  return `${dia} ${hora}`
-}
 
 function quien(e: EventoAuditoria) {
   if (e.usuario) return { nombre: e.usuario.nombre, detalle: e.usuario.email, anonimo: false }
@@ -207,7 +200,7 @@ export default function AuditoriaPage() {
                 const persona = quien(e)
                 return (
                   <TableRow key={e.id} className={cn(isLoading && "opacity-60")}>
-                    <TableCell className="whitespace-nowrap tabular-nums">{fechaHora(e.fechaHora)}</TableCell>
+                    <TableCell className="whitespace-nowrap tabular-nums">{diaYHora(e.fechaHora, true)}</TableCell>
                     <TableCell>
                       <div className="flex flex-col">
                         <span className={cn("font-medium", persona.anonimo && "italic text-muted-foreground")}>{persona.nombre}</span>

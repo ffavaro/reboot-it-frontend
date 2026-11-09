@@ -1,6 +1,7 @@
 import type { DatosCertificadoDisposicion } from "@/lib/type/certificado-disposicion"
 import { EMPRESA } from "./empresa"
-import { dia, kilos, numeroDocumento, texto } from "./formato"
+import { dia } from "@/lib/utils/fechas"
+import { kilos, numeroDocumento, texto } from "./formato"
 import { DocumentoPdf } from "./pdf"
 
 export async function descargarCertificadoDisposicion(datos: DatosCertificadoDisposicion) {

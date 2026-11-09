@@ -63,3 +63,5 @@ export interface ReporteInventario extends Material {
     } | null
   } | null
 }
+
+export type MaterialDonacion = { tipoMaterialId: string; condicionMaterialId: string; cantidadEstimada: string }

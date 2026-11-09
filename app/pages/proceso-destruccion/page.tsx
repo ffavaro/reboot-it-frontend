@@ -39,8 +39,8 @@ import type { Material } from "@/lib/type/material"
 import type { Tipo } from "@/lib/type/tipo"
 import type { Marca } from "@/lib/type/marca"
 import type { Modelo } from "@/lib/type/modelo"
-import { formatDate } from "@/lib/utils/helpers"
 import { ESTADO_COLORS_PROCESO_DESTRUCCION } from "@/lib/utils/estados"
+import { dia, hoyIso } from "@/lib/utils/fechas"
 
 const EMPTY_FORM = {
   medioAlmacenamientoId: "",
@@ -52,15 +52,6 @@ const EMPTY_FORM = {
 
 const EMPTY_QUICK_MEDIO = { materialId: "", tipoId: "", marcaId: "", modeloId: "", terminosUso: "" }
 const EMPTY_QUICK_METODO = { nombre: "", descripcion: "" }
-
-function todayISO(): string {
-  const now = new Date()
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
-}
-
-
-
 
 function medioLabel(m: MedioAlmacenamiento) {
   const partes = [`#${m.id}`]
@@ -125,7 +116,7 @@ const columns: TableColumn<ProcesoDestruccion>[] = [
     header: "Fecha",
     cell: (p) => (
       <span className="text-muted-foreground">
-        {formatDate(p.fecha) ?? <span className="italic"></span>}
+        {dia(p.fecha)}
       </span>
     ),
   },
@@ -192,7 +183,7 @@ export default function ProcesoDestruccionPage() {
     )
     setForm({
       ...EMPTY_FORM,
-      fecha: todayISO(),
+      fecha: hoyIso(),
       estadoId: estadoPendiente ? String(estadoPendiente.id) : "",
     })
     setModalOpen(true)
@@ -454,7 +445,7 @@ export default function ProcesoDestruccionPage() {
           <Input
             type="date"
             value={form.fecha}
-            min={todayISO()}
+            min={hoyIso()}
             disabled={!editing}
             onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))}
           />

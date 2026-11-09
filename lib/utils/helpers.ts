@@ -2,7 +2,7 @@ import { getUser } from "@/lib/auth-utils"
 import type { Donante } from "@/lib/type/donante"
 import type { Usuario } from "@/lib/type/user"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
-import { dia, hoyIso } from "@/lib/documentos/formato"
+import { dia, hoyIso, isoDe } from "@/lib/utils/fechas"
 
 export function getDonanteActual(donantes: Donante[]) {
   const user = getUser()
@@ -23,41 +23,6 @@ export function getTransportistaActual(usuarios: Usuario[], transportistas: Empl
   return { user, isTransportista, myTransportista }
 }
 
-export const formatDate = (iso: string | null) => {
-  if (!iso) return null
-  return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
-}
-
-export const formatDateTime = (iso: string | null) => {
-  if (!iso) return null
-  return new Date(iso).toLocaleString("es-AR", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  })
-}
-
-export const formatFechaISO = (iso: string | null | undefined) => dia(iso)
-
-export const formatHora = (iso: string): string => {
-  const fecha = new Date(iso)
-  const dos = (n: number) => String(n).padStart(2, "0")
-  return `${dos(fecha.getHours())}:${dos(fecha.getMinutes())}`
-}
-
-export const formatKm = (km: number) => `${km.toLocaleString("es-AR", { maximumFractionDigits: 1 })} km`
-
-export function sumarDias(cantidad: number): string {
-  const fecha = new Date()
-  fecha.setDate(fecha.getDate() + cantidad)
-  return isoLocal(fecha)
-}
-
-export const getErrorMessage = (error: unknown, fallback: string) => {
-  const message = (error as { message?: string | string[] } | null)?.message
-  if (Array.isArray(message)) return message[0] ?? fallback
-  return message || fallback
-}
-
 export const validateEmail =(v: string) => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 }
@@ -72,11 +37,6 @@ export interface Periodo {
   fechaHasta?: string
 }
 
-function isoLocal(fecha: Date) {
-  const dos = (n: number) => String(n).padStart(2, "0")
-  return `${fecha.getFullYear()}-${dos(fecha.getMonth() + 1)}-${dos(fecha.getDate())}`
-}
-
 export function periodoUltimoMes(): Required<Periodo> {
   const desde = new Date()
   const diaDelMes = desde.getDate()
@@ -84,7 +44,7 @@ export function periodoUltimoMes(): Required<Periodo> {
   desde.setMonth(desde.getMonth() - 1)
   const ultimoDiaMesAnterior = new Date(desde.getFullYear(), desde.getMonth() + 1, 0).getDate()
   desde.setDate(Math.min(diaDelMes, ultimoDiaMesAnterior))
-  return { fechaDesde: isoLocal(desde), fechaHasta: hoyIso() }
+  return { fechaDesde: isoDe(desde), fechaHasta: hoyIso() }
 }
 
 export function describirPeriodo({ fechaDesde, fechaHasta }: Periodo): string {
@@ -134,16 +94,7 @@ export function problemaPatente(texto: string): string | null {
   return FORMATO_PATENTE.test(patente) ? null : "Formato inválido (ej. ABC123 o AB123CD)"
 }
 
-const dosCifras = (n: number) => String(n).padStart(2, "0")
-
-function hoy(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${dosCifras(d.getMonth() + 1)}-${dosCifras(d.getDate())}`
-}
-
-export const estaVigente = (iso: string) => iso.slice(0, 10) >= hoy()
-
-export const fechaCorta = (iso: string) => iso.slice(0, 10).split("-").reverse().join("/")
+export const estaVigente = (iso: string) => iso.slice(0, 10) >= hoyIso()
 
 export function pesoLegible(valor: number | string | null | undefined): string {
   if (valor === null || valor === undefined || valor === "") return ""

@@ -5,7 +5,8 @@ import { CheckCircle2, Cloud, CloudFog, CloudLightning, CloudRain, CloudSun, Sno
 import { EstadoHojaBadge } from "@/components/ui/estado-hoja-badge"
 import { MapaRuta } from "@/components/mapa-ruta"
 import { cn } from "@/lib/utils"
-import { formatFechaISO, formatHora, formatKm } from "@/lib/utils/helpers"
+import { dia, hora } from "@/lib/utils/fechas"
+import { kilometros } from "@/lib/utils/formato"
 import { formatDuracion, nombreTransportista } from "@/lib/utils/hoja-ruta"
 import type { HojaRutaDia, ParadaHojaRuta } from "@/lib/type/hoja-ruta"
 
@@ -45,7 +46,7 @@ function Resumen({ hoja }: { hoja: HojaRutaDia }) {
       <div className="flex flex-col gap-0.5">
         <span className={ETIQUETA}>Km estimados{hoja.origen ? " (ida y vuelta)" : ""}</span>
         <span className="text-2xl font-semibold tabular-nums">
-          {hoja.kmEstimados !== null ? formatKm(hoja.kmEstimados) : ""}
+          {hoja.kmEstimados !== null ? kilometros(hoja.kmEstimados) : ""}
         </span>
         {hoja.rutaOptimizada && <span className="text-xs text-foreground/75">Ruta optimizada</span>}
       </div>
@@ -81,10 +82,10 @@ function DatosKm({ hoja }: { hoja: HojaRutaDia }) {
   return (
     <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground">
       {info?.kmInicial != null && (
-        <span>Km inicial: <span className="font-medium text-foreground">{formatKm(info.kmInicial)}</span></span>
+        <span>Km inicial: <span className="font-medium text-foreground">{kilometros(info.kmInicial)}</span></span>
       )}
       {info?.kmFinal != null && (
-        <span>Km final: <span className="font-medium text-foreground">{formatKm(info.kmFinal)}</span></span>
+        <span>Km final: <span className="font-medium text-foreground">{kilometros(info.kmFinal)}</span></span>
       )}
       {hoja.origen && (
         <span>Base: <span className="font-medium text-foreground">{hoja.origen}</span></span>
@@ -196,7 +197,7 @@ function ListaTurnos({
                 <p className="break-words text-xs text-muted-foreground">
                   {p.direccion || <span className="italic text-destructive">Sin dirección cargada</span>}
                   {" · "}
-                  <span className="tabular-nums">{formatHora(p.fechaHora)} hs</span>
+                  <span className="tabular-nums">{hora(p.fechaHora)} hs</span>
                 </p>
               </div>
             </div>
@@ -225,7 +226,7 @@ export function HojaRutaCard({
             <EstadoHojaBadge estado={hoja.estado} />
           </div>
           <p className="text-sm text-muted-foreground">
-            {formatFechaISO(hoja.fecha)}
+            {dia(hoja.fecha)}
             {" · "}
             {hoja.vehiculo ? (
               <>

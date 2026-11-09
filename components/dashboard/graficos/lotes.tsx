@@ -8,7 +8,8 @@ import { DateInput } from "@/components/ui/date-input"
 import { SearchInput } from "@/components/ui/search-input"
 import { Leyenda } from "@/components/dashboard/panel"
 import { ALTO_EJE_X, CAJA_TOOLTIP, CURSOR_BARRA, GRILLA, MARCAS, tituloX, tituloY } from "../estilo"
-import { decimal, diaCorto, entero, mesCorto } from "@/lib/utils/formato"
+import { decimal, entero, mesCorto } from "@/lib/utils/formato"
+import { dia } from "@/lib/utils/fechas"
 import { exportToExcel, exportToPdf } from "@/lib/utils/export"
 import { COLUMNAS_ARCHIVO, ESTADOS, LIMITE_TABLA, MovimientosProps } from "@/lib/type/dashboard"
 
@@ -183,7 +184,7 @@ export function MovimientosDeLotes({ filas, periodo, cargando }: MovimientosProp
               <tbody className="divide-y divide-border">
                 {visibles.map((fila) => (
                   <tr key={fila.loteId} className="hover:bg-muted/30">
-                    <td className="px-4 py-3 text-muted-foreground">{diaCorto(fila.fechaIso)}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{dia(fila.fechaIso)}</td>
                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{fila.codigo}</td>
                     <td className="truncate px-4 py-3">{fila.donante}</td>
                     <td className="px-4 py-3 tabular-nums text-muted-foreground">{fila.pesoKg.toFixed(1)}</td>

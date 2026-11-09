@@ -20,7 +20,8 @@ import {
   useCreateTipoVehiculo,
 } from "@/hooks/use-vehicles"
 import { kmLegible } from "@/lib/utils/helpers"
-import { fechaCorta, problemaPatente } from "@/lib/utils/helpers"
+import { problemaPatente } from "@/lib/utils/helpers"
+import { dia } from "@/lib/utils/fechas"
 import { sinClave, textoDeError } from "@/lib/utils/helpers"
 import type { CreateVehiculoPayload, Vehiculo } from "@/lib/type/vehicle"
 import { CamposTecnicos, TECNICOS_VACIOS, revisarTecnicos, type DatosTecnicos } from "./campos-tecnicos"
@@ -123,7 +124,7 @@ const COLUMNAS: TableColumn<Vehiculo>[] = [
     cell: (v) =>
       v.itvVencimiento ? (
         <span className="inline-flex items-center gap-2">
-          <span className="tabular-nums text-muted-foreground">{fechaCorta(v.itvVencimiento)}</span>
+          <span className="tabular-nums text-muted-foreground">{dia(v.itvVencimiento)}</span>
           <EstadoItv vencimiento={v.itvVencimiento} />
         </span>
       ) : (

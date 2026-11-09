@@ -23,7 +23,8 @@ import { cn } from "@/lib/utils"
 import { Panel, textoLeyenda } from "@/components/dashboard/panel"
 import { Tarjeta } from "@/lib/type/dashboard"
 import { ALTO_EJE_X, COLOR, GRILLA, MARCAS, colorSerie, tituloX, tituloY } from "../estilo"
-import { decimal, diaCorto, entero, nombreDeMes } from "@/lib/utils/formato"
+import { decimal, entero, nombreDeMes } from "@/lib/utils/formato"
+import { dia } from "@/lib/utils/fechas"
 import type { GraficosCircuito, ResumenCircuito } from "@/lib/type/dashboard"
 
 const DIAS_HABILES = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
@@ -468,7 +469,7 @@ function ParadasVsKm({ datos }: { datos: GraficosCircuito["eficienciaRutas"] }) 
             cursor={{ fill: "rgba(0,0,0,0.04)" }}
             content={({ payload }) => {
               const h = payload?.[0]?.payload as GraficosCircuito["eficienciaRutas"][number] | undefined
-              return h ? <CajaTooltip lineas={[h.transportista, diaCorto(h.fecha), `${h.paradas} paradas · ${decimal(h.km)} km`]} /> : null
+              return h ? <CajaTooltip lineas={[h.transportista, dia(h.fecha), `${h.paradas} paradas · ${decimal(h.km)} km`]} /> : null
             }}
           />
           <Legend iconType="square" verticalAlign="top" wrapperStyle={{ fontSize: 12, paddingBottom: 8 }} formatter={textoLeyenda} />

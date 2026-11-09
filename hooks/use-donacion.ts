@@ -41,4 +41,11 @@ export function useDeleteDonacion() {
     (_key: string, { arg }: { arg: number }) => donacionApi.remove(arg),
   )
   return { deleteDonacion: trigger, isLoading: isMutating, error }
+
 }
+
+export function useTrazabilidadDonacion(id: number | null) {
+  const { data, isLoading, error } = useSWR(id ? ["/donacion/detalle", id] : null, () => donacionApi.getTrazabilidad(id as number))
+  return { trazabilidad: data, isLoading, error }
+}
+

@@ -1,6 +1,7 @@
 import type { DatosConstanciaRetiro } from "@/lib/type/constancia-retiro"
 import { EMPRESA } from "./empresa"
-import { dia, diaYHora, kilos, numeroDocumento, texto } from "./formato"
+import { dia, diaYHora } from "@/lib/utils/fechas"
+import { kilos, numeroDocumento, texto } from "./formato"
 import { DocumentoPdf } from "./pdf"
 
 export async function descargarConstanciaRetiro(datos: DatosConstanciaRetiro) {

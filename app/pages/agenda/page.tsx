@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { FormModal } from "@/components/ui/form-modal"
 import { useTurnos } from "@/hooks/use-turno"
 import type { Turno } from "@/lib/type/turno"
+import { diaMes, diaYHoraLargo, dos, hora } from "@/lib/utils/fechas"
 
 const DIAS_SEMANA = ["Lun", "Mar", "Mié", "Jue", "Vie"]
 const HORA_INICIO = 8
@@ -59,10 +60,6 @@ function colorEstado(descripcion?: string) {
   return key ? COLORES_ESTADO[key] : COLOR_DEFAULT
 }
 
-function formatHora(iso: string): string {
-  return new Date(iso).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })
-}
-
 export default function AgendaPage() {
   const { turnos, isLoading } = useTurnos()
   const [inicioSemana, setInicioSemana] = useState(() => getLunes(new Date()))
@@ -96,10 +93,8 @@ export default function AgendaPage() {
   function irHoy() { setInicioSemana(getLunes(new Date())); setSeleccionado(null) }
 
   const etiquetaSemana = (() => {
-    const inicio = inicioSemana.toLocaleDateString("es-AR", { day: "numeric", month: "long" })
-    const fin = sumarDias(inicioSemana, 6).toLocaleDateString("es-AR", {
-      day: "numeric", month: "long", year: "numeric",
-    })
+    const inicio = diaMes(inicioSemana)
+    const fin = diaMes(sumarDias(inicioSemana, 6), true)
     return `${inicio} – ${fin}`
   })()
 
@@ -178,7 +173,7 @@ export default function AgendaPage() {
                 className="absolute right-2 text-xs text-muted-foreground select-none"
                 style={{ top: `${(hora - HORA_INICIO) * PX_POR_HORA + 4}px` }}
               >
-                {String(hora).padStart(2, "0")}:00
+                {dos(hora)}:00
               </div>
             ))}
           </div>
@@ -231,7 +226,7 @@ export default function AgendaPage() {
                         style={{ top: `${top}px`, height: `${height}px` }}
                       >
                         <div className="font-semibold leading-tight truncate">
-                          {formatHora(t.fechaHora)}
+                          {hora(t.fechaHora)}
                         </div>
                         {height > 30 && (
                           <div className="truncate leading-tight mt-0.5 opacity-90">
@@ -254,10 +249,7 @@ export default function AgendaPage() {
         title="Detalle del turno"
         description={
           seleccionado
-            ? new Date(seleccionado.fechaHora).toLocaleString("es-AR", {
-                weekday: "long", day: "numeric", month: "long",
-                year: "numeric", hour: "2-digit", minute: "2-digit",
-              })
+            ? diaYHoraLargo(seleccionado.fechaHora, true)
             : undefined
         }
         readOnly
@@ -294,7 +286,7 @@ export default function AgendaPage() {
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
                 Hora
               </p>
-              <p className="font-medium">{formatHora(seleccionado.fechaHora)}</p>
+              <p className="font-medium">{hora(seleccionado.fechaHora)}</p>
             </div>
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">

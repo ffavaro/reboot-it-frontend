@@ -13,7 +13,8 @@ import { UsoDeFlota } from "@/components/dashboard/graficos/flota"
 import { MovimientosDeLotes } from "@/components/dashboard/graficos/lotes"
 import { useResumenCircuito } from "@/hooks/use-dashboard"
 import { useTableroOperativo } from "@/hooks/use-tablero-operativo"
-import { diaCorto, entero, isoDe, mesesAtras } from "@/lib/utils/formato"  
+import { entero, mesesAtras } from "@/lib/utils/formato"
+import { dia, isoDe } from "@/lib/utils/fechas"  
 import {
   PERIODO_LABELS,
   getRangoAnterior,
@@ -65,7 +66,7 @@ export default function DashboardPage() {
     [preset, libre],
   )
 
-  const etiqueta = preset ? rango.label : `${diaCorto(rango.fechaDesde)} al ${diaCorto(rango.fechaHasta)}`
+  const etiqueta = preset ? rango.label : `${dia(rango.fechaDesde)} al ${dia(rango.fechaHasta)}`
 
   const { resumen } = useResumenCircuito({ fechaDesde: rango.fechaDesde, fechaHasta: rango.fechaHasta, donanteIds })
   const operativo = useTableroOperativo({ rango, anterior, preset, donanteIds })

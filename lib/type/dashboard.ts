@@ -2,7 +2,8 @@ import { EstadoLote, FilaLote } from "@/hooks/use-tablero-operativo"
 import { LayoutItem } from "react-grid-layout"
 import { ExportColumn } from "../utils/export"
 import { COLOR } from "@/components/dashboard/estilo"
-import { diaCorto, RangoFechas } from "../utils/formato"
+import { RangoFechas } from "../utils/formato"
+import { dia } from "../utils/fechas"
 
 export interface FiltroTablero {
   fechaDesde: string
@@ -130,7 +131,7 @@ export const ESTADOS: { nombre: EstadoLote; color: string; clase: string }[] = [
 export const LIMITE_TABLA = 25
 
 export const COLUMNAS_ARCHIVO: ExportColumn<FilaLote>[] = [
-  { header: "Fecha de ingreso", accessor: (f) => diaCorto(f.fechaIso) },
+  { header: "Fecha de ingreso", accessor: (f) => dia(f.fechaIso) },
   { header: "Lote", accessor: (f) => f.codigo },
   { header: "Donante", accessor: (f) => f.donante },
   { header: "Peso (kg)", accessor: (f) => f.pesoKg },

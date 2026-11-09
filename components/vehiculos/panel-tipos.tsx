@@ -60,7 +60,7 @@ export function PanelTipos() {
     setErrores((e) => sinClave(e, campo))
   }
 
-  async function guardar() {
+  const guardar = async () => {
     const encontrados = revisarTipo(form)
     setErrores(encontrados)
     if (Object.keys(encontrados).length) return
@@ -75,7 +75,7 @@ export function PanelTipos() {
     }
   }
 
-  async function desactivar(id: number | string) {
+  const desactivar = async (id: number | string) => {
     try {
       await deleteTipo(Number(id))
       await mutate()
