@@ -5,6 +5,7 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { SearchInput } from "@/components/ui/search-input"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
@@ -185,7 +186,7 @@ export default function RetiroPage() {
             donacionId: String(t.donacionId),
             empleadoTransportistaId: String(t.empleadoTransportistaId),
             vehiculoId: t.vehiculoId ? String(t.vehiculoId) : "",
-            fechaInicio: t.fechaInicio ? t.fechaInicio.slice(0, 16) : "",
+            fechaInicio: t.fechaInicio ? t.fechaInicio.slice(0, 10) : "",
             direccion: t.direccion ?? "",
           },
         })}
@@ -195,7 +196,7 @@ export default function RetiroPage() {
             donacionId: String(t.donacionId),
             empleadoTransportistaId: String(t.empleadoTransportistaId),
             vehiculoId: t.vehiculoId ? String(t.vehiculoId) : "",
-            fechaInicio: t.fechaInicio ? t.fechaInicio.slice(0, 16) : "",
+            fechaInicio: t.fechaInicio ? t.fechaInicio.slice(0, 10) : "",
             direccion: t.direccion ?? "",
           },
         })}
@@ -231,7 +232,7 @@ export default function RetiroPage() {
                   ? String(turno.empleadoTransportista.vehiculoId)
                   : f.vehiculoId,
                 fechaInicio: turno?.fechaHora
-                  ? turno.fechaHora.slice(0, 16)
+                  ? turno.fechaHora.slice(0, 10)
                   : f.fechaInicio,
                 direccion: don?.donante?.direccion ?? f.direccion,
               }))
@@ -296,10 +297,12 @@ export default function RetiroPage() {
           <label className="text-sm font-medium">
             Fecha de inicio <span className="text-muted-foreground font-normal">(opcional)</span>
           </label>
-          <Input
-            type="datetime-local"
+          <DatePicker
+            variant="field"
+            clearable
             value={form.fechaInicio}
-            onChange={(e) => set({ setFrom: setForm, fileds: "fechaInicio", value: e.target.value, clearError })}
+            disabled={isViewing}
+            onChange={(v) => set({ setFrom: setForm, fileds: "fechaInicio", value: v, clearError })}
           />
         </div>
 

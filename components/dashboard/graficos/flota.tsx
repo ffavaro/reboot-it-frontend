@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { CartesianGrid, LabelList, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from "recharts"
-import { DateInput } from "@/components/ui/date-input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Panel } from "@/components/dashboard/panel"
 import { useUsoDeVehiculos } from "@/hooks/use-dashboard"
 import { ALTO_EJE_X, COLOR, GRILLA, MARCAS, tituloX, tituloY } from "../estilo"
@@ -27,9 +27,9 @@ export function UsoDeFlota() {
 
   const filtros = (
     <div className="flex flex-wrap items-center gap-2">
-      <DateInput value={rango.desde} onChange={(v) => v && setRango((r) => ({ ...r, desde: v }))} className="h-8 w-32 text-xs" aria-label="Flota desde" />
+      <DatePicker variant="field" value={rango.desde} onChange={(v) => v && setRango((r) => ({ ...r, desde: v }))} className="h-8 w-36 text-xs" aria-label="Flota desde" />
       <span className="text-xs text-muted-foreground">a</span>
-      <DateInput value={rango.hasta} onChange={(v) => v && setRango((r) => ({ ...r, hasta: v }))} className="h-8 w-32 text-xs" aria-label="Flota hasta" />
+      <DatePicker variant="field" value={rango.hasta} onChange={(v) => v && setRango((r) => ({ ...r, hasta: v }))} className="h-8 w-36 text-xs" aria-label="Flota hasta" />
       <select
         value={cantidad}
         onChange={(e) => setCantidad(Number(e.target.value))}

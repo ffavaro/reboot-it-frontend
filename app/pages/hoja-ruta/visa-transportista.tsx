@@ -137,6 +137,7 @@ export function VistaTransportista() {
                 value={fecha}
                 onChange={setFecha}
                 clearable
+                soloHabiles
                 placeholder="Todas las fechas"
                 aria-label="Ver la hoja de ruta de una fecha"
               />

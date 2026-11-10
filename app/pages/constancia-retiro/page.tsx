@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { toast } from "react-toastify"
 import { FormModal } from "@/components/ui/form-modal"
-import { DateInput } from "@/components/ui/date-input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { DataTable, type TableColumn } from "@/components/ui/data-table"
 import { AvisoDonante } from "@/components/aviso-donante"
 import {
@@ -236,7 +236,7 @@ export default function ConstanciaRetiroPage() {
 
           <div className="flex flex-col gap-2">
             <Label className="text-sm font-medium">Fecha de emisión</Label>
-            <DateInput value={campos.fechaEmision} onChange={() => {}} disabled />
+            <DatePicker variant="field" value={campos.fechaEmision} onChange={() => {}} disabled />
           </div>
 
           <div className="flex flex-col gap-2">

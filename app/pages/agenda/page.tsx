@@ -6,9 +6,8 @@ import { Button } from "@/components/ui/button"
 import { FormModal } from "@/components/ui/form-modal"
 import { useTurnos } from "@/hooks/use-turno"
 import type { Turno } from "@/lib/type/turno"
-import { diaMes, diaYHoraLargo, dos, hora } from "@/lib/utils/fechas"
+import { diaMes, DIAS_CAL_CORTOS, diaYHoraLargo, dos, hora } from "@/lib/utils/fechas"
 
-const DIAS_SEMANA = ["Lun", "Mar", "Mié", "Jue", "Vie"]
 const HORA_INICIO = 8
 const HORA_FIN = 17
 const PX_POR_HORA = 50
@@ -133,7 +132,7 @@ export default function AgendaPage() {
       </div>
 
       <div className="rounded-2xl bg-card shadow-sm ring-1 ring-foreground/5 overflow-hidden">
-        {/* Cabecera fija con los días */}
+
         <div className="flex border-b border-border/60">
           <div className="w-16 shrink-0 border-r border-border/60 bg-muted/40" />
           <div className="flex-1 grid grid-cols-5 bg-muted/40">
@@ -145,7 +144,7 @@ export default function AgendaPage() {
                   className={`py-1.5 text-center border-r border-border/60 last:border-r-0${esHoy ? " bg-primary/10" : ""}`}
                 >
                   <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    {DIAS_SEMANA[i]}
+                    {DIAS_CAL_CORTOS[i]}
                   </div>
                   <div
                     className={`mx-auto mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold${

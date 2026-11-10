@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
-import { Input } from "@/components/ui/input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { FieldError } from "@/components/ui/field"
@@ -289,11 +289,11 @@ export default function EmpleadoTransportistaPage() {
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Fecha de asignación</label>
-          <Input
-            type="date"
+          <DatePicker
+            variant="field"
             value={form.fechaAsignacion}
             disabled={!editing}
-            onChange={(e) => setForm((f) => ({ ...f, fechaAsignacion: e.target.value }))}
+            onChange={(v) => setForm((f) => ({ ...f, fechaAsignacion: v }))}
           />
         </div>
 

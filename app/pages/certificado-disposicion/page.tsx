@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { FormModal } from "@/components/ui/form-modal"
-import { DateInput } from "@/components/ui/date-input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { DataTable, type TableColumn } from "@/components/ui/data-table"
 import { AvisoDonante } from "@/components/aviso-donante"
 import {
@@ -379,11 +379,11 @@ export default function CertificadoDisposicionPage() {
             </div>
             <div className="flex flex-col gap-2">
               <Label className="text-sm font-medium">Fecha de emisión</Label>
-              <DateInput
+              <DatePicker
+                variant="field"
                 value={campos.fechaEmision}
                 onChange={() => {}}
-                readOnly
-                className="cursor-not-allowed bg-muted"
+                readonly
               />
             </div>
           </div>

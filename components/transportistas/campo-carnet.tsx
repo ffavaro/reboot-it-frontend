@@ -1,8 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef } from "react"
-import { cn } from "@/lib/utils"
-import { DateInput } from "@/components/ui/date-input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { FieldError } from "@/components/ui/field"
 import { VigenciaCarnet } from "./estado-carnet"
 import { CampoCarnetProps,  CARNET_MAX_MB, CARNET_TIPOS, CARNET_MAX_BYTES } from "@/lib/type/empleado-transportista"
@@ -58,11 +57,12 @@ export function CampoCarnet({
           Vencimiento del carnet *
           <VigenciaCarnet vencimiento={vencimiento} />
         </label>
-        <DateInput
+        <DatePicker
+          variant="field"
           value={vencimiento}
           onChange={onVencimiento}
           aria-label="Vencimiento del carnet de conducir"
-          className={cn(errorVencimiento && "border-destructive")}
+          error={!!errorVencimiento}
         />
         <FieldError>{errorVencimiento}</FieldError>
       </div>
