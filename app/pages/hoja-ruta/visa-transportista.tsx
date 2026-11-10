@@ -18,7 +18,7 @@ import { HojaRutaCard } from "./hoja-ruta-card"
 import { ConfirmarRetiroDialog } from "./confirmar-retiro-dialog"
 import { ConstanciaDialog } from "./constancia-dialog"
 
-const DIAS_ATRAS = 7
+const DIAS_ATRAS = 0
 const DIAS_ADELANTE = 23
 
 export function VistaTransportista() {
@@ -67,10 +67,6 @@ export function VistaTransportista() {
           <Button variant="outline" disabled={!h.mapsUrl} onClick={() => abrirEnPestana(h.mapsUrl!)}>
             <MapPin className="h-4 w-4" />
             Abrir en Google Maps
-          </Button>
-          <Button onClick={() => abrirEnPestana(urlWhatsApp(h))}>
-            <MessageCircle className="h-4 w-4" />
-            Compartir por WhatsApp
           </Button>
         </>
       )

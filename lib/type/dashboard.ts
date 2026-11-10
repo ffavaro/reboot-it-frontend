@@ -75,9 +75,9 @@ export interface UsoDeVehiculo {
 export interface FiltroUsoVehiculos {
   fechaDesde: string
   fechaHasta: string
-  limit?: number
+  limite?: number
 }
-//React grid-layout
+
 export interface Tarjeta {
   id: string
   ancho: number
