@@ -1,11 +1,9 @@
 "use client"
-import { Plus } from "lucide-react"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { toast } from "react-toastify"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { DataTable } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
 import { FieldError } from "@/components/ui/field"
@@ -18,16 +16,21 @@ import {
 import { useEmpleadosFull } from "@/hooks/use-employees"
 import { useVehiculos, useTipoVehiculos } from "@/hooks/use-vehicles"
 import { useFormErrors } from "@/hooks/use-form-errors"
-import {  requiredSelect } from "@/lib/form-validators"
+import { required, requiredSelect } from "@/lib/form-validators"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import type { Empleado } from "@/lib/type/user"
 import type { Vehiculo } from "@/lib/type/vehicle"
 import type { TableColumn } from "@/components/ui/data-table"
 import Title from "@/components/ui/title"
 import { filterBySearch, openCreate, openEdit, openView } from "@/lib/utils/utils-modal"
+import { uploadFoto } from "@/lib/api/client"
+import { situacionCarnet, textoCarnet } from "@/components/transportistas/estado-carnet"
+import { EstadoCarnet } from "@/components/transportistas/estado-carnet"
+import { CampoCarnet } from "@/components/transportistas/campo-carnet"
+import { AvisoTransportistas } from "@/components/transportistas/aviso-transportistas"
 
 
-const EMPTY_FORM = { empleadoId: "", vehiculoId: "", fechaAsignacion: ""}
+const EMPTY_FORM = { empleadoId: "", vehiculoId: "", fechaAsignacion: "", carnetVencimiento: "" }
 
 const COLUMNS: TableColumn<EmpleadoTransportista>[] = [
   {
@@ -66,7 +69,19 @@ const COLUMNS: TableColumn<EmpleadoTransportista>[] = [
         <span className="italic text-muted-foreground">Sin fecha</span>
       ),
   },
+  {
+    key: "carnetVencimiento",
+    header: "Carnet de conducir",
+    cell: (t) => <EstadoCarnet ficha={t} />,
+  },
 ]
+
+const datosDelForm = (t: EmpleadoTransportista) => ({
+  empleadoId: String(t.empleadoId),
+  vehiculoId: t.vehiculoId ? String(t.vehiculoId) : "",
+  fechaAsignacion: t.fechaAsignacion ? t.fechaAsignacion.slice(0, 10) : "",
+  carnetVencimiento: t.carnetVencimiento ? t.carnetVencimiento.slice(0, 10) : "",
+})
 
 export default function EmpleadoTransportistaPage() {
   const { transportistas, isLoading, mutate } = useEmpleadosTransportistas()
@@ -87,19 +102,50 @@ export default function EmpleadoTransportistaPage() {
   const [editing, setEditing] = useState<EmpleadoTransportista | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [carnetFile, setCarnetFile] = useState<File | null>(null)
+  const [carnetError, setCarnetError] = useState("")
+  const [subiendo, setSubiendo] = useState(false)
+
+  const fichaPorEmpleado = useMemo(
+    () => new Map(transportistas.map((t: EmpleadoTransportista) => [t.empleadoId, t])),
+    [transportistas],
+  )
+  const sinFicha = empleados.filter((e: Empleado) => !fichaPorEmpleado.has(e.id)).length
+  const conProblemas = transportistas.filter((t: EmpleadoTransportista) => situacionCarnet(t) !== "vigente").length
+
+  const etiquetaEmpleado = (e: Empleado) => {
+    const base = `${e.nombre} ${e.apellido}`
+    const ficha = fichaPorEmpleado.get(e.id)
+    if (!ficha) return `${base} · Sin ficha de transportista`
+    return `${base} · ${textoCarnet(ficha)}`
+  }
+
+  const limpiarCarnet = () => {
+    setCarnetFile(null)
+    setCarnetError("")
+    reset()
+  }
 
   const filtered = filterBySearch(transportistas, search, ["nombre", "apellido", "pantente", "nombreCompleto"])
 
   const handleSave = async () => {
-    if (!validate(form, {
+    const formOk = validate(form, {
       empleadoId: [requiredSelect("un empleado")],
       vehiculoId: [requiredSelect("un vehículo")],
-    })) return
+      carnetVencimiento: [required("el vencimiento del carnet")],
+    })
+    const faltaFoto = !carnetFile && !editing?.carnetUrl
+    if (faltaFoto) setCarnetError("Subí la foto del carnet de conducir")
+    if (!formOk || faltaFoto || carnetError) return
     try {
+      setSubiendo(true)
+      const carnetUrl = carnetFile ? await uploadFoto(carnetFile) : editing?.carnetUrl ?? undefined
       const payload = {
         empleadoId: Number(form.empleadoId),
         vehiculoId: Number(form.vehiculoId),
         fechaAsignacion: form.fechaAsignacion || undefined,
+        carnetUrl,
+        carnetVencimiento: form.carnetVencimiento,
       }
       if (editing) {
         await updateTransportista({ id: editing.id, ...payload })
@@ -110,8 +156,11 @@ export default function EmpleadoTransportistaPage() {
       }
       await mutate()
       setModalOpen(false)
+      limpiarCarnet()
     } catch {
       toast.error("Error al guardar el empleado transportista")
+    } finally {
+      setSubiendo(false)
     }
   }
 
@@ -125,7 +174,7 @@ export default function EmpleadoTransportistaPage() {
     }
   }
 
-  const canSave = !!form.empleadoId && !!form.vehiculoId
+  const canSave = !!form.empleadoId && !!form.vehiculoId && !!form.carnetVencimiento && (!!carnetFile || !!editing?.carnetUrl)
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -139,11 +188,13 @@ export default function EmpleadoTransportistaPage() {
           setIsViewing,
           setEditing,
           setForm,
-          reset,
+          reset: limpiarCarnet,
           setModalOpen,
           EMPTY_FORM
         })}
       />
+
+      <AvisoTransportistas sinFicha={sinFicha} conProblemas={conProblemas} />
 
       <DataTable
         data={filtered}
@@ -158,26 +209,18 @@ export default function EmpleadoTransportistaPage() {
           setIsViewing,
           setEditing,
           setForm,
-          reset,
+          reset: limpiarCarnet,
           setModalOpen,
-          jsonEntidad: {
-            empleadoId: String(t.empleadoId),
-            vehiculoId: t.vehiculoId ? String(t.vehiculoId) : "",
-            fechaAsignacion: t.fechaAsignacion ? t.fechaAsignacion.slice(0, 10) : "",
-          }
+          jsonEntidad: datosDelForm(t),
         })}
         onEdit={(t) => openEdit({
           t: t,
           setIsViewing,
           setEditing,
           setForm,
-          reset,
+          reset: limpiarCarnet,
           setModalOpen,
-          jsonEntidad: {
-            empleadoId: String(t.empleadoId),
-            vehiculoId: t.vehiculoId ? String(t.vehiculoId) : "",
-            fechaAsignacion: t.fechaAsignacion ? t.fechaAsignacion.slice(0, 10) : "",
-          }
+          jsonEntidad: datosDelForm(t),
         })}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -185,7 +228,11 @@ export default function EmpleadoTransportistaPage() {
 
       <FormModal
         open={modalOpen}
-        onOpenChange={(open) => !open && setModalOpen(false)}
+        onOpenChange={(open) => {
+          if (open) return
+          setModalOpen(false)
+          limpiarCarnet()
+        }}
         title={isViewing ? "Ver transportista" : editing ? "Editar transportista" : "Nuevo transportista"}
         readOnly={isViewing}
         description={
@@ -194,7 +241,7 @@ export default function EmpleadoTransportistaPage() {
             : "Asigná un empleado como transportista."
         }
         onSave={handleSave}
-        isLoading={isCreating || isUpdating}
+        isLoading={isCreating || isUpdating || subiendo}
         saveDisabled={!canSave}
         saveLabel={editing ? "Guardar cambios" : "Crear transportista"}
       >
@@ -211,7 +258,7 @@ export default function EmpleadoTransportistaPage() {
             <option value="">Seleccionar empleado...</option>
             {empleados.map((e: Empleado) => (
               <option key={e.id} value={e.id}>
-                {e.nombre} {e.apellido}{e.cargo ? `  ${e.cargo}` : ""}
+                {etiquetaEmpleado(e)}
               </option>
             ))}
           </select>
@@ -242,13 +289,28 @@ export default function EmpleadoTransportistaPage() {
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Fecha de asignación</label>
-          <Input
-            type="date"
+          <DatePicker
+            variant="field"
             value={form.fechaAsignacion}
             disabled={!editing}
-            onChange={(e) => setForm((f) => ({ ...f, fechaAsignacion: e.target.value }))}
+            onChange={(v) => setForm((f) => ({ ...f, fechaAsignacion: v }))}
           />
         </div>
+
+        <CampoCarnet
+          vencimiento={form.carnetVencimiento}
+          onVencimiento={(valor) => {
+            setForm((f) => ({ ...f, carnetVencimiento: valor }))
+            clearError("carnetVencimiento")
+          }}
+          errorVencimiento={errors.carnetVencimiento}
+          fotoActual={editing?.carnetUrl ?? null}
+          archivo={carnetFile}
+          onArchivo={setCarnetFile}
+          errorFoto={carnetError}
+          onErrorFoto={setCarnetError}
+          soloLectura={isViewing}
+        />
       </FormModal>
     </div>
   )

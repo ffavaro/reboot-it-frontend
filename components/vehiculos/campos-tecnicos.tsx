@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils"
 import { FieldError } from "@/components/ui/field"
-import { DateInput } from "@/components/ui/date-input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { COMBUSTIBLES } from "@/lib/type/vehicle"
 import { problemaKm } from "@/lib/utils/helpers"
 import { CampoKilometraje } from "./campo-kilometraje"
@@ -65,11 +65,12 @@ export function CamposTecnicos({ valores, errores, kmRegistrado, cambiar }: Prop
           Vencimiento de la ITV *
           <EstadoItv vencimiento={valores.itvVencimiento} />
         </label>
-        <DateInput
+        <DatePicker
+          variant="field"
           value={valores.itvVencimiento}
           onChange={(valor) => cambiar("itvVencimiento", valor)}
           aria-label="Vencimiento de la ITV"
-          className={cn(errores.itvVencimiento && "border-destructive focus-visible:ring-destructive")}
+          error={!!errores.itvVencimiento}
         />
         <FieldError>{errores.itvVencimiento}</FieldError>
       </div>

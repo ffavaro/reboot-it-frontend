@@ -5,7 +5,7 @@ import { useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight, RotateCcw, ShieldAlert } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { DateInput } from "@/components/ui/date-input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useAccionesAuditoria, useEventosAuditoria } from "@/hooks/use-auditoria"
 import { useUsuarios } from "@/hooks/use-users"
@@ -117,11 +117,11 @@ export default function AuditoriaPage() {
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
             Desde
-            <DateInput value={filtros.fechaDesde ?? ""} onChange={(v) => aplicar({ fechaDesde: v || undefined })} className="h-9 w-36" />
+            <DatePicker variant="field" clearable value={filtros.fechaDesde ?? ""} onChange={(v) => aplicar({ fechaDesde: v || undefined })} className="w-40" />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
             Hasta
-            <DateInput value={filtros.fechaHasta ?? ""} onChange={(v) => aplicar({ fechaHasta: v || undefined })} className="h-9 w-36" />
+            <DatePicker variant="field" clearable value={filtros.fechaHasta ?? ""} onChange={(v) => aplicar({ fechaHasta: v || undefined })} className="w-40" />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
             Usuario

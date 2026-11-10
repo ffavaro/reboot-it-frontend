@@ -4,7 +4,7 @@ import { useState } from "react"
 import { FileDown, FileSpreadsheet, Loader2 } from "lucide-react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
-import { DateInput } from "@/components/ui/date-input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { descargarReporteExcel, descargarReportePdf, type ArchivoReporte } from "@/lib/documentos/reporte"
 import { describirPeriodo, periodoInvalido, periodoUltimoMes, type Periodo } from "@/lib/utils/helpers"
 
@@ -106,11 +106,11 @@ export function PantallaReporte<T extends { id: number }, F extends Periodo>({
           {children(filtros, cambiar)}
           <div className="flex flex-col gap-1.5">
             <span className="text-sm font-medium">Fecha Desde</span>
-            <DateInput value={filtros.fechaDesde ?? ""} onChange={(v) => cambiar({ fechaDesde: v || undefined } as Partial<F>)} />
+            <DatePicker variant="field" clearable value={filtros.fechaDesde ?? ""} onChange={(v) => cambiar({ fechaDesde: v || undefined } as Partial<F>)} aria-label="Fecha desde" />
           </div>
           <div className="flex flex-col gap-1.5">
             <span className="text-sm font-medium">Fecha Hasta</span>
-            <DateInput value={filtros.fechaHasta ?? ""} onChange={(v) => cambiar({ fechaHasta: v || undefined } as Partial<F>)} />
+            <DatePicker variant="field" clearable value={filtros.fechaHasta ?? ""} onChange={(v) => cambiar({ fechaHasta: v || undefined } as Partial<F>)} aria-label="Fecha hasta" />
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">

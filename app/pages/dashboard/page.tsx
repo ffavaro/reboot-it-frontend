@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { ArrowDownRight, ArrowUpRight, RotateCcw } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { DateInput } from "@/components/ui/date-input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { SelectorDonantes } from "@/components/dashboard/selector-donantes"
 import { IndicadoresCircuito, TrabajoPendiente } from "@/components/dashboard/resumen"
 import { Tablero } from "@/components/dashboard/tablero"
@@ -134,9 +134,9 @@ export default function DashboardPage() {
             </button>
           ))}
           <div className={cn("flex items-center gap-1 rounded-lg border px-1 py-0.5", !preset ? "border-blue-400 bg-blue-50 dark:bg-blue-900/30" : "border-border")}>
-            <DateInput value={libre.desde} onChange={(v) => cambiarFecha("desde", v)} className="h-7 w-28 border-0 bg-transparent text-xs shadow-none" aria-label="Fecha desde" />
+            <DatePicker value={libre.desde} onChange={(v) => cambiarFecha("desde", v)} placeholder="Desde" aria-label="Fecha desde" />
             <span className="text-xs text-muted-foreground">a</span>
-            <DateInput value={libre.hasta} onChange={(v) => cambiarFecha("hasta", v)} className="h-7 w-28 border-0 bg-transparent text-xs shadow-none" aria-label="Fecha hasta" />
+            <DatePicker value={libre.hasta} onChange={(v) => cambiarFecha("hasta", v)} placeholder="Hasta" aria-label="Fecha hasta" />
           </div>
           <SelectorDonantes opciones={operativo.donantes.map((d) => ({ id: d.id, nombre: d.nombre }))} elegidos={donanteIds} onCambio={setDonanteIds} />
           <button

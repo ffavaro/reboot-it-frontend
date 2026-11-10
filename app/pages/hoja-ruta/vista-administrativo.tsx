@@ -98,9 +98,9 @@ export function VistaAdministrativo() {
         <>
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-0.5 rounded-lg border border-border bg-background px-1 py-0.5">
-              <DatePicker value={desde} onChange={(v) => v && setDesde(v)} max={hasta} aria-label="Hojas de ruta desde" />
+              <DatePicker value={desde} onChange={(v) => v && setDesde(v)} max={hasta} soloHabiles aria-label="Hojas de ruta desde" />
               <span className="text-xs text-muted-foreground">→</span>
-              <DatePicker value={hasta} onChange={(v) => v && setHasta(v)} min={desde} aria-label="Hojas de ruta hasta" />
+              <DatePicker value={hasta} onChange={(v) => v && setHasta(v)} min={desde} soloHabiles aria-label="Hojas de ruta hasta" />
             </div>
             <Select
               value={transportistaId || TODOS}

@@ -7,7 +7,7 @@ import { ArrowLeft } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 import { DataTable, type TableColumn } from "@/components/ui/data-table"
-import { DateInput } from "@/components/ui/date-input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { useVehiculos } from "@/hooks/use-vehicles"
 import { useRecorridosDeVehiculo } from "@/hooks/use-historial-km"
 import { kmLegible } from "@/lib/utils/helpers"
@@ -96,11 +96,11 @@ function Recorridos() {
           <div className="flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1 text-xs text-muted-foreground">
               Desde
-              <DateInput value={rango.desde} onChange={(desde) => setRango((r) => ({ ...r, desde }))} className="w-36" />
+              <DatePicker variant="field" clearable value={rango.desde} onChange={(desde) => setRango((r) => ({ ...r, desde }))} className="w-40" />
             </label>
             <label className="flex flex-col gap-1 text-xs text-muted-foreground">
               Hasta
-              <DateInput value={rango.hasta} onChange={(hasta) => setRango((r) => ({ ...r, hasta }))} className="w-36" />
+              <DatePicker variant="field" clearable value={rango.hasta} onChange={(hasta) => setRango((r) => ({ ...r, hasta }))} className="w-40" />
             </label>
             {filtrando && (
               <button onClick={() => setRango(SIN_FILTRO)} className="pb-2 text-xs text-muted-foreground hover:text-foreground">

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { BarChart3, FileDown, FileSpreadsheet, Table2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { DateInput } from "@/components/ui/date-input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { SearchInput } from "@/components/ui/search-input"
 import { Leyenda } from "@/components/dashboard/panel"
 import { ALTO_EJE_X, CAJA_TOOLTIP, CURSOR_BARRA, GRILLA, MARCAS, tituloX, tituloY } from "../estilo"
@@ -108,8 +108,8 @@ export function MovimientosDeLotes({ filas, periodo, cargando }: MovimientosProp
       </header>
 
       <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/30 px-4 py-3">
-        <DateInput value={f.desde} onChange={(v) => cambiar({ desde: v })} placeholder="Desde" className="h-8 w-32 text-xs" aria-label="Lotes desde" />
-        <DateInput value={f.hasta} onChange={(v) => cambiar({ hasta: v })} placeholder="Hasta" className="h-8 w-32 text-xs" aria-label="Lotes hasta" />
+        <DatePicker variant="field" value={f.desde} onChange={(v) => cambiar({ desde: v })} placeholder="Desde" className="h-8 w-36 text-xs" aria-label="Lotes desde" />
+        <DatePicker variant="field" value={f.hasta} onChange={(v) => cambiar({ hasta: v })} placeholder="Hasta" className="h-8 w-36 text-xs" aria-label="Lotes hasta" />
         {!propios && <span className="text-xs text-muted-foreground">Usa el período general</span>}
         <select value={f.estado} onChange={(e) => cambiar({ estado: e.target.value })} className={claseControl} aria-label="Estado del lote">
           <option value="">Todos los estados</option>

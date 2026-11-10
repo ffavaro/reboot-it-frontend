@@ -28,26 +28,31 @@ function formatLabel(iso: string) {
 }
 
 type DatePickerProps = {
-  value: string                     
-  onChange: (value: string) => void 
+  value: string
+  onChange: (value: string) => void
   min?: string
   max?: string
+  disabled?: boolean
+  readonly?: boolean
   placeholder?: string
   clearable?: boolean
   variant?: "inline" | "field"
-  conFinDeSemana?: boolean
+  soloHabiles?: boolean
+  error?: boolean
   className?: string
   "aria-label"?: string
 }
 
 export function DatePicker({
-  value, onChange, min, max, placeholder = "Seleccionar fecha", clearable = false, variant = "inline", conFinDeSemana = false, className, ...props
+  value, onChange, min, max, placeholder = "Seleccionar fecha", clearable = false, variant = "inline", soloHabiles = false, disabled = false, readonly = false, error = false, className, ...props
 }: DatePickerProps) {
+  const conFinDeSemana = !soloHabiles
   const [open, setOpen] = React.useState(false)
   const initial = parseISO(value) ?? parseISO(hoyIso())!
   const [view, setView] = React.useState({ year: initial.year, month: initial.month })
 
   function handleOpenChange(next: boolean) {
+    if (next && (disabled || readonly)) return
     if (next) {
       const p = parseISO(value) ?? parseISO(hoyIso())!
       setView({ year: p.year, month: p.month })
@@ -71,7 +76,7 @@ export function DatePicker({
     setOpen(false)
   }
 
-   const diasMes = new Date(view.year, view.month + 1, 0).getDate()
+  const diasMes = new Date(view.year, view.month + 1, 0).getDate()
   const habiles = Array.from({ length: diasMes }, (_, i) => i + 1).filter((d) => {
     if (conFinDeSemana) return true
     const dow = new Date(view.year, view.month, d).getDay()
@@ -96,11 +101,14 @@ export function DatePicker({
           <button
             type="button"
             aria-label={props["aria-label"]}
+            disabled={disabled}
             className={cn(
               variant === "field"
                 ? "flex h-9 w-full items-center gap-2 rounded-4xl border border-transparent bg-muted/60 px-4 text-sm text-foreground shadow-xs transition-all outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
                 : "inline-flex items-center gap-1.5 h-7 rounded-md px-2 text-xs text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-1 focus-visible:ring-ring",
               !value && "text-muted-foreground",
+              readonly && "cursor-default hover:bg-muted/60",
+              error && "border-destructive",
               className,
             )}
           />

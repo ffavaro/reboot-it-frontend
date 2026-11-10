@@ -5,6 +5,7 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { FormModal } from "@/components/ui/form-modal"
@@ -423,12 +424,12 @@ export default function ProcesoDestruccionPage() {
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Fecha</label>
-          <Input
-            type="date"
+          <DatePicker
+            variant="field"
             value={form.fecha}
             min={hoyIso()}
             disabled={!editing}
-            onChange={(e) => set({ setFrom: setForm, fileds: "fecha", value: e.target.value, clearError })}
+            onChange={(v) => set({ setFrom: setForm, fileds: "fecha", value: v, clearError })}
           />
         </div>
 

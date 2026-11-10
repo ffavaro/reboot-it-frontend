@@ -119,9 +119,9 @@ export function HistoricoTab() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-0.5 rounded-lg border border-border bg-background px-1 py-0.5">
-          <DatePicker value={desde} onChange={setDesde} max={hasta || undefined} placeholder="Desde" clearable aria-label="Fecha desde" />
+          <DatePicker value={desde} onChange={setDesde} max={hasta || undefined} placeholder="Desde" clearable soloHabiles aria-label="Fecha desde" />
           <span className="text-xs text-muted-foreground">→</span>
-          <DatePicker value={hasta} onChange={setHasta} min={desde || undefined} placeholder="Hasta" clearable aria-label="Fecha hasta" />
+          <DatePicker value={hasta} onChange={setHasta} min={desde || undefined} placeholder="Hasta" clearable soloHabiles aria-label="Fecha hasta" />
         </div>
         <Select
           value={transportistaId || TODOS}

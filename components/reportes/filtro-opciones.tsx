@@ -19,7 +19,11 @@ export function FiltroOpciones({ etiqueta, todos, valor, opciones, onCambio }: F
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-sm font-medium">{etiqueta}</span>
-      <Select value={valor} onValueChange={(v) => onCambio(v ?? "")}>
+      <Select value={valor} onValueChange={(v) => onCambio(v ?? "")}
+        items={[
+          { value: "", label: todos },
+          ...opciones.map((o) => ({ value: o.valor, label: o.etiqueta })),
+        ]}>
         <SelectTrigger className="w-full">
           <SelectValue placeholder={todos} />
         </SelectTrigger>
