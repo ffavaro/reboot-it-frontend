@@ -1,6 +1,5 @@
 import { getUser } from "@/lib/auth-utils"
 import type { Donante } from "@/lib/type/donante"
-import type { Usuario } from "@/lib/type/user"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import { dia, hoyIso, isoDe } from "@/lib/utils/fechas"
 
@@ -12,13 +11,12 @@ export function getDonanteActual(donantes: Donante[]) {
     : null
   return { user, isDonante, myDonante }
 }
-
-export function getTransportistaActual(usuarios: Usuario[], transportistas: EmpleadoTransportista[]) {
+export function getTransportistaActual(transportistas: EmpleadoTransportista[]) {
   const user = getUser()
   const isTransportista = user?.rol?.nombre?.toLowerCase() === "transportista"
-  const myUsuario = user ? usuarios.find((u) => String(u.id) === String(user.id)) : null
-  const myTransportista = isTransportista && myUsuario?.empleadoId
-    ? transportistas.find((et) => String(et.empleadoId) === String(myUsuario.empleadoId)) ?? null
+  const empleadoId = user?.empleadoId
+  const myTransportista = isTransportista && empleadoId
+    ? transportistas.find((et) => String(et.empleadoId) === String(empleadoId)) ?? null
     : null
   return { user, isTransportista, myTransportista }
 }

@@ -15,7 +15,7 @@ export function UsoDeFlota() {
   const mes = useMemo(() => mesEnCurso(), [])
   const [rango, setRango] = useState(mes)
   const [cantidad, setCantidad] = useState(10)
-  const { uso, isLoading, error } = useUsoDeVehiculos({ fechaDesde: rango.desde, fechaHasta: rango.hasta, limit: cantidad || undefined })
+  const { uso, isLoading, error } = useUsoDeVehiculos({ fechaDesde: rango.desde, fechaHasta: rango.hasta, limite: cantidad || undefined })
 
   const puntos = useMemo(
     () => uso.map((v) => ({ ...v, porRecorrido: v.cantidadRecorridos ? v.kmTotales / v.cantidadRecorridos : 0 })),

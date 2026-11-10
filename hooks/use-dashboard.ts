@@ -13,7 +13,7 @@ export function useResumenCircuito(filtro: FiltroTablero) {
 
 export function useUsoDeVehiculos(filtro: FiltroUsoVehiculos) {
   const { data, isLoading, error } = useSWR(
-    ["/historial-km-vehiculo/reporte/uso", filtro.fechaDesde, filtro.fechaHasta, filtro.limit ?? 0],
+    ["/historial-km-vehiculo/reporte/uso", filtro.fechaDesde, filtro.fechaHasta, filtro.limite ?? 0],
     () => dashboardApi.getVehicleUsage(filtro),
   )
   return { uso: data ?? [], isLoading, error }
