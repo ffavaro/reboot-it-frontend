@@ -1,7 +1,7 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { CheckCircle2, Cloud, CloudFog, CloudLightning, CloudRain, CloudSun, Snowflake, Sun } from "lucide-react"
+import { CheckCircle2 } from "lucide-react"
 import { EstadoHojaBadge } from "@/components/ui/estado-hoja-badge"
 import { MapaRuta } from "@/components/mapa-ruta"
 import { cn } from "@/lib/utils"
@@ -11,17 +11,6 @@ import { formatDuracion, nombreTransportista } from "@/lib/utils/hoja-ruta"
 import type { HojaRutaDia, ParadaHojaRuta } from "@/lib/type/hoja-ruta"
 
 const ETIQUETA = "text-xs font-medium uppercase tracking-wide text-foreground/75"
-
-function IconoClima({ codigo }: { codigo: number }) {
-  const clase = "size-6 shrink-0"
-  if (codigo === 0) return <Sun className={clase} />
-  if (codigo <= 2) return <CloudSun className={clase} />
-  if (codigo === 3) return <Cloud className={clase} />
-  if (codigo === 45 || codigo === 48) return <CloudFog className={clase} />
-  if (codigo >= 95) return <CloudLightning className={clase} />
-  if ((codigo >= 71 && codigo <= 77) || codigo === 85 || codigo === 86) return <Snowflake className={clase} />
-  return <CloudRain className={clase} />
-}
 
 function OrdenDeVisita({ hoja }: { hoja: HojaRutaDia }) {
   return (
@@ -33,7 +22,6 @@ function OrdenDeVisita({ hoja }: { hoja: HojaRutaDia }) {
 
 function Resumen({ hoja }: { hoja: HojaRutaDia }) {
   const retirados = hoja.paradas.filter((p) => p.retirado).length
-  const clima = hoja.clima
   return (
     <div className="grid grid-cols-2 gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 lg:grid-cols-4">
       <div className="flex flex-col gap-0.5">
@@ -55,20 +43,6 @@ function Resumen({ hoja }: { hoja: HojaRutaDia }) {
           <span className={ETIQUETA}>Tiempo estimado</span>
           <span className="text-2xl font-semibold tabular-nums">{formatDuracion(hoja.duracionMinutos)}</span>
           <span className="text-xs text-foreground/75">Solo manejo, sin contar cada retiro</span>
-        </div>
-      )}
-      {clima && (
-        <div className="flex flex-col gap-0.5">
-          <span className={ETIQUETA}>Clima</span>
-          <span className="flex items-center gap-2 text-2xl font-semibold">
-            <IconoClima codigo={clima.codigo} />
-            {clima.descripcion}
-          </span>
-          <span className="text-xs tabular-nums text-foreground/75">
-            {clima.tempMin}° / {clima.tempMax}°C
-            {clima.probLluvia !== null && ` · lluvia ${clima.probLluvia}%`}
-            {clima.vientoMaxKmh !== null && ` · viento ${clima.vientoMaxKmh} km/h`}
-          </span>
         </div>
       )}
     </div>

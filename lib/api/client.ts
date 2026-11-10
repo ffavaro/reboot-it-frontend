@@ -1,6 +1,4 @@
-// Si la env var viene sin esquema (ej. Railway con solo "backend.up.railway.app"),
-// el navegador la trata como ruta relativa y la concatena con el origin del frontend
-// en vez de pegarle al backend. Se le agrega https:// como red de seguridad.
+
 import { clearSession, getToken } from "@/lib/auth-utils"
 
 function resolveBaseUrl(): string {
@@ -19,11 +17,12 @@ const cabeceraDeSession = (): Record<string, string> => {
 }
 
 const sesionVencida = (ruta: string) => {
-  if (typeof window === "undefined") request
+  if (typeof window === "undefined") return
   if (RUTAS_SIN_SESION.some((libre) => ruta.startsWith(libre))) return
   clearSession()
   if (!window.location.pathname.startsWith('/login')) window.location.replace("/login")
 }
+
 const leerCuerpo = async (res: Response): Promise<unknown> => {
   const texto = await res.text()
   if (!texto) return undefined

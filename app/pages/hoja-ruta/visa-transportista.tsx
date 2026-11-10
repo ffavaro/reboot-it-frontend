@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { CheckCircle2, FileDown, FileText, MapPin, MessageCircle } from "lucide-react"
+import { CheckCircle2, FileDown, FileText, MapPin } from "lucide-react"
 import { toast } from "react-toastify"
 import { Button } from "@/components/ui/button"
 import { DatePicker } from "@/components/ui/date-picker"
@@ -12,19 +12,19 @@ import { hojaRutaApi } from "@/lib/api/hoja-ruta"
 import { descargarConstanciaPdf } from "@/lib/utils/constancia-pdf"
 import { textoDeError, getTransportistaActual } from "@/lib/utils/helpers"
 import { dia, sumarDias } from "@/lib/utils/fechas"
-import { abrirEnPestana, urlWhatsApp } from "@/lib/utils/hoja-ruta"
+import { abrirEnPestana } from "@/lib/utils/hoja-ruta"
 import type { HojaRutaDia, ParadaHojaRuta } from "@/lib/type/hoja-ruta"
 import { HojaRutaCard } from "./hoja-ruta-card"
 import { ConfirmarRetiroDialog } from "./confirmar-retiro-dialog"
 import { ConstanciaDialog } from "./constancia-dialog"
 
-const DIAS_ATRAS = 7
+const DIAS_ATRAS = 0
 const DIAS_ADELANTE = 23
 
 export function VistaTransportista() {
   const { usuarios } = useUsuarios()
   const { transportistas, isLoading: cargandoTransportistas } = useEmpleadosTransportistas()
-  const { myTransportista } = getTransportistaActual(usuarios, transportistas)
+const { myTransportista } = getTransportistaActual(transportistas)
 
   const [fecha, setFecha] = useState("")
   const [paradaAConfirmar, setParadaAConfirmar] = useState<ParadaHojaRuta | null>(null)
@@ -67,10 +67,6 @@ export function VistaTransportista() {
           <Button variant="outline" disabled={!h.mapsUrl} onClick={() => abrirEnPestana(h.mapsUrl!)}>
             <MapPin className="h-4 w-4" />
             Abrir en Google Maps
-          </Button>
-          <Button onClick={() => abrirEnPestana(urlWhatsApp(h))}>
-            <MessageCircle className="h-4 w-4" />
-            Compartir por WhatsApp
           </Button>
         </>
       )

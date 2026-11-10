@@ -26,7 +26,7 @@ const PESTANAS: [Pestana, string][] = [
 
 const TODOS = "todos"
 
-const DIAS_ATRAS = -7
+const DIAS_ATRAS = 0
 const DIAS_ADELANTE = 7
 
 export function VistaAdministrativo() {

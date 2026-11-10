@@ -3,6 +3,7 @@ export interface TokenPayload {
   nombre: string
   email: string
   rolId: number
+  empleadoId?: number | null
   cuitDni?: string
   isActive: boolean
   rol?: { id: number; nombre: string }
