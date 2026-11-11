@@ -68,9 +68,7 @@ export default function ForgetPasswordPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-rose-100  px-4">
       <div className="w-full max-w-md">
-        {/* Card Container */}
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-          {/* Header */}
           <div className="bg-gradient-to-br from-red-500 to-red-300 px-8 py-10">
             <h1 className="text-3xl font-bold text-black text-center">
               {step === 'email' && 'Recuperar Contraseña'}
@@ -84,9 +82,7 @@ export default function ForgetPasswordPage() {
             </p>
           </div>
 
-          {/* Form Body */}
           <div className="px-8 py-8">
-            {/* Step 1: Email */}
             {step === 'email' && (
               <form className="space-y-5" onSubmit={handleEmailSubmit}>
                 <div className="space-y-2">
@@ -118,7 +114,6 @@ export default function ForgetPasswordPage() {
               </form>
             )}
 
-            {/* Step 2: Verify Code */}
             {step === 'verify' && (
               <form className="space-y-5" onSubmit={handleVerifySubmit}>
                 <div className="bg-red-100 border border-red-200 rounded-lg p-4 mb-4">
@@ -164,7 +159,6 @@ export default function ForgetPasswordPage() {
               </form>
             )}
 
-            {/* Step 3: Reset Password */}
             {step === 'reset' && (
               <form className="space-y-5" onSubmit={handleResetSubmit}>
                 <div className="space-y-2">
@@ -220,7 +214,6 @@ export default function ForgetPasswordPage() {
               </form>
             )}
 
-            {/* Divider */}
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-300"></div>
@@ -230,7 +223,6 @@ export default function ForgetPasswordPage() {
               </div>
             </div>
 
-            {/* Login Link */}
             <Link
               href="/login"
               className="block w-full text-center py-2.5 border-2 border-red-600 text-black font-semibold rounded-lg hover:bg-purple-50 transition duration-200"
