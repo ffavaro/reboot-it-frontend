@@ -19,12 +19,7 @@ import { dia } from "@/lib/utils/fechas"
 import type { ReporteInventario, ReporteInventarioQuery } from "@/lib/type/material"
 import type { TipoMaterial } from "@/lib/type/tipo-material"
 import type { CondicionMaterial } from "@/lib/type/condicion-material"
-
-const TONO_ESTADO: Record<string, string> = {
-  iniciado: "bg-blue-100 text-blue-700",
-  pendiente: "bg-yellow-100 text-yellow-700",
-  finalizado: "bg-green-100 text-green-700",
-}
+import { ESTADO_COLORS_PROCESO_DESTRUCCION } from "@/lib/utils/estados"
 
 const DESTRUCCION: Opcion[] = [
   { valor: "si", etiqueta: "Con proceso de destrucción" },
@@ -99,7 +94,7 @@ const columnas: ColumnaReporte<ReporteInventario>[] = [
           {!p && <SinDato texto="Sin proceso aún" />}
           {p?.estado && (
             <span
-              className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${TONO_ESTADO[p.estado.nombre.toLowerCase()] ?? "bg-muted text-foreground"}`}
+              className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${ESTADO_COLORS_PROCESO_DESTRUCCION[p.estado.nombre.toLowerCase()] ?? "bg-muted text-foreground"}`}
             >
               {p.estado.nombre}
             </span>

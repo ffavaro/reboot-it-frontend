@@ -38,6 +38,7 @@ import { getTransportistaActual } from "@/lib/utils/helpers"
 import { aFechaHoraLocal, DIAS_CAL_CORTOS, diaYHora, diaYHoraLargo, horaEnPunto, MESES_ES } from "@/lib/utils/fechas"
 import { HORARIOS } from "@/lib/utils/formato"
 import Title from "@/components/ui/title"
+import { openCreate, openEdit, openView } from "@/lib/utils/utils-modal"
 
 const EMPTY_FORM = { donanteId: "", estadoTurnoId: "", fechaHora: "", descripcion: "" }
 const EMPTY_ASIGNAR = { empleadoId: "", empleadoTransportistaId: "" }
@@ -345,39 +346,16 @@ export default function TurnoPage() {
     }
   }
 
-  function openCreate() {
-    setIsViewing(false)
-    setEditing(null)
-    setForm(EMPTY_FORM)
-    resetCalendar()
-    setModalOpen(true)
-  }
-
-  function openEdit(t: Turno) {
-    setIsViewing(false)
-    setEditing(t)
-    setForm({
+  function turnoToForm(t: Turno) {
+    return {
       donanteId: String(t.donanteId),
       estadoTurnoId: String(t.estadoTurnoId),
       fechaHora: t.fechaHora ? t.fechaHora.slice(0, 16) : "",
       descripcion: t.descripcion ?? "",
-    })
-    resetCalendar(t.fechaHora ?? undefined)
-    setModalOpen(true)
+    }
   }
 
-  function openView(t: Turno) {
-    setIsViewing(true)
-    setEditing(t)
-    setForm({
-      donanteId: String(t.donanteId),
-      estadoTurnoId: String(t.estadoTurnoId),
-      fechaHora: t.fechaHora ? t.fechaHora.slice(0, 16) : "",
-      descripcion: t.descripcion ?? "",
-    })
-    resetCalendar(t.fechaHora ?? undefined)
-    setModalOpen(true)
-  }
+  const modalParams = { setIsViewing, setEditing, setForm, setModalOpen }
 
   function openAsignar(t: Turno) {
     setAsignando(t)
@@ -558,7 +536,7 @@ export default function TurnoPage() {
        search={search}
        setSearch={setSearch}
        filtered={filtered}
-       openCreate={openCreate}
+       openCreate={() => openCreate({ ...modalParams, reset: () => resetCalendar(), EMPTY_FORM })}
       />
 
       <DataTable
@@ -569,8 +547,16 @@ export default function TurnoPage() {
         emptyText="No hay turnos registrados."
         emptySearchText="No se encontraron turnos con ese criterio."
         search={search}
-        onView={openView}
-        onEdit={isReadOnly ? undefined : openEdit}
+        onView={(t) => openView({
+          t, ...modalParams,
+          reset: () => resetCalendar(t.fechaHora ?? undefined),
+          jsonEntidad: turnoToForm(t),
+        })}
+        onEdit={isReadOnly ? undefined : (t) => openEdit({
+          t, ...modalParams,
+          reset: () => resetCalendar(t.fechaHora ?? undefined),
+          jsonEntidad: turnoToForm(t),
+        })}
         onDelete={isReadOnly ? undefined : handleDelete}
         isDeleting={isDeleting}
       />

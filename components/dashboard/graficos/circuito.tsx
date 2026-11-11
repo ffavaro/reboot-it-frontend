@@ -489,13 +489,13 @@ export function tarjetasDelCircuito(resumen?: ResumenCircuito): Tarjeta[] {
   if (!resumen) return []
   const g = resumen.graficos
   const todas: [Tarjeta, boolean?][] = [
-    [{ id: "etapas-ciclo", ancho: 6, alto: 11, contenido: <EtapasDelCiclo datos={g.cicloPorEtapa} promedio={resumen.ciclo?.promedio} /> }, true],
-    [{ id: "reutilizacion-tipo", ancho: 6, alto: 12, contenido: <ReutilizacionPorTipo datos={g.destinoPorTipo} /> }],
-    [{ id: "calor-turnos", ancho: 6, alto: 12, contenido: <MapaDeCalorTurnos datos={g.demandaTurnos} /> }, true],
-    [{ id: "donantes-principales", ancho: 6, alto: 12, contenido: <DonantesPrincipales datos={g.mapaDonantes} /> }, true],
-    [{ id: "kilos-mes", ancho: 6, alto: 11, contenido: <KilosPorMes datos={g.kgPorMesYTipo} /> }, true],
-    [{ id: "matriz-destruccion", ancho: 6, alto: 12, contenido: <MatrizDestruccion datos={g.destruccionPorMetodoYMedio} /> }],
-    [{ id: "paradas-km", ancho: 6, alto: 13, contenido: <ParadasVsKm datos={g.eficienciaRutas} /> }, true],
+    [{ id: "etapas-ciclo", titulo: "Tiempo de espera por etapa", ancho: 6, alto: 11, contenido: <EtapasDelCiclo datos={g.cicloPorEtapa} promedio={resumen.ciclo?.promedio} /> }, true],
+    [{ id: "reutilizacion-tipo", titulo: "Reutilización por tipo de material", ancho: 6, alto: 12, contenido: <ReutilizacionPorTipo datos={g.destinoPorTipo} /> }],
+    [{ id: "calor-turnos", titulo: "Demanda de turnos", ancho: 6, alto: 12, contenido: <MapaDeCalorTurnos datos={g.demandaTurnos} /> }, true],
+    [{ id: "donantes-principales", titulo: "Principales donantes", ancho: 6, alto: 12, contenido: <DonantesPrincipales datos={g.mapaDonantes} /> }, true],
+    [{ id: "kilos-mes", titulo: "Kg por mes y tipo de donante", ancho: 6, alto: 11, contenido: <KilosPorMes datos={g.kgPorMesYTipo} /> }, true],
+    [{ id: "matriz-destruccion", titulo: "Destrucción por método y medio", ancho: 6, alto: 12, contenido: <MatrizDestruccion datos={g.destruccionPorMetodoYMedio} /> }],
+    [{ id: "paradas-km", titulo: "Paradas vs km por hoja de ruta", ancho: 6, alto: 13, contenido: <ParadasVsKm datos={g.eficienciaRutas} /> }, true],
   ]
   return todas.filter(([, soloCompleto]) => resumen.completo || !soloCompleto).map(([tarjeta]) => tarjeta)
 }

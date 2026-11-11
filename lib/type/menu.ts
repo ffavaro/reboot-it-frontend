@@ -141,6 +141,8 @@ export const GRUPOS_MENU: GrupoMenu[] = [
           destino("Modelos", "/pages/medio-almacenamiento/models"),
           destino("Gestoras ambientales", "/pages/gestor-ambiental"),
           destino("Métodos de destrucción", "/pages/metodo-destruccion"),
+          destino("Estado Turno", "/pages/estado-turno"),
+          destino("Estado Proceso destruccion", "/pages/estado-proceso-destruccion"),
         ],
       },
     ],

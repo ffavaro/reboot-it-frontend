@@ -2,7 +2,6 @@ import type {
   DatosConstancia,
   GenerarHojaRutaPayload,
   HojaRutaDia,
-  HojaRutaDiaQuery,
   HojaRutaHistorico,
   HojaRutaHistoricoQuery,
   ResultadoRetiro,
@@ -19,12 +18,6 @@ export function buildQuery(params: Record<string, string | number | undefined>):
 }
 
 export const hojaRutaApi = {
-  dia: (query: HojaRutaDiaQuery) =>
-    request<HojaRutaDia[]>(`/hojas-ruta/dia${buildQuery({ ...query })}`),
-
-  historico: (query: HojaRutaHistoricoQuery) =>
-    request<HojaRutaHistorico[]>(`/hojas-ruta/historico${buildQuery({ ...query })}`),
-
   generar: (payload: GenerarHojaRutaPayload) =>
     request<HojaRutaDia>("/hojas-ruta/generar", { method: "POST", body: JSON.stringify(payload) }),
 

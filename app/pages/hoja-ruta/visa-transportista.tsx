@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { DatePicker } from "@/components/ui/date-picker"
 import { useHojasRutaDia } from "@/hooks/use-hoja-ruta"
 import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
-import { useUsuarios } from "@/hooks/use-users"
 import { hojaRutaApi } from "@/lib/api/hoja-ruta"
 import { descargarConstanciaPdf } from "@/lib/utils/constancia-pdf"
 import { textoDeError, getTransportistaActual } from "@/lib/utils/helpers"
@@ -22,9 +21,8 @@ const DIAS_ATRAS = 0
 const DIAS_ADELANTE = 23
 
 export function VistaTransportista() {
-  const { usuarios } = useUsuarios()
   const { transportistas, isLoading: cargandoTransportistas } = useEmpleadosTransportistas()
-const { myTransportista } = getTransportistaActual(transportistas)
+  const { myTransportista } = getTransportistaActual(transportistas)
 
   const [fecha, setFecha] = useState("")
   const [paradaAConfirmar, setParadaAConfirmar] = useState<ParadaHojaRuta | null>(null)
@@ -33,10 +31,10 @@ const { myTransportista } = getTransportistaActual(transportistas)
   const filtro = fecha
     ? { empleadoTransportistaId: myTransportista?.id, fechaDesde: fecha, fechaHasta: fecha }
     : {
-        empleadoTransportistaId: myTransportista?.id,
-        fechaDesde: sumarDias(-DIAS_ATRAS),
-        fechaHasta: sumarDias(DIAS_ADELANTE),
-      }
+      empleadoTransportistaId: myTransportista?.id,
+      fechaDesde: sumarDias(-DIAS_ATRAS),
+      fechaHasta: sumarDias(DIAS_ADELANTE),
+    }
   const { hojas, isLoading, mutate } = useHojasRutaDia(filtro, !!myTransportista)
 
   const pendientes = hojas

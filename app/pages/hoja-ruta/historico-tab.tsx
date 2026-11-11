@@ -4,17 +4,18 @@ import { useState } from "react"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn } from "@/components/ui/data-table"
 import { DatePicker } from "@/components/ui/date-picker"
-import { EstadoHojaBadge } from "@/components/ui/estado-hoja-badge"
 import { useHojasRutaHistorico } from "@/hooks/use-hoja-ruta"
 import { useEmpleadosTransportistas } from "@/hooks/use-empleado-transportista"
 import { useVehiculos } from "@/hooks/use-vehicles"
 import { dia, diaYHora } from "@/lib/utils/fechas"
 import { kilometros } from "@/lib/utils/formato"
 import { ESTILO_SELECT } from "@/lib/utils/hoja-ruta"
-import type { HojaRutaHistorico } from "@/lib/type/hoja-ruta"
+import { type HojaRutaHistorico } from "@/lib/type/hoja-ruta"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import type { Vehiculo } from "@/lib/type/vehicle"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Etiqueta } from "@/components/ui/etiqueta"
+import { ESTADO_HOJA_RUTA } from "@/lib/utils/estados"
 
 const TODOS = "todos"
 
@@ -74,7 +75,7 @@ const COLUMNAS: TableColumn<HojaRutaHistorico>[] = [
   {
     key: "estado",
     header: "Estado",
-    cell: (h) => <EstadoHojaBadge estado={h.estado} />,
+    cell: (h) => <Etiqueta texto={h.estado} colors={ESTADO_HOJA_RUTA} />,
   },
 ]
 

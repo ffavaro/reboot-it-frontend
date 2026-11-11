@@ -5,7 +5,7 @@ import { ArrowDownRight, ArrowUpRight, RotateCcw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { DatePicker } from "@/components/ui/date-picker"
 import { SelectorDonantes } from "@/components/dashboard/selector-donantes"
-import { IndicadoresCircuito, TrabajoPendiente } from "@/components/dashboard/resumen"
+import { tarjetasIndicadores, TrabajoPendiente } from "@/components/dashboard/resumen"
 import { Tablero } from "@/components/dashboard/tablero"
 import { tarjetasOperativas } from "@/components/dashboard/graficos/operacion"
 import { tarjetasDelCircuito } from "@/components/dashboard/graficos/circuito"
@@ -93,17 +93,63 @@ export default function DashboardPage() {
 
   const tarjetas: Tarjeta[] = useMemo(
     () => [
-      ...tarjetasOperativas(operativo, etiqueta, donanteIds.length > 0),
-      { id: "uso-flota", ancho: 6, alto: 11, contenido: <UsoDeFlota key={`flota-${version}`} /> },
+      ...tarjetasIndicadores(resumen),
       {
-        id: "movimientos-lotes",
-        ancho: 6,
-        alto: 12,
-        contenido: <MovimientosDeLotes key={`lotes-${version}`} filas={operativo.filasLotes} periodo={rango} cargando={cargando} />,
+        "id": "kpi-donaciones",
+        "titulo": "Donaciones Recibidas",
+        "ancho": 4,
+        "alto": 4,
+        "contenido" : (
+          <Kpi 
+          etiqueta="Donaciones Recibidas"
+          valor={cargando ? "....": entero(kpis.donaciones)}
+          variacion={cargando ? null : { texto: `${conSigno(kpis.variacionDonaciones)} % vs. período anterior`, sube: kpis.variacionDonaciones >= 0 }}
+          />
+        )
       },
-      ...tarjetasDelCircuito(resumen),
+      {
+        "id": "kpi-recuperacion",
+        "titulo": "Efectividad de recuperacion",
+        "ancho": 4,
+        "alto": 4,
+        "contenido" : (
+          <Kpi 
+          etiqueta="Efectividad de recuperacion"
+          valor={cargando ? "....": kpis.recuperacion !== null ? `${kpis.recuperacion} %` : "" }
+          variacion={cargando || kpis.variacionRecuperacion === null ? null : { texto: `${conSigno(kpis.variacionRecuperacion)} % vs. período anterior`, sube: kpis.variacionRecuperacion >= 0 }}
+          />
+        )
+      },
+      {
+        "id": "kpi-raee",
+        "titulo": "Basura electronica(RAEE)",
+        "ancho": 4,
+        "alto": 4,
+       "contenido":(
+        <Kpi
+         etiqueta="Basura electronica desechada (RAEE)"
+         valor={cargando ? "…" : `${entero(kpis.raeeKg)} kg`}
+         nota="Estimado con el % de descarte sobre el peso bruto ingresado"
+        />
+        )
+      },
+      ...tarjetasOperativas(operativo, etiqueta, donanteIds.length > 0),
+      {
+        "id": "uso-flota", "titulo":"Uso de flota", "ancho": 4, "alto": 11, 
+        "contenido": (
+          <UsoDeFlota key={`flota-${version}`} />
+        )
+      },
+      {
+        "id": "movimientos-lotes",
+        "titulo": "Movimiento de lotes",
+        "ancho": 6,
+        "alto": 12,
+        "contenido": <MovimientosDeLotes key={`lotes-${version}`} filas={operativo.filasLotes} periodo={rango} cargando={cargando} />,
+      },
+      ...tarjetasDelCircuito(resumen),      
     ],
-    [operativo, etiqueta, rango, donanteIds.length, version, cargando, resumen],
+    [operativo, etiqueta, rango, donanteIds.length, version, cargando, resumen, kpis],
   )
 
   const inicial = rangoInicial()
@@ -155,30 +201,6 @@ export default function DashboardPage() {
       </div>
 
       <TrabajoPendiente resumen={resumen} />
-      <IndicadoresCircuito resumen={resumen} />
-
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-        <Kpi
-          etiqueta="Donaciones recibidas"
-          valor={cargando ? "…" : entero(kpis.donaciones)}
-          variacion={cargando ? null : { texto: `${conSigno(kpis.variacionDonaciones)} % vs. período anterior`, sube: kpis.variacionDonaciones >= 0 }}
-        />
-        <Kpi
-          etiqueta="Efectividad de recuperación"
-          valor={cargando ? "…" : kpis.recuperacion !== null ? `${kpis.recuperacion} %` : ""}
-          variacion={
-            cargando || kpis.variacionRecuperacion === null
-              ? null
-              : { texto: `${conSigno(kpis.variacionRecuperacion)} pts vs. período anterior`, sube: kpis.variacionRecuperacion >= 0 }
-          }
-        />
-        <Kpi
-          etiqueta="Basura electrónica desechada (RAEE)"
-          valor={cargando ? "…" : `${entero(kpis.raeeKg)} kg`}
-          nota="Estimado con el % de descarte sobre el peso bruto ingresado"
-        />
-      </div>
-
       <Tablero tarjetas={tarjetas} />
     </div>
   )

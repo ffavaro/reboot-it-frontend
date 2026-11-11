@@ -127,19 +127,6 @@ export default function ConstanciaRetiroPage() {
     setConsultada(null)
   }
 
-  function elegirRetiro(retiroId: string) {
-    const retiro = retiros.find((r: Retiro) => String(r.id) === retiroId)
-    const empleadoId = retiro?.empleadoTransportista?.empleadoId
-    setCampos((c) =>
-      c && {
-        ...c,
-        retiroId,
-        fechaEmision: retiroId ? hoyIso() : c.fechaEmision,
-        tecnicoId: empleadoId ? String(empleadoId) : c.tecnicoId,
-      },
-    )
-  }
-
   const crear =  async () => {
     if (!campos?.retiroId || !campos.tecnicoId) {
       toast.error("Elegí el retiro y el transportista")

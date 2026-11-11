@@ -51,11 +51,6 @@ export interface CreateDonacionPayload {
   detalles?: CreateDetallePayload[]
 }
 
-export interface DonacionCreada extends Donacion {
-  turno: { id: number; fechaHora: string } | null
-  loteId: number | null
-}
-
 export interface PersonaDetalle {
   id: number
   nombre: string
