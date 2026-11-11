@@ -6,7 +6,6 @@ import Link from "next/link"
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950">
-      {/* Navigation */}
       <nav className="sticky top-0 z-50 w-full border-b border-red-100 dark:border-red-900 bg-white/95 dark:bg-slate-950/95 backdrop-blur supports-backdrop-filter:bg-white/60">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -28,7 +27,6 @@ export default function HomePage() {
         </div>
       </nav>
 
-      {/* Hero Section */}
       <section className="relative overflow-hidden bg-linear-to-br from-red-50 via-white to-rose-50 dark:from-slate-900 dark:via-slate-950 dark:to-red-950 py-20 sm:py-32">
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-40 -right-40 w-80 h-80 bg-red-200 dark:bg-red-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
@@ -56,7 +54,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Features Section */}
       <section className="py-20 sm:py-32 bg-white dark:bg-slate-950">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
@@ -107,7 +104,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* How it Works Section */}
       <section className="py-20 sm:py-32 bg-linear-to-br from-red-50 to-rose-100">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
@@ -163,7 +159,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* CTA Section */}
       <section className="py-20 sm:py-32 bg-red-600 dark:bg-red-950">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold text-white mb-6">
@@ -181,7 +176,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="bg-gray-900 dark:bg-black text-gray-400 py-12">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
