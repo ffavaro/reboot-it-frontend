@@ -1,16 +1,7 @@
 import { getUser } from "@/lib/auth-utils"
-import type { Donante } from "@/lib/type/donante"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
 import { dia, hoyIso, isoDe } from "@/lib/utils/fechas"
 
-export function getDonanteActual(donantes: Donante[]) {
-  const user = getUser()
-  const isDonante = user?.rol?.nombre?.toLowerCase() === "donante"
-  const myDonante = isDonante
-    ? donantes.find((d) => d.usuarioId === user?.id) ?? null
-    : null
-  return { user, isDonante, myDonante }
-}
 export function getTransportistaActual(transportistas: EmpleadoTransportista[]) {
   const user = getUser()
   const isTransportista = user?.rol?.nombre?.toLowerCase() === "transportista"

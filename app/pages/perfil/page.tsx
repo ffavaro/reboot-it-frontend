@@ -119,7 +119,6 @@ export default function PerfilPage() {
         </p>
       </div>
 
-      {/* Datos de cuenta  solo lectura */}
       <div className="rounded-2xl bg-card shadow-sm ring-1 ring-foreground/5 p-5 flex flex-col gap-3">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
           Datos de cuenta
@@ -142,7 +141,6 @@ export default function PerfilPage() {
         </div>
       </div>
 
-      {/* Datos editables */}
       {notFound ? (
         <div className="rounded-2xl bg-card shadow-sm ring-1 ring-foreground/5 p-5 text-sm text-muted-foreground">
           No se encontró un perfil de donante asociado a tu cuenta.
@@ -157,8 +155,7 @@ export default function PerfilPage() {
             Datos de donante
           </h2>
 
-          {/* Nombre o Razón Social según tipo */}
-          {usesRazonSocial ? (
+         {usesRazonSocial ? (
             <div>
               <label className="block text-xs font-semibold text-muted-foreground mb-1">
                 Razón Social

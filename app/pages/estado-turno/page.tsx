@@ -3,27 +3,17 @@
 import { ListadoSoloLectura } from "@/components/listado-solo-lectura"
 import type { CampoDetalle } from "@/components/listado-solo-lectura"
 import type { TableColumn } from "@/components/ui/data-table"
+import { Etiqueta } from "@/components/ui/etiqueta"
 import { useEstadosTurno } from "@/hooks/use-estado-turno"
 import type { EstadoTurno } from "@/lib/type/estado-turno"
-
-const TONOS: Record<string, string> = {
-  pendiente: "bg-yellow-100 text-yellow-800",
-  confirmado: "bg-blue-100 text-blue-800",
-  completado: "bg-green-100 text-green-800",
-  cancelado: "bg-red-100 text-red-800",
-}
-
-function Etiqueta({ texto }: { texto: string }) {
-  const tono = TONOS[texto.trim().toLowerCase()] ?? "bg-muted text-muted-foreground"
-  return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${tono}`}>{texto}</span>
-}
+import { ESTADOS_COLORS_TURNO } from "@/lib/utils/estados"
 
 const columnas: TableColumn<EstadoTurno>[] = [
-  { key: "descripcion", header: "Descripción", cell: (e) => <Etiqueta texto={e.descripcion} /> },
+  { key: "descripcion", header: "Descripción", cell: (e) => <Etiqueta texto={e.descripcion} colors={ESTADOS_COLORS_TURNO} /> },
 ]
 
 const detalle: CampoDetalle<EstadoTurno>[] = [
-  { etiqueta: "Descripción", valor: (e) => <Etiqueta texto={e.descripcion} /> },
+  { etiqueta: "Descripción", valor: (e) => <Etiqueta texto={e.descripcion} colors={ESTADOS_COLORS_TURNO} /> },
 ]
 
 export default function EstadoTurnoPage() {

@@ -2,8 +2,7 @@ import type { TipoDonante } from "@/lib/type/donante"
 
 export const JURISDICCIONES = ["Nacional", "Provincial", "Municipal"] as const
 
-export const LARGO_NOMBRE_PERSONA = 25
-export const LARGO_NOMBRE_COMPLETO = 50
+export const LARGO_NOMBRE_PERSONA = 30
 export const LARGO_CARGO = 100
 
 const sinAcentos = (texto: string) => texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
@@ -20,11 +19,6 @@ export function unirResponsable(apellido: string, nombre: string): string {
   return `${apellido.trim()}, ${nombre.trim()}`
 }
 
-export function separarResponsable(responsable: string | null | undefined): { respApellido: string; respNombre: string } {
-  if (!responsable) return { respApellido: "", respNombre: "" }
-  const [apellido, ...resto] = responsable.split(",")
-  return { respApellido: apellido.trim(), respNombre: resto.join(",").trim() }
-}
 
 export function problemaDeNombre(texto: string, etiqueta: string, largo = LARGO_NOMBRE_PERSONA): string | null {
   const valor = texto.trim()

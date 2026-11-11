@@ -2,13 +2,14 @@
 
 import type { ReactNode } from "react"
 import { CheckCircle2 } from "lucide-react"
-import { EstadoHojaBadge } from "@/components/ui/estado-hoja-badge"
 import { MapaRuta } from "@/components/mapa-ruta"
 import { cn } from "@/lib/utils"
 import { dia, hora } from "@/lib/utils/fechas"
 import { kilometros } from "@/lib/utils/formato"
 import { formatDuracion, nombreTransportista } from "@/lib/utils/hoja-ruta"
 import type { HojaRutaDia, ParadaHojaRuta } from "@/lib/type/hoja-ruta"
+import { ESTADO_HOJA_RUTA } from "@/lib/utils/estados"
+import { Etiqueta } from "@/components/ui/etiqueta"
 
 const ETIQUETA = "text-xs font-medium uppercase tracking-wide text-foreground/75"
 
@@ -197,7 +198,7 @@ export function HojaRutaCard({
         <div className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
             {mostrarTransportista && <p className="text-base font-semibold">{nombreTransportista(hoja)}</p>}
-            <EstadoHojaBadge estado={hoja.estado} />
+            <Etiqueta texto={hoja.estado} colors={ESTADO_HOJA_RUTA} />
           </div>
           <p className="text-sm text-muted-foreground">
             {dia(hoja.fecha)}

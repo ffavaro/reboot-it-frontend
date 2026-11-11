@@ -14,7 +14,7 @@ import {
   useDeleteEmpleadoTransportista,
 } from "@/hooks/use-empleado-transportista"
 import { useEmpleadosFull } from "@/hooks/use-employees"
-import { useVehiculos, useTipoVehiculos } from "@/hooks/use-vehicles"
+import { useVehiculos } from "@/hooks/use-vehicles"
 import { useFormErrors } from "@/hooks/use-form-errors"
 import { required, requiredSelect } from "@/lib/form-validators"
 import type { EmpleadoTransportista } from "@/lib/type/empleado-transportista"
@@ -90,8 +90,7 @@ export default function EmpleadoTransportistaPage() {
     const rol = e.rol?.nombre?.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
     return rol === "transportista"
   })
-  const { vehiculos, mutate: mutateVehiculos } = useVehiculos()
-  const { tipos } = useTipoVehiculos()
+  const { vehiculos } = useVehiculos()
   const { createTransportista, isLoading: isCreating } = useCreateEmpleadoTransportista()
   const { updateTransportista, isLoading: isUpdating } = useUpdateEmpleadoTransportista()
   const { deleteTransportista, isLoading: isDeleting } = useDeleteEmpleadoTransportista()

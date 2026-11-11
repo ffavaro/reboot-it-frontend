@@ -40,6 +40,14 @@ export interface GraficosCircuito {
   destruccionPorMetodoYMedio: { metodo: string; medio: string; cantidad: number }[]
   eficienciaRutas: { id: number; fecha: string; paradas: number; km: number; transportista: string }[]
 }
+export interface Dato {
+  id:string
+  titulo: string
+  clave: string
+  etiqueta: string
+  valor: string
+  detalle: string
+}
 
 export interface ResumenCircuito {
   completo: boolean
@@ -80,6 +88,7 @@ export interface FiltroUsoVehiculos {
 
 export interface Tarjeta {
   id: string
+  titulo:string
   ancho: number
   alto: number
   contenido: React.ReactNode

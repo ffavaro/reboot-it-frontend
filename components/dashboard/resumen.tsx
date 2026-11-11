@@ -6,7 +6,11 @@ import { cn } from "@/lib/utils"
 import { useMisPermisos } from "@/hooks/use-permisos"
 import { ubicarRuta } from "@/lib/type/menu"
 import { decimal, entero, porcentaje } from "@/lib/utils/formato"  
-import type { Contador, ResumenCircuito } from "@/lib/type/dashboard"
+import type { Contador, Dato, ResumenCircuito } from "@/lib/type/dashboard"
+import type { Tarjeta } from "@/lib/type/dashboard"
+
+
+type DatoCircuito = ReturnType<typeof datosDelCircuito>[number]
 
 function contadores(p: ResumenCircuito["pendiente"] | undefined): Contador[] {
   const lista: (Contador | null)[] = [
@@ -78,17 +82,12 @@ export function TrabajoPendiente({ resumen }: { resumen?: ResumenCircuito }) {
 
 const FRANJAS = ["bg-blue-500", "bg-green-600", "bg-amber-500", "bg-violet-500", "bg-teal-500", "bg-pink-500"]
 
-interface Dato {
-  clave: string
-  etiqueta: string
-  valor: string
-  detalle: string
-}
-
 function datosDelCircuito(r: ResumenCircuito): Dato[] {
   const { ciclo, reutilizacion: reu, medios, donantes, kmPorRetiro } = r
   const lista: (Dato | false)[] = [
     r.completo && {
+      id:"ciclo",
+      titulo: "Tiempo de ciclo",
       clave: "ciclo",
       etiqueta: "Tiempo de ciclo",
       valor: ciclo ? `${decimal(ciclo.promedio)} días` : "—",
@@ -97,25 +96,33 @@ function datosDelCircuito(r: ResumenCircuito): Dato[] {
         : "Ninguna donación certificada en el período",
     },
     {
+      id:"reutilizacion",
+      titulo: "Tasa de reutilización",
       clave: "reutilizacion",
       etiqueta: "Tasa de reutilización",
       valor: reu.pctReutilizable !== null ? `${reu.pctReutilizable} %` : "—",
       detalle: reu.total > 0 ? `${reu.pctDesecho ?? 0} % a desecho sobre ${entero(reu.total)} materiales` : "Sin materiales clasificados",
     },
-    { clave: "kg", etiqueta: "Kg procesados", valor: `${entero(r.kgProcesados)} kg`, detalle: "Peso bruto de los lotes pesados" },
+    { id:"kg", titulo: "Kg procesados", clave: "kg", etiqueta: "Kg procesados", valor: `${entero(r.kgProcesados)} kg`, detalle: "Peso bruto de los lotes pesados" },
     {
+      id:"medios",
+      titulo:"Medios destruidos",
       clave: "medios",
       etiqueta: "Medios de datos destruidos",
       valor: medios.total > 0 ? `${entero(medios.finalizados)} de ${entero(medios.total)}` : "—",
       detalle: medios.total > 0 ? `${porcentaje(medios.finalizados, medios.total)} con destrucción segura (NIST SP 800-88)` : "Sin procesos en el período",
     },
     !!donantes && {
+      id:"donantes",
+      titulo: "Donante recurrentes",
       clave: "donantes",
       etiqueta: "Donantes recurrentes",
       valor: donantes.total > 0 ? `${entero(donantes.recurrentes)} de ${entero(donantes.total)}` : "—",
       detalle: donantes.total > 0 ? `${porcentaje(donantes.recurrentes, donantes.total)} donó más de una vez` : "Sin donaciones en el período",
     },
     !!kmPorRetiro && {
+      id:"km",
+      titulo: "Km por retiro",
       clave: "km",
       etiqueta: "Km por retiro",
       valor: kmPorRetiro.valor !== null ? `${decimal(kmPorRetiro.valor)} km` : "—",
@@ -125,29 +132,26 @@ function datosDelCircuito(r: ResumenCircuito): Dato[] {
   return lista.filter((d): d is Dato => !!d)
 }
 
-const COLUMNAS_LG = ["lg:grid-cols-1", "lg:grid-cols-1", "lg:grid-cols-2", "lg:grid-cols-3", "lg:grid-cols-4", "lg:grid-cols-5", "lg:grid-cols-3"]
-
-const columnas = (n: number) => COLUMNAS_LG[Math.min(n, COLUMNAS_LG.length - 1)]
-
-export function IndicadoresCircuito({ resumen }: { resumen?: ResumenCircuito }) {
-  if (!resumen) return null
-  const datos = datosDelCircuito(resumen)
+function Indicador({ dato, indice }: { dato: DatoCircuito; indice: number }) {
   return (
-    <section aria-labelledby="dash-indicadores" className="flex flex-col gap-3">
-      <div>
-        <h2 id="dash-indicadores" className="text-base font-medium text-foreground">Indicadores del circuito</h2>
-        <p className="text-xs text-muted-foreground">Cuánto tarda el circuito y qué resultado deja en el período elegido.</p>
-      </div>
-      <div className={cn("grid grid-cols-1 gap-3 sm:grid-cols-2", columnas(datos.length))}>
-        {datos.map((d, i) => (
-          <div key={d.clave} className="relative flex min-w-0 flex-col gap-1.5 overflow-hidden rounded-xl bg-card p-4 pl-5 shadow-sm ring-1 ring-foreground/5">
-            <span className={cn("absolute inset-y-0 left-0 w-1", FRANJAS[i % FRANJAS.length])} aria-hidden />
-            <span className="text-xs font-medium leading-tight text-muted-foreground">{d.etiqueta}</span>
-            <span className="text-2xl font-semibold leading-none tabular-nums text-foreground">{d.valor}</span>
-            <span className="text-xs leading-snug text-muted-foreground">{d.detalle}</span>
-          </div>
-        ))}
-      </div>
-    </section>
+    <div className="relative flex h-full min-w-0 flex-col gap-1.5 overflow-hidden rounded-xl bg-card p-4 pl-5 shadow-sm ring-1 ring-foreground/5">
+      <span className={cn("absolute inset-y-0 left-0 w-1", FRANJAS[indice % FRANJAS.length])} aria-hidden />
+      <span className="text-xs font-medium leading-tight text-muted-foreground">{dato.etiqueta}</span>
+      <span className="text-2xl font-semibold leading-none tabular-nums text-foreground">{dato.valor}</span>
+      <span className="text-xs leading-snug text-muted-foreground">{dato.detalle}</span>
+    </div>
   )
+}
+
+export function tarjetasIndicadores(resumen?: ResumenCircuito): Tarjeta[] {
+  if (!resumen) return []
+  const datos = datosDelCircuito(resumen)
+  const ancho = Math.max(3, Math.floor(12 / datos.length)) 
+  return datos.map((d, i) => ({
+    id: `indicador-${d.clave}`,
+    titulo: d.etiqueta,
+    ancho,
+    alto: 5,
+    contenido: <Indicador dato={d} indice={i} />,
+  }))
 }

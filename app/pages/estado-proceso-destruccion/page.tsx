@@ -3,34 +3,23 @@
 import { ListadoSoloLectura } from "@/components/listado-solo-lectura"
 import type { CampoDetalle } from "@/components/listado-solo-lectura"
 import type { TableColumn } from "@/components/ui/data-table"
+import { Etiqueta } from "@/components/ui/etiqueta"
 import { useEstadosProcesoDestruccion } from "@/hooks/use-estado-proceso-destruccion"
 import type { EstadoProcesoDestruccion } from "@/lib/type/estado-proceso-destruccion"
-
-const TONOS: Record<string, string> = {
-  iniciado: "bg-blue-100 text-blue-800",
-  pendiente: "bg-yellow-100 text-yellow-800",
-  finalizado: "bg-green-100 text-green-800",
-}
-
-function Etiqueta({ texto }: { texto: string }) {
-  const tono = TONOS[texto.trim().toLowerCase()] ?? "bg-gray-100 text-gray-800"
-  return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${tono}`}>{texto}</span>
-}
-
-const SinDato = () => <span className="italic text-muted-foreground"></span>
+import { ESTADO_COLORS_PROCESO_DESTRUCCION } from "@/lib/utils/estados"
 
 const columnas: TableColumn<EstadoProcesoDestruccion>[] = [
-  { key: "nombre", header: "Nombre", cell: (e) => <Etiqueta texto={e.nombre} /> },
+  { key: "nombre", header: "Nombre", cell: (e) => <Etiqueta texto={e.nombre} colors={ESTADO_COLORS_PROCESO_DESTRUCCION} /> },
   {
     key: "descripcion",
     header: "Descripción",
-    cell: (e) => (e.descripcion ? <span className="text-sm text-muted-foreground">{e.descripcion}</span> : <SinDato />),
+    cell: (e) => <span className="text-sm text-muted-foreground">{e.descripcion}</span>,
   },
 ]
 
 const detalle: CampoDetalle<EstadoProcesoDestruccion>[] = [
-  { etiqueta: "Nombre", valor: (e) => <Etiqueta texto={e.nombre} /> },
-  { etiqueta: "Descripción", valor: (e) => e.descripcion || <SinDato /> },
+  { etiqueta: "Nombre", valor: (e) => <Etiqueta texto={e.nombre} colors={ESTADO_COLORS_PROCESO_DESTRUCCION} /> },
+  { etiqueta: "Descripción", valor: (e) => e.descripcion },
 ]
 
 export default function EstadoProcesoDestruccionPage() {

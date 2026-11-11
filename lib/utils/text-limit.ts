@@ -20,8 +20,6 @@ export function tieneNumeroDeCalle(direccion: string): boolean {
 
 export const soloEnteros = (texto: string) => texto.replace(/\D/g, "").slice(0, DIGITOS_CANTIDAD)
 
-export const cantidadValida = (texto: string) => texto === "" || /^[1-9]\d*$/.test(texto)
-
 export function problemaConFoto(archivo: File): string | null {
   if (!FORMATOS_FOTO.includes(archivo.type)) return "Las fotos deben ser imágenes JPG, PNG o WEBP"
   if (archivo.size > MB_POR_FOTO * 1024 * 1024) return `Cada foto puede pesar hasta ${MB_POR_FOTO} MB`

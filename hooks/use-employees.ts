@@ -1,6 +1,6 @@
 import useSWR from "swr"
 import useSWRMutation from "swr/mutation"
-import { fetcher, empleadosApi, rolesApi } from "@/lib/api"
+import { fetcher, empleadosApi } from "@/lib/api"
 import type { Empleado, Rol, CreateEmpleadoPayload, UpdateEmpleadoPayload } from "@/lib/type/user"
 
 export function useEmpleadosFull() {

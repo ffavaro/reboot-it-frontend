@@ -13,7 +13,7 @@ import { useLogin } from "@/hooks/use-auth"
 import { toast } from "react-toastify"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { saveSession, getUser } from "@/lib/auth-utils"
+import { saveSession } from "@/lib/auth-utils"
 import { permisosApi } from "@/lib/api/permisos"
 import { primeraRutaPermitida } from "@/lib/type/menu"
 

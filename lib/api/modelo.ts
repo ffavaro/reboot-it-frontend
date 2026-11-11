@@ -6,8 +6,6 @@ export const modeloApi = {
 
   getByMarca: (marcaId: number) => request<Modelo[]>(`/modelo?marcaId=${marcaId}`),
 
-  getByTipo: (tipoId: number) => request<Modelo[]>(`/modelo?tipoId=${tipoId}`),
-
   create: (data: CreateModeloPayload) =>
     request<Modelo>("/modelo", { method: "POST", body: JSON.stringify(data) }),
 

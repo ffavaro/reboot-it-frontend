@@ -1,16 +1,11 @@
 import useSWR from "swr"
 import useSWRMutation from "swr/mutation"
-import { fetcher, usuariosApi, empleadosApi } from "@/lib/api"
-import type { Usuario, Empleado, CreateUsuarioPayload, UpdateUsuarioPayload } from "@/lib/type/user"
+import { fetcher, usuariosApi } from "@/lib/api"
+import type { Usuario, CreateUsuarioPayload, UpdateUsuarioPayload } from "@/lib/type/user"
 
 export function useUsuarios() {
   const { data, isLoading, error, mutate } = useSWR<Usuario[]>("/usuarios", fetcher)
   return { usuarios: data ?? [], isLoading, error, mutate }
-}
-
-export function useEmpleados() {
-  const { data, isLoading } = useSWR<Empleado[]>("/empleados", fetcher)
-  return { empleados: data ?? [], isLoading }
 }
 
 export function useUpdateUsuario() {
