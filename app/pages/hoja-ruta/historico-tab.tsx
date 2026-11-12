@@ -19,8 +19,6 @@ import { ESTADO_HOJA_RUTA } from "@/lib/utils/estados"
 
 const TODOS = "todos"
 
-const Vacio = () => <span className="italic text-muted-foreground"></span>
-
 const COLUMNAS: TableColumn<HojaRutaHistorico>[] = [
   {
     key: "cierre",
@@ -48,7 +46,7 @@ const COLUMNAS: TableColumn<HojaRutaHistorico>[] = [
           <span className="font-mono text-xs">{h.vehiculo.patente}</span> · {h.vehiculo.marca} {h.vehiculo.modelo}
         </span>
       ) : (
-        <Vacio />
+        ""
       ),
   },
   {
@@ -63,14 +61,14 @@ const COLUMNAS: TableColumn<HojaRutaHistorico>[] = [
       h.kmEstimados !== null ? (
         <span className="tabular-nums text-muted-foreground">{kilometros(h.kmEstimados)}</span>
       ) : (
-        <Vacio />
+        ""
       ),
   },
   {
     key: "kmReales",
     header: "Km reales",
     cell: (h) =>
-      h.kmReales !== null ? <span className="tabular-nums font-medium">{kilometros(h.kmReales)}</span> : <Vacio />,
+      h.kmReales !== null ? <span className="tabular-nums font-medium">{kilometros(h.kmReales)}</span> : "",
   },
   {
     key: "estado",

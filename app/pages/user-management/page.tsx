@@ -29,6 +29,8 @@ import type { Rol, Usuario } from "@/lib/type/user"
 import type { Donante } from "@/lib/type/donante"
 import Title from "@/components/ui/title"
 import { openCreate, openEdit, openView, set, filterBySearch } from "@/lib/utils/utils-modal"
+import { Etiqueta } from "@/components/ui/etiqueta"
+import { ROLES } from "@/lib/utils/estados"
 
 const ROL_STYLES: Record<string, string> = {
   admin: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
@@ -117,7 +119,7 @@ const COLUMNS: TableColumn<Usuario>[] = [
   {
     key: "rol",
     header: "Rol",
-    cell: (row) => <RolBadge rol={row.rol} />,
+    cell: (row) =>  <Etiqueta texto={row.rol.nombre} colors={ROLES} />,
   },
   {
     key: "empleado",
