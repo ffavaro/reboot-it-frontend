@@ -2,12 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import "leaflet/dist/leaflet.css"
-import type { PuntoRecorrido } from "@/lib/type/hoja-ruta"
-
-export interface MapaRutaDatos {
-  polyline: string
-   puntos: { lat: number; lng: number }[]
-}
+import type { MapaRutaDatos, PuntoRecorrido } from "@/lib/type/hoja-ruta"
 
 function decodificarPolyline(codigo: string): [number, number][] {
   const salida: [number, number][] = []

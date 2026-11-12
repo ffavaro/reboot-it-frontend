@@ -34,3 +34,11 @@ export const ESTADO_HOJA_RUTA: Record<string, string> = {
   "En proceso": "bg-amber-100",
   "Finalizada": "bg-green-100",
 }
+
+export const ROLES: Record<string, string> = {
+  Admin: "bg-red-100",
+  Administrativo: "bg-blue-100",
+  Transportista: "bg-green-100",
+  Tecnico: "bg-orange-100",
+  Donante: "bg-yellow-100",
+}

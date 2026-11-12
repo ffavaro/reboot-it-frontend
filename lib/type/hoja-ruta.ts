@@ -1,7 +1,12 @@
 import type { DatosConstanciaRetiro } from "./constancia-retiro"
 
-export const ESTADOS_HOJA_RUTA = ["Pendiente", "En proceso", "Finalizada"] as const
+export const ESTADOS_HOJA_RUTA = ["Pendiente", "En proceso", "Finalizada"];
 export type EstadoHojaRuta = (typeof ESTADOS_HOJA_RUTA)[number]
+
+export interface MapaRutaDatos {
+  polyline: string
+   puntos: { lat: number; lng: number }[]
+}
 
 export interface ParadaHojaRuta {
   turnoId: number

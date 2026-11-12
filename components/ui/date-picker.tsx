@@ -4,27 +4,10 @@ import * as React from "react"
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
-import { DIAS_CAL_CORTOS, DIAS_CAL_LARGOS, dos, hoyIso, MESES_CORTOS, MESES_ES } from "@/lib/utils/fechas"
+import { DIAS_CAL_CORTOS, DIAS_CAL_LARGOS, dos, esFinDeSemana, formatLabel, hoyIso, MESES_CORTOS, MESES_ES, parseISO } from "@/lib/utils/fechas"
 
 function toISO(year: number, month: number, day: number) {
   return `${year}-${dos(month + 1)}-${dos(day)}`
-}
-
-function parseISO(iso: string): { year: number; month: number; day: number } | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
-  return m ? { year: Number(m[1]), month: Number(m[2]) - 1, day: Number(m[3]) } : null
-}
-
-function esFinDeSemana(iso: string) {
-  const p = parseISO(iso)
-  if (!p) return false
-  const dia = new Date(p.year, p.month, p.day).getDay()
-  return dia === 0 || dia === 6
-}
-
-function formatLabel(iso: string) {
-  const p = parseISO(iso)
-  return p ? `${dos(p.day)} ${MESES_CORTOS[p.month]} ${p.year}` : ""
 }
 
 type DatePickerProps = {
