@@ -53,6 +53,7 @@ export function tarjetasOperativas(datos: TableroOperativo, periodo: string, fil
   return [
     {
       id: "destino-materiales",
+      titulo: "Destino de los materiales",
       ancho: 4,
       alto: 11,
       contenido: (
@@ -71,6 +72,7 @@ export function tarjetasOperativas(datos: TableroOperativo, periodo: string, fil
     },
     {
       id: "ingreso-procesamiento",
+      titulo: "Ingreso vs. procesamiento",
       ancho: 4,
       alto: 10,
       contenido: (
@@ -91,6 +93,7 @@ export function tarjetasOperativas(datos: TableroOperativo, periodo: string, fil
     },
     {
       id: "modalidad-recepcion",
+      titulo: "Modalidad de recepción",
       ancho: 4,
       alto: 11,
       contenido: (
@@ -111,6 +114,7 @@ export function tarjetasOperativas(datos: TableroOperativo, periodo: string, fil
     },
     {
       id: "evolucion-combinada",
+      titulo: "Evolución combinada",
       ancho: 6,
       alto: 10,
       contenido: (

@@ -1,4 +1,14 @@
 node_modules
 .next
+out
 dist
 .git
+.gitignore
+.env
+.env.*
+!.env.example
+tsconfig.tsbuildinfo
+dockerfile
+Dockerfile
+docker-compose*.yml
+README.md
