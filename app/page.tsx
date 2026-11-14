@@ -2,30 +2,13 @@
 
 import { Recycle, Zap, Shield, TrendingUp, ArrowRight } from "lucide-react"
 import Link from "next/link"
+import { NavbarPublico } from "@/components/landing/navbar-publico"
+import { FooterPublico } from "@/components/landing/footer-publico"
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950">
-      <nav className="sticky top-0 z-50 w-full border-b border-red-100 dark:border-red-900 bg-white/95 dark:bg-slate-950/95 backdrop-blur supports-backdrop-filter:bg-white/60">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-2 font-bold text-lg">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-red-600 text-white">
-                <Recycle className="size-5" />
-              </div>
-              <span className="text-red-700 dark:text-red-400">Reboot IT</span>
-            </div>
-            <div className="flex gap-4">
-              <Link href="/login" className="px-3 py-2 text-sm font-medium hover:text-red-400 transition-colors">
-                Iniciar sesión
-              </Link>
-              <Link href="/register" className="px-4 py-2 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors text-sm font-medium">
-                Registrarse
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <NavbarPublico />
 
       <section className="relative overflow-hidden bg-linear-to-br from-red-50 via-white to-rose-50 dark:from-slate-900 dark:via-slate-950 dark:to-red-950 py-20 sm:py-32">
         <div className="absolute inset-0 overflow-hidden">
@@ -54,7 +37,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="py-20 sm:py-32 bg-white dark:bg-slate-950">
+      <section id="caracteristicas" className="scroll-mt-20 py-20 sm:py-32 bg-white dark:bg-slate-950">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
@@ -104,7 +87,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="py-20 sm:py-32 bg-linear-to-br from-red-50 to-rose-100">
+      <section id="como-funciona" className="scroll-mt-20 py-20 sm:py-32 bg-linear-to-br from-red-50 to-rose-100">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
@@ -176,50 +159,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <footer className="bg-gray-900 dark:bg-black text-gray-400 py-12">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <div className="flex items-center gap-2 font-bold text-white mb-4">
-                <div className="flex size-6 items-center justify-center rounded-lg bg-red-600">
-                  <Recycle className="size-4" />
-                </div>
-                Reboot IT
-              </div>
-              <p className="text-sm">Reciclaje responsable de componentes electrónicos</p>
-            </div>
-            <div>
-              <h3 className="text-white font-semibold mb-4">Producto</h3>
-              <ul className="space-y-2 text-sm">
-                <li><label className="hover:text-white transition">Características</label></li>
-                <li><label className="hover:text-white transition">Precios</label></li>
-                <li><label className="hover:text-white transition">Documentación</label></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-white font-semibold mb-4">Empresa</h3>
-              <ul className="space-y-2 text-sm">
-                <li><label className="hover:text-white transition">Sobre nosotros</label></li>
-                <li><label className="hover:text-white transition">Blog</label></li>
-                <li><label className="hover:text-white transition">Contacto</label></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-white font-semibold mb-4">Legal</h3>
-              <ul className="space-y-2 text-sm">
-                <li><label className="hover:text-white transition">Privacidad</label></li>
-                <li><label className="hover:text-white transition">Términos</label></li>
-                <li><label className="hover:text-white transition">Cookies</label></li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-gray-800 pt-8">
-            <p className="text-center text-sm">
-              © {new Date().getFullYear()} Reboot IT. Todos los derechos reservados.
-            </p>
-          </div>
-        </div>
-      </footer>
+      <FooterPublico />
     </div>
   )
 }

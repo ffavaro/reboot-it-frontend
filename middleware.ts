@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = ['/login', '/register', '/forgot-password']
+const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/info']
 
 const esRutaLibre = (ruta: string): boolean => {
   if (ruta === '/') return true
