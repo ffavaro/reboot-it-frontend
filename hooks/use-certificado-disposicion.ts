@@ -1,41 +1,18 @@
-import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, certificadoDisposicionApi } from "@/lib/api"
+import { certificadoDisposicionApi } from "@/lib/api"
+import { crearHooksRecurso } from "./use-recurso"
 import type {
   CertificadoDisposicion,
   CreateCertificadoDisposicionPayload,
   UpdateCertificadoDisposicionPayload,
 } from "@/lib/type/certificado-disposicion"
 
-export function useCertificadosDisposicion() {
-  const { data, isLoading, error, mutate } = useSWR<CertificadoDisposicion[]>("/certificado-disposicion", fetcher)
-  return { certificados: data ?? [], isLoading, error, mutate }
-}
+const h = crearHooksRecurso<
+  CertificadoDisposicion,
+  CreateCertificadoDisposicionPayload,
+  UpdateCertificadoDisposicionPayload
+>("/certificado-disposicion", certificadoDisposicionApi)
 
-export function useCreateCertificadoDisposicion() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/certificado-disposicion",
-    (_key: string, { arg }: { arg: CreateCertificadoDisposicionPayload }) =>
-      certificadoDisposicionApi.create(arg),
-  )
-  return { createCertificado: trigger, isLoading: isMutating, error }
-}
-
-export function useUpdateCertificadoDisposicion() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/certificado-disposicion",
-    (_key: string, { arg }: { arg: { id: number } & UpdateCertificadoDisposicionPayload }) => {
-      const { id, ...payload } = arg
-      return certificadoDisposicionApi.update(id, payload)
-    },
-  )
-  return { updateCertificado: trigger, isLoading: isMutating, error }
-}
-
-export function useDeleteCertificadoDisposicion() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/certificado-disposicion",
-    (_key: string, { arg }: { arg: number }) => certificadoDisposicionApi.remove(arg),
-  )
-  return { deleteCertificado: trigger, isLoading: isMutating, error }
-}
+export function useCertificadosDisposicion() { const { data, ...r } = h.useLista(); return { certificados: data, ...r } }
+export function useCreateCertificadoDisposicion() { const { trigger, ...r } = h.useCrear(); return { createCertificado: trigger, ...r } }
+export function useUpdateCertificadoDisposicion() { const { trigger, ...r } = h.useActualizar(); return { updateCertificado: trigger, ...r } }
+export function useDeleteCertificadoDisposicion() { const { trigger, ...r } = h.useEliminar(); return { deleteCertificado: trigger, ...r } }
