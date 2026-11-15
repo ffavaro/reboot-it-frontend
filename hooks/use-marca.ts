@@ -1,36 +1,10 @@
-import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, marcaApi } from "@/lib/api"
+import { marcaApi } from "@/lib/api"
+import { crearHooksRecurso } from "./use-recurso"
 import type { Marca, CreateMarcaPayload, UpdateMarcaPayload } from "@/lib/type/marca"
 
-export function useMarcas() {
-  const { data, isLoading, error, mutate } = useSWR<Marca[]>("/marca", fetcher)
-  return { marcas: data ?? [], isLoading, error, mutate }
-}
+const h = crearHooksRecurso<Marca, CreateMarcaPayload, UpdateMarcaPayload>("/marca", marcaApi)
 
-export function useCreateMarca() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/marca",
-    (_key: string, { arg }: { arg: CreateMarcaPayload }) => marcaApi.create(arg),
-  )
-  return { createMarca: trigger, isLoading: isMutating, error }
-}
-
-export function useUpdateMarca() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/marca",
-    (_key: string, { arg }: { arg: { id: number } & UpdateMarcaPayload }) => {
-      const { id, ...payload } = arg
-      return marcaApi.update(id, payload)
-    },
-  )
-  return { updateMarca: trigger, isLoading: isMutating, error }
-}
-
-export function useDeleteMarca() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/marca",
-    (_key: string, { arg }: { arg: number }) => marcaApi.remove(arg),
-  )
-  return { deleteMarca: trigger, isLoading: isMutating, error }
-}
+export function useMarcas() { const { data, ...r } = h.useLista(); return { marcas: data, ...r } }
+export function useCreateMarca() { const { trigger, ...r } = h.useCrear(); return { createMarca: trigger, ...r } }
+export function useUpdateMarca() { const { trigger, ...r } = h.useActualizar(); return { updateMarca: trigger, ...r } }
+export function useDeleteMarca() { const { trigger, ...r } = h.useEliminar(); return { deleteMarca: trigger, ...r } }

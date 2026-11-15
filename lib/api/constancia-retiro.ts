@@ -2,22 +2,14 @@ import type {
   ConstanciaRetiro,
   CreateConstanciaRetiroPayload,
   UpdateConstanciaRetiroPayload,
+  DatosConstanciaRetiro,
 } from "@/lib/type/constancia-retiro"
-import type { DatosConstanciaRetiro } from "@/lib/type/constancia-retiro"
 import { request } from "./client"
+import { crudApi } from "./crud"
 
 export const constanciaRetiroApi = {
-  getAll: () => request<ConstanciaRetiro[]>("/constancia-retiro"),
+  ...crudApi<ConstanciaRetiro, CreateConstanciaRetiroPayload, UpdateConstanciaRetiroPayload>("/constancia-retiro"),
 
   getDatosDocumento: (id: number) =>
     request<DatosConstanciaRetiro>(`/constancia-retiro/${id}/datos`),
-
-  create: (data: CreateConstanciaRetiroPayload) =>
-    request<ConstanciaRetiro>("/constancia-retiro", { method: "POST", body: JSON.stringify(data) }),
-
-  update: (id: number, data: UpdateConstanciaRetiroPayload) =>
-    request<ConstanciaRetiro>(`/constancia-retiro/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
-
-  remove: (id: number) =>
-    request<void>(`/constancia-retiro/${id}`, { method: "DELETE" }),
 }

@@ -1,15 +1,4 @@
 import type { Marca, CreateMarcaPayload, UpdateMarcaPayload } from "@/lib/type/marca"
-import { request } from "./client"
+import { crudApi } from "./crud"
 
-export const marcaApi = {
-  getAll: () => request<Marca[]>("/marca"),
-
-  create: (data: CreateMarcaPayload) =>
-    request<Marca>("/marca", { method: "POST", body: JSON.stringify(data) }),
-
-  update: (id: number, data: UpdateMarcaPayload) =>
-    request<Marca>(`/marca/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
-
-  remove: (id: number) =>
-    request<void>(`/marca/${id}`, { method: "DELETE" }),
-}
+export const marcaApi = crudApi<Marca, CreateMarcaPayload, UpdateMarcaPayload>("/marca")
