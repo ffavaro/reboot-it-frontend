@@ -1,36 +1,10 @@
-import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, loteApi } from "@/lib/api"
+import { loteApi } from "@/lib/api"
+import { crearHooksRecurso } from "./use-recurso"
 import type { Lote, CreateLotePayload, UpdateLotePayload } from "@/lib/type/lote"
 
-export function useLotes() {
-  const { data, isLoading, error, mutate } = useSWR<Lote[]>("/lote", fetcher)
-  return { lotes: data ?? [], isLoading, error, mutate }
-}
+const h = crearHooksRecurso<Lote, CreateLotePayload, UpdateLotePayload>("/lote", loteApi)
 
-export function useCreateLote() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/lote",
-    (_key: string, { arg }: { arg: CreateLotePayload }) => loteApi.create(arg),
-  )
-  return { createLote: trigger, isLoading: isMutating, error }
-}
-
-export function useUpdateLote() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/lote",
-    (_key: string, { arg }: { arg: { id: number } & UpdateLotePayload }) => {
-      const { id, ...payload } = arg
-      return loteApi.update(id, payload)
-    },
-  )
-  return { updateLote: trigger, isLoading: isMutating, error }
-}
-
-export function useDeleteLote() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/lote",
-    (_key: string, { arg }: { arg: number }) => loteApi.remove(arg),
-  )
-  return { deleteLote: trigger, isLoading: isMutating, error }
-}
+export function useLotes() { const { data, ...r } = h.useLista(); return { lotes: data, ...r } }
+export function useCreateLote() { const { trigger, ...r } = h.useCrear(); return { createLote: trigger, ...r } }
+export function useUpdateLote() { const { trigger, ...r } = h.useActualizar(); return { updateLote: trigger, ...r } }
+export function useDeleteLote() { const { trigger, ...r } = h.useEliminar(); return { deleteLote: trigger, ...r } }

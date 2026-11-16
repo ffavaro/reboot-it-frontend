@@ -1,36 +1,10 @@
-import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, rackApi } from "@/lib/api"
+import { rackApi } from "@/lib/api"
+import { crearHooksRecurso } from "./use-recurso"
 import type { Rack, CreateRackPayload, UpdateRackPayload } from "@/lib/type/rack"
 
-export function useRacks() {
-  const { data, isLoading, error, mutate } = useSWR<Rack[]>("/rack", fetcher)
-  return { racks: data ?? [], isLoading, error, mutate }
-}
+const h = crearHooksRecurso<Rack, CreateRackPayload, UpdateRackPayload>("/rack", rackApi)
 
-export function useCreateRack() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/rack",
-    (_key: string, { arg }: { arg: CreateRackPayload }) => rackApi.create(arg),
-  )
-  return { createRack: trigger, isLoading: isMutating, error }
-}
-
-export function useUpdateRack() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/rack",
-    (_key: string, { arg }: { arg: { id: number } & UpdateRackPayload }) => {
-      const { id, ...payload } = arg
-      return rackApi.update(id, payload)
-    },
-  )
-  return { updateRack: trigger, isLoading: isMutating, error }
-}
-
-export function useDeleteRack() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/rack",
-    (_key: string, { arg }: { arg: number }) => rackApi.remove(arg),
-  )
-  return { deleteRack: trigger, isLoading: isMutating, error }
-}
+export function useRacks() { const { data, ...r } = h.useLista(); return { racks: data, ...r } }
+export function useCreateRack() { const { trigger, ...r } = h.useCrear(); return { createRack: trigger, ...r } }
+export function useUpdateRack() { const { trigger, ...r } = h.useActualizar(); return { updateRack: trigger, ...r } }
+export function useDeleteRack() { const { trigger, ...r } = h.useEliminar(); return { deleteRack: trigger, ...r } }

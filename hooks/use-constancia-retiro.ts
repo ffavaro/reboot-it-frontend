@@ -1,40 +1,17 @@
-import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, constanciaRetiroApi } from "@/lib/api"
+import { constanciaRetiroApi } from "@/lib/api"
+import { crearHooksRecurso } from "./use-recurso"
 import type {
   ConstanciaRetiro,
   CreateConstanciaRetiroPayload,
   UpdateConstanciaRetiroPayload,
 } from "@/lib/type/constancia-retiro"
 
-export function useConstanciasRetiro() {
-  const { data, isLoading, error, mutate } = useSWR<ConstanciaRetiro[]>("/constancia-retiro", fetcher)
-  return { constancias: data ?? [], isLoading, error, mutate }
-}
+const h = crearHooksRecurso<ConstanciaRetiro, CreateConstanciaRetiroPayload, UpdateConstanciaRetiroPayload>(
+  "/constancia-retiro",
+  constanciaRetiroApi,
+)
 
-export function useCreateConstanciaRetiro() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/constancia-retiro",
-    (_key: string, { arg }: { arg: CreateConstanciaRetiroPayload }) => constanciaRetiroApi.create(arg),
-  )
-  return { createConstancia: trigger, isLoading: isMutating, error }
-}
-
-export function useUpdateConstanciaRetiro() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/constancia-retiro",
-    (_key: string, { arg }: { arg: { id: number } & UpdateConstanciaRetiroPayload }) => {
-      const { id, ...payload } = arg
-      return constanciaRetiroApi.update(id, payload)
-    },
-  )
-  return { updateConstancia: trigger, isLoading: isMutating, error }
-}
-
-export function useDeleteConstanciaRetiro() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/constancia-retiro",
-    (_key: string, { arg }: { arg: number }) => constanciaRetiroApi.remove(arg),
-  )
-  return { deleteConstancia: trigger, isLoading: isMutating, error }
-}
+export function useConstanciasRetiro() { const { data, ...r } = h.useLista(); return { constancias: data, ...r } }
+export function useCreateConstanciaRetiro() { const { trigger, ...r } = h.useCrear(); return { createConstancia: trigger, ...r } }
+export function useUpdateConstanciaRetiro() { const { trigger, ...r } = h.useActualizar(); return { updateConstancia: trigger, ...r } }
+export function useDeleteConstanciaRetiro() { const { trigger, ...r } = h.useEliminar(); return { deleteConstancia: trigger, ...r } }

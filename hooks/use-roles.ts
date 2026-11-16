@@ -1,37 +1,11 @@
-import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, rolesApi } from "@/lib/api"
+import { rolesApi } from "@/lib/api"
+import { crearHooksRecurso } from "./use-recurso"
 import type { Rol } from "@/lib/type/user"
 import type { CreateRolPayload, UpdateRolPayload } from "@/lib/api/roles"
 
-export function useRoles() {
-  const { data, isLoading, error, mutate } = useSWR<Rol[]>("/roles", fetcher)
-  return { roles: data ?? [], isLoading, error, mutate }
-}
+const h = crearHooksRecurso<Rol, CreateRolPayload, UpdateRolPayload, string>("/roles", rolesApi)
 
-export function useCreateRol() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/roles",
-    (_key: string, { arg }: { arg: CreateRolPayload }) => rolesApi.create(arg),
-  )
-  return { createRol: trigger, isLoading: isMutating, error }
-}
-
-export function useUpdateRol() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/roles",
-    (_key: string, { arg }: { arg: { id: string } & UpdateRolPayload }) => {
-      const { id, ...payload } = arg
-      return rolesApi.update(id, payload)
-    },
-  )
-  return { updateRol: trigger, isLoading: isMutating, error }
-}
-
-export function useDeleteRol() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/roles",
-    (_key: string, { arg }: { arg: string }) => rolesApi.remove(arg),
-  )
-  return { deleteRol: trigger, isLoading: isMutating, error }
-}
+export function useRoles() { const { data, ...r } = h.useLista(); return { roles: data, ...r } }
+export function useCreateRol() { const { trigger, ...r } = h.useCrear(); return { createRol: trigger, ...r } }
+export function useUpdateRol() { const { trigger, ...r } = h.useActualizar(); return { updateRol: trigger, ...r } }
+export function useDeleteRol() { const { trigger, ...r } = h.useEliminar(); return { deleteRol: trigger, ...r } }

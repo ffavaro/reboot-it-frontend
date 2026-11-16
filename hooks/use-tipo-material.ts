@@ -1,40 +1,10 @@
-import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, tipoMaterialApi } from "@/lib/api"
-import type {
-  TipoMaterial,
-  CreateTipoMaterialPayload,
-  UpdateTipoMaterialPayload,
-} from "@/lib/type/tipo-material"
+import { tipoMaterialApi } from "@/lib/api"
+import { crearHooksRecurso } from "./use-recurso"
+import type { TipoMaterial, CreateTipoMaterialPayload, UpdateTipoMaterialPayload } from "@/lib/type/tipo-material"
 
-export function useTipoMateriales() {
-  const { data, isLoading, error, mutate } = useSWR<TipoMaterial[]>("/tipo-material", fetcher)
-  return { tipoMateriales: data ?? [], isLoading, error, mutate }
-}
+const h = crearHooksRecurso<TipoMaterial, CreateTipoMaterialPayload, UpdateTipoMaterialPayload>("/tipo-material", tipoMaterialApi)
 
-export function useCreateTipoMaterial() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/tipo-material",
-    (_key: string, { arg }: { arg: CreateTipoMaterialPayload }) => tipoMaterialApi.create(arg),
-  )
-  return { createTipoMaterial: trigger, isLoading: isMutating, error }
-}
-
-export function useUpdateTipoMaterial() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/tipo-material",
-    (_key: string, { arg }: { arg: { id: number } & UpdateTipoMaterialPayload }) => {
-      const { id, ...payload } = arg
-      return tipoMaterialApi.update(id, payload)
-    },
-  )
-  return { updateTipoMaterial: trigger, isLoading: isMutating, error }
-}
-
-export function useDeleteTipoMaterial() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/tipo-material",
-    (_key: string, { arg }: { arg: number }) => tipoMaterialApi.remove(arg),
-  )
-  return { deleteTipoMaterial: trigger, isLoading: isMutating, error }
-}
+export function useTipoMateriales() { const { data, ...r } = h.useLista(); return { tipoMateriales: data, ...r } }
+export function useCreateTipoMaterial() { const { trigger, ...r } = h.useCrear(); return { createTipoMaterial: trigger, ...r } }
+export function useUpdateTipoMaterial() { const { trigger, ...r } = h.useActualizar(); return { updateTipoMaterial: trigger, ...r } }
+export function useDeleteTipoMaterial() { const { trigger, ...r } = h.useEliminar(); return { deleteTipoMaterial: trigger, ...r } }

@@ -1,36 +1,10 @@
-import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, usuariosApi } from "@/lib/api"
+import { usuariosApi } from "@/lib/api"
+import { crearHooksRecurso } from "./use-recurso"
 import type { Usuario, CreateUsuarioPayload, UpdateUsuarioPayload } from "@/lib/type/user"
 
-export function useUsuarios() {
-  const { data, isLoading, error, mutate } = useSWR<Usuario[]>("/usuarios", fetcher)
-  return { usuarios: data ?? [], isLoading, error, mutate }
-}
+const h = crearHooksRecurso<Usuario, CreateUsuarioPayload, UpdateUsuarioPayload, string>("/usuarios", usuariosApi)
 
-export function useUpdateUsuario() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/usuarios",
-    (_key: string, { arg }: { arg: { id: string } & UpdateUsuarioPayload }) => {
-      const { id, ...payload } = arg
-      return usuariosApi.update(id, payload)
-    }
-  )
-  return { updateUsuario: trigger, isLoading: isMutating, error }
-}
-
-export function useDeleteUsuario() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/usuarios",
-    (_key: string, { arg }: { arg: string }) => usuariosApi.delete(arg)
-  )
-  return { deleteUsuario: trigger, isLoading: isMutating, error }
-}
-
-export function useCreateUsuario() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/usuarios",
-    (_key: string, { arg }: { arg: CreateUsuarioPayload }) => usuariosApi.create(arg)
-  )
-  return { createUsuario: trigger, isLoading: isMutating, error }
-}
+export function useUsuarios() { const { data, ...r } = h.useLista(); return { usuarios: data, ...r } }
+export function useCreateUsuario() { const { trigger, ...r } = h.useCrear(); return { createUsuario: trigger, ...r } }
+export function useUpdateUsuario() { const { trigger, ...r } = h.useActualizar(); return { updateUsuario: trigger, ...r } }
+export function useDeleteUsuario() { const { trigger, ...r } = h.useEliminar(); return { deleteUsuario: trigger, ...r } }
