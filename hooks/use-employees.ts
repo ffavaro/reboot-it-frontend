@@ -1,41 +1,17 @@
 import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
 import { fetcher, empleadosApi } from "@/lib/api"
+import { crearHooksRecurso } from "./use-recurso"
 import type { Empleado, Rol, CreateEmpleadoPayload, UpdateEmpleadoPayload } from "@/lib/type/user"
 
-export function useEmpleadosFull() {
-  const { data, isLoading, error, mutate } = useSWR<Empleado[]>("/empleados", fetcher)
-  return { empleados: data ?? [], isLoading, error, mutate }
-}
+const h = crearHooksRecurso<Empleado, CreateEmpleadoPayload, UpdateEmpleadoPayload>("/empleados", empleadosApi)
+
+export function useEmpleadosFull() { const { data, ...r } = h.useLista(); return { empleados: data, ...r } }
 
 export function useRoles() {
   const { data, isLoading } = useSWR<Rol[]>("/roles", fetcher)
   return { roles: data ?? [], isLoading }
 }
 
-export function useCreateEmpleado() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/empleados",
-    (_key: string, { arg }: { arg: CreateEmpleadoPayload }) => empleadosApi.create(arg),
-  )
-  return { createEmpleado: trigger, isLoading: isMutating, error }
-}
-
-export function useUpdateEmpleado() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/empleados",
-    (_key: string, { arg }: { arg: { id: number } & UpdateEmpleadoPayload }) => {
-      const { id, ...payload } = arg
-      return empleadosApi.update(id, payload)
-    },
-  )
-  return { updateEmpleado: trigger, isLoading: isMutating, error }
-}
-
-export function useDeleteEmpleado() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/empleados",
-    (_key: string, { arg }: { arg: number }) => empleadosApi.remove(arg),
-  )
-  return { deleteEmpleado: trigger, isLoading: isMutating, error }
-}
+export function useCreateEmpleado() { const { trigger, ...r } = h.useCrear(); return { createEmpleado: trigger, ...r } }
+export function useUpdateEmpleado() { const { trigger, ...r } = h.useActualizar(); return { updateEmpleado: trigger, ...r } }
+export function useDeleteEmpleado() { const { trigger, ...r } = h.useEliminar(); return { deleteEmpleado: trigger, ...r } }

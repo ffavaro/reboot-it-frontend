@@ -1,41 +1,17 @@
-import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, metodoDestruccionApi } from "@/lib/api"
+import { metodoDestruccionApi } from "@/lib/api"
+import { crearHooksRecurso } from "./use-recurso"
 import type {
   CreateMetodoDestruccionPayload,
   UpdateMetodoDestruccionPayload,
 } from "@/lib/api/metodo-destruccion"
 import type { MetodoDestruccion } from "@/lib/type/metodo-destruccion"
 
-export function useMetodosDestruccion() {
-  const { data, isLoading, error, mutate } = useSWR<MetodoDestruccion[]>("/metodo-destruccion", fetcher)
-  return { metodos: data ?? [], isLoading, error, mutate }
-}
+const h = crearHooksRecurso<MetodoDestruccion, CreateMetodoDestruccionPayload, UpdateMetodoDestruccionPayload>(
+  "/metodo-destruccion",
+  metodoDestruccionApi,
+)
 
-export function useCreateMetodoDestruccion() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/metodo-destruccion",
-    (_key: string, { arg }: { arg: CreateMetodoDestruccionPayload }) =>
-      metodoDestruccionApi.create(arg),
-  )
-  return { createMetodo: trigger, isLoading: isMutating, error }
-}
-
-export function useUpdateMetodoDestruccion() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/metodo-destruccion",
-    (_key: string, { arg }: { arg: { id: number } & UpdateMetodoDestruccionPayload }) => {
-      const { id, ...payload } = arg
-      return metodoDestruccionApi.update(id, payload)
-    },
-  )
-  return { updateMetodo: trigger, isLoading: isMutating, error }
-}
-
-export function useDeleteMetodoDestruccion() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/metodo-destruccion",
-    (_key: string, { arg }: { arg: number }) => metodoDestruccionApi.remove(arg),
-  )
-  return { deleteMetodo: trigger, isLoading: isMutating, error }
-}
+export function useMetodosDestruccion() { const { data, ...r } = h.useLista(); return { metodos: data, ...r } }
+export function useCreateMetodoDestruccion() { const { trigger, ...r } = h.useCrear(); return { createMetodo: trigger, ...r } }
+export function useUpdateMetodoDestruccion() { const { trigger, ...r } = h.useActualizar(); return { updateMetodo: trigger, ...r } }
+export function useDeleteMetodoDestruccion() { const { trigger, ...r } = h.useEliminar(); return { deleteMetodo: trigger, ...r } }

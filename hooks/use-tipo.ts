@@ -1,36 +1,10 @@
-import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, tipoApi } from "@/lib/api"
+import { tipoApi } from "@/lib/api"
+import { crearHooksRecurso } from "./use-recurso"
 import type { Tipo, CreateTipoPayload, UpdateTipoPayload } from "@/lib/type/tipo"
 
-export function useTipos() {
-  const { data, isLoading, error, mutate } = useSWR<Tipo[]>("/tipo", fetcher)
-  return { tipos: data ?? [], isLoading, error, mutate }
-}
+const h = crearHooksRecurso<Tipo, CreateTipoPayload, UpdateTipoPayload>("/tipo", tipoApi)
 
-export function useCreateTipo() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/tipo",
-    (_key: string, { arg }: { arg: CreateTipoPayload }) => tipoApi.create(arg),
-  )
-  return { createTipo: trigger, isLoading: isMutating, error }
-}
-
-export function useUpdateTipo() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/tipo",
-    (_key: string, { arg }: { arg: { id: number } & UpdateTipoPayload }) => {
-      const { id, ...payload } = arg
-      return tipoApi.update(id, payload)
-    },
-  )
-  return { updateTipo: trigger, isLoading: isMutating, error }
-}
-
-export function useDeleteTipo() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/tipo",
-    (_key: string, { arg }: { arg: number }) => tipoApi.remove(arg),
-  )
-  return { deleteTipo: trigger, isLoading: isMutating, error }
-}
+export function useTipos() { const { data, ...r } = h.useLista(); return { tipos: data, ...r } }
+export function useCreateTipo() { const { trigger, ...r } = h.useCrear(); return { createTipo: trigger, ...r } }
+export function useUpdateTipo() { const { trigger, ...r } = h.useActualizar(); return { updateTipo: trigger, ...r } }
+export function useDeleteTipo() { const { trigger, ...r } = h.useEliminar(); return { deleteTipo: trigger, ...r } }

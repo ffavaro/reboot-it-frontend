@@ -1,36 +1,10 @@
-import useSWR from "swr"
-import useSWRMutation from "swr/mutation"
-import { fetcher, palletApi } from "@/lib/api"
+import { palletApi } from "@/lib/api"
+import { crearHooksRecurso } from "./use-recurso"
 import type { Pallet, CreatePalletPayload, UpdatePalletPayload } from "@/lib/type/pallet"
 
-export function usePallets() {
-  const { data, isLoading, error, mutate } = useSWR<Pallet[]>("/pallet", fetcher)
-  return { pallets: data ?? [], isLoading, error, mutate }
-}
+const h = crearHooksRecurso<Pallet, CreatePalletPayload, UpdatePalletPayload>("/pallet", palletApi)
 
-export function useCreatePallet() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/pallet",
-    (_key: string, { arg }: { arg: CreatePalletPayload }) => palletApi.create(arg),
-  )
-  return { createPallet: trigger, isLoading: isMutating, error }
-}
-
-export function useUpdatePallet() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/pallet",
-    (_key: string, { arg }: { arg: { id: number } & UpdatePalletPayload }) => {
-      const { id, ...payload } = arg
-      return palletApi.update(id, payload)
-    },
-  )
-  return { updatePallet: trigger, isLoading: isMutating, error }
-}
-
-export function useDeletePallet() {
-  const { trigger, isMutating, error } = useSWRMutation(
-    "/pallet",
-    (_key: string, { arg }: { arg: number }) => palletApi.remove(arg),
-  )
-  return { deletePallet: trigger, isLoading: isMutating, error }
-}
+export function usePallets() { const { data, ...r } = h.useLista(); return { pallets: data, ...r } }
+export function useCreatePallet() { const { trigger, ...r } = h.useCrear(); return { createPallet: trigger, ...r } }
+export function useUpdatePallet() { const { trigger, ...r } = h.useActualizar(); return { updatePallet: trigger, ...r } }
+export function useDeletePallet() { const { trigger, ...r } = h.useEliminar(); return { deletePallet: trigger, ...r } }
